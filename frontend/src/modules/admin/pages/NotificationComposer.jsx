@@ -1,24 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Card from '@shared/components/ui/Card';
 import Badge from '@shared/components/ui/Badge';
+import Button from '@shared/components/ui/Button';
 import PageHeader from '@shared/components/ui/PageHeader';
 import { useToast } from '@shared/components/ui/Toast';
 import {
     HiOutlinePaperAirplane,
-    HiOutlineBars3BottomLeft,
     HiOutlineLink,
     HiOutlineUsers,
     HiOutlineBuildingStorefront,
-    HiOutlineMapPin,
-    HiOutlineClock,
     HiOutlinePhoto,
     HiOutlineDevicePhoneMobile,
-    HiOutlineSparkles,
     HiOutlineTruck,
     HiOutlineBolt,
     HiOutlineExclamationCircle,
-    HiOutlineCheckCircle,
-    HiOutlineChartBar
 } from 'react-icons/hi2';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -48,8 +43,6 @@ const NotificationComposer = () => {
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState('');
     const [isSending, setIsSending] = useState(false);
-    const [location, setLocation] = useState('all');
-    const [lastOrder, setLastOrder] = useState('any');
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
     const [emojiTarget, setEmojiTarget] = useState('title'); // 'title' | 'message'
     const [emojiPickerPos, setEmojiPickerPos] = useState({ top: 0, left: 0 });
@@ -69,10 +62,10 @@ const NotificationComposer = () => {
     });
 
     const segments = [
-        { id: 'all', label: 'All Users', count: audienceStats.all, description: 'Universal Reach', icon: HiOutlineUsers, color: 'slate' },
-        { id: 'customers', label: 'Customers', count: audienceStats.customers, description: 'Customer Audience', icon: HiOutlineUsers, color: 'blue' },
-        { id: 'sellers', label: 'Sellers', count: audienceStats.sellers, description: 'Seller Audience', icon: HiOutlineBuildingStorefront, color: 'purple' },
-        { id: 'delivery', label: 'Delivery Partners', count: audienceStats.delivery, description: 'Delivery Audience', icon: HiOutlineTruck, color: 'emerald' },
+        { id: 'all', label: 'All Users', count: audienceStats.all, description: 'Universal Reach', icon: HiOutlineUsers, color: 'text-slate-600', bg: 'bg-slate-100' },
+        { id: 'customers', label: 'Customers', count: audienceStats.customers, description: 'Customer Audience', icon: HiOutlineUsers, color: 'text-primary', bg: 'bg-primary/10' },
+        { id: 'sellers', label: 'Sellers', count: audienceStats.sellers, description: 'Seller Audience', icon: HiOutlineBuildingStorefront, color: 'text-info', bg: 'bg-info/10' },
+        { id: 'delivery', label: 'Delivery Partners', count: audienceStats.delivery, description: 'Delivery Audience', icon: HiOutlineTruck, color: 'text-success', bg: 'bg-success/10' },
     ];
 
     useEffect(() => {
@@ -253,54 +246,49 @@ const NotificationComposer = () => {
     };
 
     return (
-        <div className="ds-section-spacing">
-            {/* Header */}
+        <div className="space-y-5">
             <PageHeader
                 title="Growth Signal"
                 description="Create and send targeted notifications to keep customers engaged."
-                badge={
-                    <Badge variant="warning" className="ds-badge ds-badge-warning">
-                        Push Engine
-                    </Badge>
-                }
+                badge={<Badge variant="warning">Push Engine</Badge>}
             />
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
                 {/* Composer Section */}
-                <div className="lg:col-span-2 space-y-6">
-                    <Card className="ds-card-standard">
-                        <div className="space-y-6">
+                <div className="space-y-5 lg:col-span-2">
+                    <Card className="p-5">
+                        <div className="space-y-5">
                             {/* Card Header */}
-                            <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-                                <div className="ds-stat-card-icon bg-primary/10">
-                                    <HiOutlinePaperAirplane className="ds-icon-lg text-primary -rotate-45" />
+                            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                                    <HiOutlinePaperAirplane className="h-5 w-5 -rotate-45 text-primary" />
                                 </div>
                                 <div>
-                                    <h3 className="ds-h3">Campaign Composer</h3>
-                                    <p className="ds-caption text-slate-400">Design your notification</p>
+                                    <h3 className="text-sm font-black text-slate-900">Campaign Composer</h3>
+                                    <p className="text-xs text-slate-400">Design your notification</p>
                                 </div>
                             </div>
 
                             {/* Form Fields */}
                             <div className="space-y-5">
                                 {/* Title */}
-                                <div className="space-y-2">
+                                <div className="space-y-1.5">
                                     <div className="flex items-center justify-between">
-                                        <label className="ds-label">Notification Title</label>
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Notification Title</label>
                                         <button
                                             ref={titleEmojiBtnRef}
                                             type="button"
                                             onClick={() => openEmojiPicker('title')}
                                             className={cn(
-                                                "inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl transition-all ring-1",
+                                                "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest transition-all",
                                                 emojiPickerOpen && emojiTarget === 'title'
-                                                    ? "bg-primary/10 text-primary ring-primary/20"
-                                                    : "bg-slate-50 text-slate-500 ring-slate-200 hover:bg-slate-100 hover:text-slate-700"
+                                                    ? "border-primary/20 bg-primary/10 text-primary"
+                                                    : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                                             )}
                                             aria-label="Add emoji to title"
                                             title="Add emoji"
                                         >
-                                            <Smile className="h-4 w-4" />
+                                            <Smile className="h-3.5 w-3.5" />
                                             Emoji
                                         </button>
                                     </div>
@@ -310,30 +298,30 @@ const NotificationComposer = () => {
                                         onChange={(e) => setTitle(e.target.value)}
                                         onFocus={() => setEmojiTarget('title')}
                                         placeholder="E.g. Hot Deals are back! 🔥"
-                                        className="ds-input w-full pr-12"
+                                        className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-sm font-semibold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                                         maxLength={50}
                                     />
-                                    <p className="ds-caption text-slate-400 text-right">{title.length}/50</p>
+                                    <p className="text-right text-[10px] text-slate-400">{title.length}/50</p>
                                 </div>
 
                                 {/* Message */}
-                                <div className="space-y-2">
+                                <div className="space-y-1.5">
                                     <div className="flex items-center justify-between">
-                                        <label className="ds-label">Broadcast Message</label>
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Broadcast Message</label>
                                         <button
                                             ref={messageEmojiBtnRef}
                                             type="button"
                                             onClick={() => openEmojiPicker('message')}
                                             className={cn(
-                                                "inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl transition-all ring-1",
+                                                "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest transition-all",
                                                 emojiPickerOpen && emojiTarget === 'message'
-                                                    ? "bg-primary/10 text-primary ring-primary/20"
-                                                    : "bg-slate-50 text-slate-500 ring-slate-200 hover:bg-slate-100 hover:text-slate-700"
+                                                    ? "border-primary/20 bg-primary/10 text-primary"
+                                                    : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                                             )}
                                             aria-label="Add emoji to message"
                                             title="Add emoji"
                                         >
-                                            <Smile className="h-4 w-4" />
+                                            <Smile className="h-3.5 w-3.5" />
                                             Emoji
                                         </button>
                                     </div>
@@ -344,29 +332,28 @@ const NotificationComposer = () => {
                                         onChange={(e) => setMessage(e.target.value)}
                                         onFocus={() => setEmojiTarget('message')}
                                         placeholder="Enter your push notification body text..."
-                                        className="ds-textarea w-full resize-none pr-12"
+                                        className="w-full resize-none rounded-md border border-slate-200 bg-white px-3.5 py-3 text-sm font-medium outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                                         maxLength={200}
                                     />
-                                    <p className="ds-caption text-slate-400 text-right">{message.length}/200</p>
+                                    <p className="text-right text-[10px] text-slate-400">{message.length}/200</p>
                                 </div>
 
                                 {/* Deep Link & Image */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="ds-label">Deep Link (Optional)</label>
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Deep Link (Optional)</label>
                                         <div className="relative">
-                                            <HiOutlineLink className="absolute left-4 top-1/2 -translate-y-1/2 ds-icon-sm text-slate-400" />
+                                            <HiOutlineLink className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                                             <input
                                                 value={deepLink}
                                                 onChange={(e) => setDeepLink(e.target.value)}
-                                                className="ds-input w-full"
-                                                style={{ paddingLeft: '2.5rem' }}
+                                                className="h-10 w-full rounded-md border border-slate-200 bg-white pl-10 pr-3.5 text-sm font-semibold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                                                 placeholder="e.g. /deals/category"
                                             />
                                         </div>
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="ds-label">Image (Optional)</label>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Image (Optional)</label>
                                         <input
                                             ref={imageInputRef}
                                             type="file"
@@ -378,10 +365,10 @@ const NotificationComposer = () => {
                                         <button
                                             type="button"
                                             onClick={() => imageInputRef.current?.click?.()}
-                                            className="ds-input w-full flex items-center gap-2 justify-start text-left hover:bg-slate-50 transition-colors"
+                                            className="flex h-10 w-full items-center justify-start gap-2 rounded-md border border-slate-200 bg-white px-3.5 text-left transition-colors hover:bg-slate-50"
                                         >
-                                            <HiOutlinePhoto className="ds-icon-sm text-slate-400" />
-                                            <span className="text-xs font-bold text-slate-600 truncate">
+                                            <HiOutlinePhoto className="h-4 w-4 shrink-0 text-slate-400" />
+                                            <span className="truncate text-xs font-bold text-slate-600">
                                                 {imageFile?.name || 'Choose an image file...'}
                                             </span>
                                         </button>
@@ -391,7 +378,7 @@ const NotificationComposer = () => {
                                                 <img
                                                     src={imagePreview}
                                                     alt="Selected notification"
-                                                    className="h-10 w-10 rounded-xl object-cover ring-1 ring-slate-200"
+                                                    className="h-10 w-10 rounded-lg border border-slate-200 object-cover"
                                                 />
                                                 <button
                                                     type="button"
@@ -399,7 +386,7 @@ const NotificationComposer = () => {
                                                         setImageFile(null);
                                                         setImagePreview('');
                                                     }}
-                                                    className="text-[10px] font-black uppercase tracking-widest text-rose-600 hover:text-rose-700"
+                                                    className="text-[10px] font-bold uppercase tracking-widest text-danger hover:opacity-80"
                                                 >
                                                     Remove
                                                 </button>
@@ -410,33 +397,35 @@ const NotificationComposer = () => {
                             </div>
 
                             {/* Send Button */}
-                            <button
+                            <Button
+                                className="w-full"
+                                size="lg"
                                 onClick={handleSend}
                                 disabled={!title || !message || isSending}
-                                className="ds-btn ds-btn-lg w-full bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                isLoading={isSending}
                             >
-                                <HiOutlineBolt className="ds-icon-md text-amber-400" />
-                                {isSending ? 'SENDING...' : 'BLAST SIGNAL'}
-                            </button>
+                                {!isSending && <HiOutlineBolt className="h-4 w-4" />}
+                                {isSending ? 'Sending...' : 'Blast Signal'}
+                            </Button>
                         </div>
                     </Card>
 
                     {emojiPickerOpen && (
                         <div
                             ref={emojiPopoverRef}
-                            className="fixed z-[999999] w-[280px] bg-white rounded-2xl shadow-2xl border border-slate-200 p-3"
+                            className="fixed z-[999999] w-[280px] rounded-xl border border-slate-200 bg-white p-3 shadow-2xl"
                             style={{ top: emojiPickerPos.top, left: emojiPickerPos.left }}
                             role="dialog"
                             aria-label="Emoji picker"
                         >
-                            <div className="flex items-center justify-between mb-2">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                            <div className="mb-2 flex items-center justify-between">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                                     Add Emoji
                                 </p>
                                 <button
                                     type="button"
                                     onClick={closeEmojiPicker}
-                                    className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900"
+                                    className="text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-slate-900"
                                 >
                                     Close
                                 </button>
@@ -447,7 +436,7 @@ const NotificationComposer = () => {
                                         key={emoji}
                                         type="button"
                                         onClick={() => insertEmoji(emoji)}
-                                        className="h-8 w-8 rounded-xl hover:bg-slate-50 transition-colors text-lg flex items-center justify-center"
+                                        className="flex h-8 w-8 items-center justify-center rounded-lg text-lg transition-colors hover:bg-slate-50"
                                         aria-label={`Insert ${emoji}`}
                                         title={`Insert ${emoji}`}
                                     >
@@ -462,12 +451,12 @@ const NotificationComposer = () => {
                     )}
 
                     {/* Tips Card */}
-                    <Card className="ds-card-compact bg-brand-50 border-brand-100">
+                    <Card className="border-primary/20 bg-primary/5 p-4">
                         <div className="flex gap-3">
-                            <HiOutlineExclamationCircle className="ds-icon-lg text-brand-600 flex-shrink-0" />
+                            <HiOutlineExclamationCircle className="h-5 w-5 shrink-0 text-primary" />
                             <div>
-                                <h4 className="ds-h4 text-brand-900 mb-1">Best Practices</h4>
-                                <ul className="ds-body text-brand-700 space-y-1">
+                                <h4 className="mb-1 text-sm font-black text-primary">Best Practices</h4>
+                                <ul className="space-y-1 text-xs text-primary/80">
                                     <li>• Keep titles under 40 characters for better visibility</li>
                                     <li>• Use emojis sparingly to grab attention</li>
                                     <li>• Test with different audience segments</li>
@@ -479,47 +468,45 @@ const NotificationComposer = () => {
                 </div>
 
                 {/* Sidebar - Preview & Audience */}
-                <div className="lg:col-span-1 space-y-6">
+                <div className="space-y-5 lg:col-span-1">
                     {/* Real-time Preview */}
                     <div className="space-y-3">
-                        <h3 className="ds-h4 px-1">Protocol Preview</h3>
-                        <Card className="ds-card-standard bg-gradient-to-br from-slate-900 to-slate-800 border-none">
+                        <h3 className="px-1 text-sm font-bold text-slate-900">Live Preview</h3>
+                        <Card className="border-none bg-gradient-to-br from-slate-900 to-slate-800 p-5">
                             <div className="space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <span className="ds-caption text-slate-400">Live Preview</span>
-                                    <Badge variant="success" className="ds-badge ds-badge-success text-[8px]">
-                                        LOCKED
-                                    </Badge>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs text-slate-400">Live Preview</span>
+                                    <Badge variant="success">Locked</Badge>
                                 </div>
 
                                 {/* iOS Style Notification */}
                                 <motion.div
                                     initial={{ opacity: 0, y: -10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className="bg-white/10 backdrop-blur-xl p-4 rounded-xl border border-white/10 space-y-3"
+                                    className="space-y-3 rounded-xl border border-white/10 bg-white/10 p-4 backdrop-blur-xl"
                                 >
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
-                                            <div className="h-5 w-5 bg-primary rounded-lg flex items-center justify-center">
+                                            <div className="flex h-5 w-5 items-center justify-center rounded-lg bg-primary">
                                                 <HiOutlineDevicePhoneMobile className="h-3 w-3 text-white" />
                                             </div>
-                                            <span className="text-[10px] font-bold text-white uppercase tracking-wider">{appName}</span>
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-white">{appName}</span>
                                         </div>
                                         <span className="text-[10px] font-semibold text-white/90">Just Now</span>
                                     </div>
                                     <div>
-                                        <h4 className="text-sm font-bold text-white mb-1.5 truncate">
+                                        <h4 className="mb-1.5 truncate text-sm font-bold text-white">
                                             {title || 'Hot Deals are back! 🔥'}
                                         </h4>
                                         {imagePreview ? (
                                             <img
                                                 src={imagePreview}
                                                 alt="Notification attachment"
-                                                className="w-full h-32 object-cover rounded-xl border border-white/10 mb-2"
+                                                className="mb-2 h-32 w-full rounded-lg border border-white/10 object-cover"
                                                 loading="lazy"
                                             />
                                         ) : null}
-                                        <p className="text-xs font-medium text-white/95 line-clamp-3 leading-relaxed">
+                                        <p className="line-clamp-3 text-xs font-medium leading-relaxed text-white/95">
                                             {message || 'Type your message to see it reflect here in real-time...'}
                                         </p>
                                     </div>
@@ -530,42 +517,39 @@ const NotificationComposer = () => {
 
                     {/* Audience Segmentation */}
                     <div className="space-y-3">
-                        <h3 className="ds-h4 px-1">Audience Segmentation</h3>
+                        <h3 className="px-1 text-sm font-bold text-slate-900">Audience Segmentation</h3>
                         <div className="space-y-2">
                             {segments.map((seg) => (
                                 <button
                                     key={seg.id}
                                     onClick={() => setSelectedSegment(seg.id)}
                                     className={cn(
-                                        "w-full p-4 rounded-xl text-left transition-all",
+                                        "w-full rounded-xl p-3.5 text-left transition-all",
                                         selectedSegment === seg.id
-                                            ? "bg-slate-900 text-white shadow-lg ring-2 ring-slate-900"
-                                            : "bg-white text-slate-700 ring-1 ring-slate-200 hover:ring-slate-300"
+                                            ? "bg-primary text-white shadow-sm"
+                                            : "border border-slate-200 bg-white text-slate-700 hover:border-slate-300"
                                     )}
                                 >
                                     <div className="flex items-start gap-3">
                                         <div className={cn(
-                                            "p-2 rounded-lg flex-shrink-0",
-                                            selectedSegment === seg.id ? "bg-white/10" : `bg-${seg.color}-50`
+                                            "shrink-0 rounded-lg p-2",
+                                            selectedSegment === seg.id ? "bg-white/15" : seg.bg
                                         )}>
                                             <seg.icon className={cn(
-                                                "ds-icon-md",
-                                                selectedSegment === seg.id ? "text-white" : `text-${seg.color}-600`
+                                                "h-4.5 w-4.5",
+                                                selectedSegment === seg.id ? "text-white" : seg.color
                                             )} />
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center justify-between mb-1">
-                                                <h4 className="ds-body font-bold truncate">{seg.label}</h4>
-                                                <span className={cn(
-                                                    "ds-body font-bold",
-                                                    selectedSegment === seg.id ? "text-primary" : "text-slate-900"
-                                                )}>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="mb-0.5 flex items-center justify-between">
+                                                <h4 className="truncate text-sm font-bold">{seg.label}</h4>
+                                                <span className="text-sm font-bold">
                                                     {Number(seg.count || 0).toLocaleString('en-IN')}
                                                 </span>
                                             </div>
                                             <p className={cn(
-                                                "ds-caption",
-                                                selectedSegment === seg.id ? "text-white/60" : "text-slate-400"
+                                                "text-[10px]",
+                                                selectedSegment === seg.id ? "text-white/70" : "text-slate-400"
                                             )}>
                                                 {seg.description}
                                             </p>

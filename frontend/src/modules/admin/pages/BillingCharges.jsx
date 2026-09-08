@@ -1,6 +1,8 @@
 // Premium Billing & Financial Configuration System
 import React, { useState, useEffect } from 'react';
 import Card from '@shared/components/ui/Card';
+import Button from '@shared/components/ui/Button';
+import PageHeader from '@shared/components/ui/PageHeader';
 import {
     RotateCcw,
     Save,
@@ -105,186 +107,169 @@ const BillingCharges = () => {
         setConfig(prev => ({ ...prev, [field]: parsed }));
     };
 
+    const labelClass = "flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400";
+    const inputClass = "h-12 w-full rounded-md border border-slate-200 bg-white pl-10 pr-4 text-base font-black text-slate-900 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20";
+
     return (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
-            {/* Header Section */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-1">
-                <div>
-                    <h1 className="admin-h1 flex items-center gap-3">
+        <div className="space-y-5">
+            <PageHeader
+                title={
+                    <span className="flex items-center gap-2">
                         Fees & Charges
-                        <div className="p-2 bg-red-100 rounded-xl">
-                            <RotateCcw className="h-5 w-5 text-red-600" />
+                        <div className="rounded-lg bg-danger/10 p-1.5">
+                            <RotateCcw className="h-4 w-4 text-danger" />
                         </div>
-                    </h1>
-                    <p className="admin-description mt-1">Set up delivery fees, platform charges, and free delivery limits.</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button className="flex items-center gap-2 px-5 py-3 bg-white ring-1 ring-slate-200 text-slate-700 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm">
-                        <History className="h-4 w-4 text-slate-400" />
-                        AUDIT LOGS
-                    </button>
-                    <button
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        className={cn(
-                            "flex items-center gap-2 px-6 py-3 bg-black  text-primary-foreground rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl shadow-brand-100 active:scale-95",
-                            isSaving ? "opacity-70 cursor-wait" : "hover:bg-brand-700"
-                        )}
-                    >
-                        {isSaving ? (
-                            <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    </span>
+                }
+                description="Set up delivery fees, platform charges, and free delivery limits."
+                actions={
+                    <>
+                        <Button variant="outline">
+                            <History className="h-4 w-4" />
+                            Audit Logs
+                        </Button>
+                        <Button onClick={handleSave} isLoading={isSaving}>
+                            {!isSaving && <Save className="h-4 w-4" />}
+                            {isSaving ? 'Saving...' : 'Save Changes'}
+                        </Button>
+                    </>
+                }
+            />
+
+            <div className="mx-auto max-w-4xl space-y-5 text-left">
+                {/* General Financial Thresholds */}
+                <Card className="overflow-hidden p-0">
+                    <div className="border-b border-slate-100 bg-slate-50/30 p-5">
+                        <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-slate-900">
+                            <Settings className="h-4 w-4 text-slate-400" />
+                            Main Charges
+                        </h3>
+                    </div>
+                    <div className="grid grid-cols-1 gap-6 p-6 md:grid-cols-2">
+                        <div className="space-y-1.5">
+                            <label className={labelClass}>
+                                Platform/Handling Fee (₹)
+                                <Info className="h-3 w-3 opacity-50" />
+                            </label>
+                            <div className="relative">
+                                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-300">₹</span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={config.platformFee}
+                                    onChange={(e) => handleInputChange('platformFee', e.target.value)}
+                                    className={inputClass}
+                                />
+                            </div>
+                            <p className="text-[10px] font-medium italic text-slate-400">Fee added to every order.</p>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className={labelClass}>
+                                Free Delivery Minimum (₹)
+                                <Zap className="h-3 w-3 text-warning" />
+                            </label>
+                            <div className="relative">
+                                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-300">₹</span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={config.freeDeliveryThreshold}
+                                    onChange={(e) => handleInputChange('freeDeliveryThreshold', e.target.value)}
+                                    className={inputClass}
+                                />
+                            </div>
+                            <p className="text-[10px] font-medium italic text-slate-400">Orders above this amount will have free delivery.</p>
+                        </div>
+                    </div>
+                </Card>
+
+                {/* Delivery Fee Settings */}
+                <Card className="overflow-hidden p-0">
+                    <div className="flex flex-col justify-between gap-4 border-b border-slate-100 bg-slate-50/30 p-5 md:flex-row md:items-center">
+                        <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-slate-900">
+                            <Truck className="h-4 w-4 text-primary" />
+                            Delivery Fee Settings
+                        </h3>
+                        <div className="flex shrink-0 rounded-xl bg-slate-100 p-1">
+                            <button
+                                onClick={() => setDeliveryMode('fixed')}
+                                className={cn("rounded-lg px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all", deliveryMode === 'fixed' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400")}
+                            >Fixed Price</button>
+                            <button
+                                onClick={() => setDeliveryMode('distance')}
+                                className={cn("rounded-lg px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all", deliveryMode === 'distance' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400")}
+                            >Distance Based</button>
+                        </div>
+                    </div>
+                    <div className="p-6">
+                        {deliveryMode === 'distance' ? (
+                            <>
+                                <div className="mb-6 flex gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                                    <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                                    <div className="space-y-1">
+                                        <p className="text-[11px] font-bold uppercase tracking-tight text-primary">Location Accuracy</p>
+                                        <p className="text-[10px] font-medium italic leading-relaxed text-primary/80">Requires Google Maps API. Without it, the system will use straight-line distance.</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Base Fee (₹)</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={config.baseCharge}
+                                            onChange={(e) => handleInputChange('baseCharge', e.target.value)}
+                                            className="h-11 w-full rounded-md border border-slate-200 bg-white px-3.5 text-sm font-black text-slate-900 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                        />
+                                        <p className="text-[10px] font-medium italic text-slate-400">Customer-facing minimum fee for first X kms.</p>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Free Delivery Upto (km)</label>
+                                        <div className="relative">
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.1"
+                                                value={config.baseDistance}
+                                                onChange={(e) => handleInputChange('baseDistance', e.target.value)}
+                                                className="h-11 w-full rounded-md border border-slate-200 bg-white px-3.5 text-sm font-black text-slate-900 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                            />
+                                            <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase text-slate-300">km</span>
+                                        </div>
+                                        <p className="text-[10px] font-medium italic text-slate-400">Radius covered by the base charge.</p>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Per Km Fee (₹)</label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={config.extraPerKm}
+                                            onChange={(e) => handleInputChange('extraPerKm', e.target.value)}
+                                            className="h-11 w-full rounded-md border border-slate-200 bg-white px-3.5 text-sm font-black text-slate-900 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                        />
+                                        <p className="text-[10px] font-medium italic text-slate-400">Charged for every km beyond base radius.</p>
+                                    </div>
+                                </div>
+                            </>
                         ) : (
-                            <Save className="h-4 w-4" />
+                            <div className="space-y-2">
+                                <label className="text-base font-bold text-slate-900">Fixed Delivery Charge (₹)</label>
+                                <div className="relative max-w-md">
+                                    <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-300">₹</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={config.fixedCharge}
+                                        onChange={(e) => handleInputChange('fixedCharge', e.target.value)}
+                                        className="h-12 w-full rounded-md border border-slate-200 bg-white pl-10 pr-4 text-base font-semibold text-slate-900 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                    />
+                                </div>
+                                <p className="text-sm font-medium text-slate-400">Flat fee charged for all deliveries below threshold.</p>
+                            </div>
                         )}
-                        {isSaving ? 'Saving...' : 'Save Changes'}
-                    </button>
-                </div>
-            </div>
-
-
-            <div className="max-w-4xl mx-auto text-left">
-                {/* Main Configuration Core */}
-                <div className="space-y-8">
-                    {/* General Financial Thresholds */}
-                    <Card className="border-none shadow-xl ring-1 ring-slate-100 bg-white rounded-[32px] overflow-hidden">
-                        <div className="p-6 border-b border-slate-50 bg-slate-50/30">
-                            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-3">
-                                <Settings className="h-4 w-4 text-slate-400" />
-                                Main Charges
-                            </h3>
-                        </div>
-                        <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-3">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                    Platform/Handling Fee (₹)
-                                    <Info className="h-3 w-3 opacity-50" />
-                                </label>
-                                <div className="relative group">
-                                    <span className="absolute left-5 top-1/2 -translate-y-1/2 font-bold text-slate-300 group-focus-within:text-red-500 transition-colors pointer-events-none">₹</span>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={config.platformFee}
-                                        onChange={(e) => handleInputChange('platformFee', e.target.value)}
-                                        className="w-full pl-10 pr-5 py-4 bg-slate-50 border-none rounded-2xl text-base font-black text-slate-900 outline-none focus:ring-2 focus:ring-red-500/10 transition-all"
-                                    />
-                                </div>
-                                <p className="text-[10px] font-bold text-slate-400 italic">Fee added to every order.</p>
-                            </div>
-                            <div className="space-y-3">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                    Free Delivery Minimum (₹)
-                                    <Zap className="h-3 w-3 text-amber-500" />
-                                </label>
-                                <div className="relative group">
-                                    <span className="absolute left-5 top-1/2 -translate-y-1/2 font-bold text-slate-300 group-focus-within:text-red-500 transition-colors pointer-events-none">₹</span>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={config.freeDeliveryThreshold}
-                                        onChange={(e) => handleInputChange('freeDeliveryThreshold', e.target.value)}
-                                        className="w-full pl-10 pr-5 py-4 bg-slate-50 border-none rounded-2xl text-base font-black text-slate-900 outline-none focus:ring-2 focus:ring-red-500/10 transition-all"
-                                    />
-                                </div>
-                                <p className="text-[10px] font-bold text-slate-400 italic">Orders above this amount will have free delivery.</p>
-                            </div>
-                        </div>
-                    </Card>
-
-                    {/* Delivery Fee Settings */}
-                    <Card className="border-none shadow-xl ring-1 ring-slate-100 bg-white rounded-[32px] overflow-hidden">
-                        <div className="p-6 border-b border-slate-50 bg-slate-50/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-3">
-                                <Truck className="h-4 w-4 text-brand-500" />
-                                Delivery Fee Settings
-                            </h3>
-                            <div className="flex bg-slate-100 p-1 rounded-xl shrink-0">
-                                <button
-                                    onClick={() => setDeliveryMode('fixed')}
-                                    className={cn("px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all", deliveryMode === 'fixed' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400")}
-                                >Fixed Price</button>
-                                <button
-                                    onClick={() => setDeliveryMode('distance')}
-                                    className={cn("px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all", deliveryMode === 'distance' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400")}
-                                >Distance Based</button>
-                            </div>
-                        </div>
-                        <div className="p-8">
-                            {deliveryMode === 'distance' ? (
-                                <>
-                                    <div className="bg-brand-50 border border-brand-100 rounded-2xl p-4 mb-8 flex gap-4">
-                                        <MapPin className="h-5 w-5 text-brand-500 shrink-0 mt-0.5" />
-                                        <div className="space-y-1">
-                                            <p className="text-[11px] font-black text-brand-900 uppercase tracking-tight">Location Accuracy</p>
-                                            <p className="text-[10px] font-bold text-brand-700 leading-relaxed italic">Requires Google Maps API. Without it, the system will use straight-line distance.</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                        <div className="space-y-3">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Base Fee (₹)</label>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                value={config.baseCharge}
-                                                onChange={(e) => handleInputChange('baseCharge', e.target.value)}
-                                                className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-black text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
-                                            />
-                                            <p className="text-[10px] font-bold text-slate-400 italic">Customer-facing minimum fee for first X kms.</p>
-                                        </div>
-                                        <div className="space-y-3">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Free Delivery Upto (km)</label>
-                                            <div className="relative group">
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.1"
-                                                    value={config.baseDistance}
-                                                    onChange={(e) => handleInputChange('baseDistance', e.target.value)}
-                                                    className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-black text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
-                                                />
-                                                <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300 uppercase pointer-events-none">km</span>
-                                            </div>
-                                            <p className="text-[10px] font-bold text-slate-400 italic">Radius covered by the base charge.</p>
-                                        </div>
-                                        <div className="space-y-3">
-                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Per Km Fee (₹)</label>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                value={config.extraPerKm}
-                                                onChange={(e) => handleInputChange('extraPerKm', e.target.value)}
-                                                className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-black text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
-                                            />
-                                            <p className="text-[10px] font-bold text-slate-400 italic">Charged for every km beyond base radius.</p>
-                                        </div>
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="space-y-6">
-                                    <div className="space-y-3">
-                                        <label className="text-base font-bold text-slate-900">Fixed Delivery Charge (₹)</label>
-                                        <div className="relative group max-w-md">
-                                            <span className="absolute left-5 top-1/2 -translate-y-1/2 font-bold text-slate-300 group-focus-within:text-slate-900 transition-colors pointer-events-none">₹</span>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                value={config.fixedCharge}
-                                                onChange={(e) => handleInputChange('fixedCharge', e.target.value)}
-                                                className="w-full pl-10 pr-5 py-4 bg-white ring-1 ring-slate-200 border-none rounded-xl text-base font-medium text-slate-900 outline-none focus:ring-2 focus:ring-slate-900/10 transition-all"
-                                            />
-                                        </div>
-                                        <p className="text-sm font-medium text-slate-400">Flat fee charged for all deliveries below threshold.</p>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="mt-8 pt-6 border-t border-dashed border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-8">
-                                {/* Obsolete Return Delivery Commission field removed */}
-                            </div>
-                        </div>
-                    </Card>
-                </div>
+                    </div>
+                </Card>
             </div>
         </div>
     );

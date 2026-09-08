@@ -2,11 +2,15 @@ import React from 'react';
 
 const EmptyState = ({ icon, title, description, action }) => {
     return (
-        <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-            {icon && <div className="mb-4 text-gray-300">{icon}</div>}
-            <h3 className="text-lg font-semibold text-gray-900 leading-7">{title}</h3>
-            <p className="mt-2 text-sm text-gray-500 max-w-xs mx-auto">{description}</p>
-            {action && <div className="mt-6">{action}</div>}
+        <div className="flex flex-col items-center justify-center gap-3 px-4 py-14 text-center">
+            {icon && (
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 text-slate-400">
+                    {icon}
+                </div>
+            )}
+            <h3 className="text-base font-bold text-slate-900">{title}</h3>
+            <p className="max-w-md text-sm text-slate-500">{description}</p>
+            {action && <div className="mt-2">{action}</div>}
         </div>
     );
 };

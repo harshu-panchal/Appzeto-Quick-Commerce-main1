@@ -53,6 +53,16 @@ const DashboardLayout = ({ children, navItems, title }) => {
     /** Total seconds in this acceptance window (for progress bar), set when modal opens */
     const acceptWindowTotalRef = useRef(60);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+        try { return localStorage.getItem('dashboard_sidebar_collapsed') === '1'; } catch { return false; }
+    });
+    const toggleSidebarCollapsed = () => {
+        setIsSidebarCollapsed((prev) => {
+            const next = !prev;
+            try { localStorage.setItem('dashboard_sidebar_collapsed', next ? '1' : '0'); } catch { /* ignore */ }
+            return next;
+        });
+    };
     const [returnDropOtpAlert, setReturnDropOtpAlert] = useState(null); // { orderId, otp, expiresAt }
     const { user, logout, role } = useAuth();
     const location = useLocation();
@@ -389,21 +399,29 @@ const DashboardLayout = ({ children, navItems, title }) => {
         }
     };
 
+    const isAdminOrSeller = role === "admin" || role === "seller";
+
     return (
-        <div className="min-h-screen mesh-gradient-light relative">
-            {/* Background Blobs for depth */}
-            <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px] -z-10 animate-pulse pointer-events-none"></div>
-            <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-brand-500/5 rounded-full blur-[120px] -z-10 animate-pulse pointer-events-none" style={{ animationDelay: '2s' }}></div>
+        <div className={cn("min-h-screen relative", isAdminOrSeller ? "bg-slate-50" : "mesh-gradient-light")}>
+            {!isAdminOrSeller && (
+                <>
+                    {/* Background Blobs for depth (customer/delivery only — admin/seller use the flat design-system background) */}
+                    <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px] -z-10 animate-pulse pointer-events-none"></div>
+                    <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-brand-500/5 rounded-full blur-[120px] -z-10 animate-pulse pointer-events-none" style={{ animationDelay: '2s' }}></div>
+                </>
+            )}
 
             <Sidebar
                 items={navItems}
                 title={title}
                 isOpen={isSidebarOpen}
                 onClose={() => setIsSidebarOpen(false)}
+                collapsed={isAdminOrSeller ? isSidebarCollapsed : false}
+                onToggleCollapse={isAdminOrSeller ? toggleSidebarCollapsed : undefined}
             />
-            <div className={cn("transition-all duration-300", (role === "admin" || role === "seller") ? "pl-0 md:pl-72" : "pl-72")}>
-                <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
-                <main className={cn("p-4 md:p-6 min-h-screen", (role === "admin" || role === "seller") ? "pt-20 md:pt-24 pb-24 md:pb-6" : "pt-20")}>
+            <div className={cn("transition-all duration-300", isAdminOrSeller ? (isSidebarCollapsed ? "pl-0 md:pl-20" : "pl-0 md:pl-64") : "pl-72")}>
+                <Topbar onMenuClick={() => setIsSidebarOpen(true)} sidebarCollapsed={isAdminOrSeller ? isSidebarCollapsed : false} />
+                <main className={cn("p-4 md:p-5 min-h-screen", isAdminOrSeller ? "pt-[68px] md:pt-20 pb-20 md:pb-5" : "pt-20")}>
                     <div className="w-full pb-12">
                         <SellerOrdersContext.Provider
                             value={{
@@ -449,7 +467,7 @@ const DashboardLayout = ({ children, navItems, title }) => {
                                     <div
                                         className={cn(
                                             "h-full transition-[width] duration-1000 ease-linear",
-                                            timeLeft < 15 ? "bg-rose-500" : "bg-primary",
+                                            timeLeft < 15 ? "bg-danger" : "bg-primary",
                                         )}
                                         style={{
                                             width: `${acceptWindowTotalRef.current > 0 ? (timeLeft / acceptWindowTotalRef.current) * 100 : 0}%`,
@@ -458,8 +476,8 @@ const DashboardLayout = ({ children, navItems, title }) => {
                                 </div>
 
                                 <div className="flex items-center gap-4 text-sm font-bold mb-8">
-                                    <Clock className={cn("h-4 w-4", timeLeft < 15 ? "text-rose-500 animate-pulse" : "text-slate-600")} />
-                                    <span className={timeLeft < 15 ? "text-rose-500" : "text-slate-600"}>
+                                    <Clock className={cn("h-4 w-4", timeLeft < 15 ? "text-danger animate-pulse" : "text-slate-600")} />
+                                    <span className={timeLeft < 15 ? "text-danger" : "text-slate-600"}>
                                         Accept within {timeLeft} {timeLeft === 1 ? "second" : "seconds"}
                                     </span>
                                 </div>

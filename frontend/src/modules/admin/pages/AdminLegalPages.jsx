@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { FileText, Loader2, Save, ScrollText } from "lucide-react";
 import Card from "@shared/components/ui/Card";
+import Button from "@shared/components/ui/Button";
+import PageHeader from "@shared/components/ui/PageHeader";
 import { cn } from "@/lib/utils";
 import { useToast } from "@shared/components/ui/Toast";
 import { adminApi } from "../services/adminApi";
@@ -78,44 +80,34 @@ const AdminLegalPages = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-5xl">
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-            <ScrollText className="text-primary" size={28} />
+    <div className="max-w-5xl space-y-5">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            <ScrollText className="text-primary" size={22} />
             Legal Pages
-          </h1>
-          <p className="text-sm font-medium text-slate-500 mt-1">
-            Edit Terms, Privacy, About, and Support instructions for each app
-            audience.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving || loading}
-          className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-slate-900 text-white text-xs font-black uppercase tracking-widest hover:bg-slate-800 disabled:opacity-50 transition-colors"
-        >
-          {saving ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : (
-            <Save size={16} />
-          )}
-          Save
-        </button>
-      </div>
+          </span>
+        }
+        description="Edit Terms, Privacy, About, and Support instructions for each app audience."
+        actions={
+          <Button onClick={handleSave} disabled={saving || loading} isLoading={saving}>
+            {!saving && <Save size={16} />}
+            Save
+          </Button>
+        }
+      />
 
-      <Card className="border-none shadow-xl ring-1 ring-slate-100 bg-white rounded-2xl overflow-hidden">
-        <div className="p-4 border-b border-slate-50 bg-slate-50/40 flex flex-wrap gap-2">
+      <Card className="overflow-hidden p-0">
+        <div className="flex flex-wrap gap-2 border-b border-slate-100 bg-slate-50/40 p-4">
           {AUDIENCES.map((a) => (
             <button
               key={a.id}
               type="button"
               onClick={() => setAudience(a.id)}
               className={cn(
-                "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+                "rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-widest transition-all",
                 audience === a.id
-                  ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
+                  ? "border border-slate-200 bg-white text-slate-900 shadow-sm"
                   : "text-slate-400 hover:text-slate-600",
               )}
             >
@@ -124,16 +116,16 @@ const AdminLegalPages = () => {
           ))}
         </div>
 
-        <div className="px-4 pt-4 flex flex-wrap gap-2 border-b border-slate-50">
+        <div className="flex flex-wrap gap-2 border-b border-slate-100 px-4 pt-4">
           {PAGE_TYPES.map((p) => (
             <button
               key={p.id}
               type="button"
               onClick={() => setPageType(p.id)}
               className={cn(
-                "px-4 py-2.5 rounded-t-xl text-xs font-black uppercase tracking-widest border-b-2 transition-all",
+                "rounded-t-lg border-b-2 px-4 py-2.5 text-xs font-bold uppercase tracking-widest transition-all",
                 pageType === p.id
-                  ? "border-primary text-primary bg-primary/5"
+                  ? "border-primary bg-primary/5 text-primary"
                   : "border-transparent text-slate-400 hover:text-slate-600",
               )}
             >
@@ -142,36 +134,36 @@ const AdminLegalPages = () => {
           ))}
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="space-y-5 p-6">
           {loading ? (
-            <div className="py-16 flex justify-center">
-              <Loader2 className="animate-spin text-slate-400" size={28} />
+            <div className="flex justify-center py-16">
+              <Loader2 className="animate-spin text-slate-400" size={24} />
             </div>
           ) : (
             <>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                   Page title
                 </label>
                 <div className="relative">
                   <FileText
                     size={16}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                   />
                   <input
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     maxLength={200}
-                    className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10"
+                    className="h-11 w-full rounded-md border border-slate-200 bg-white pl-10 pr-3.5 text-sm font-semibold text-slate-900 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                     placeholder="e.g. Terms & Conditions"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                     Content
                   </label>
                   {updatedAt && (
@@ -185,7 +177,7 @@ const AdminLegalPages = () => {
                   )}
                 </div>
                 {pageType === "support" && (
-                  <p className="text-xs font-medium text-slate-500 mb-2">
+                  <p className="mb-2 text-xs font-medium text-slate-500">
                     Support content is shown as instructions on Help &amp;
                     Support screens. FAQs are managed separately under FAQs.
                   </p>

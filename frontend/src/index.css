@@ -5,8 +5,8 @@
 
 :root {
   /* Brand colors: overridden at runtime by SettingsContext from API (settings.primaryColor, settings.secondaryColor) */
-  --primary: #0284c7; /* Default brand blue */
-  --primary-color: #0284c7;
+  --primary: #2563eb; /* Default brand blue — admin/seller design system default; still overridable per-tenant via Settings */
+  --primary-color: #2563eb;
   
   /* Dynamic Brand Shades based on primary */
   --brand-50: color-mix(in srgb, var(--primary), white 95%);
@@ -119,6 +119,25 @@ html.customer-no-scrollbar body::-webkit-scrollbar {
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+
+  /*
+   * Admin/Seller design-system status + text tokens (2026-09 redesign).
+   * Additive only — none of these names existed before, so they can't
+   * collide with the shadcn tokens above that customer/delivery also use.
+   * "secondary" (#64748B) is intentionally NOT aliased here: it's an exact
+   * match for Tailwind's stock `slate-500`, so admin/seller components use
+   * `slate-500` directly instead of introducing a token that could be
+   * confused with the pre-existing shadcn --secondary (a different color,
+   * used for shadcn's default secondary button fill across the whole app).
+   */
+  --color-success: #16a34a;
+  --color-warning: #f59e0b;
+  --color-danger: #dc2626;
+  --color-info: #0ea5e9;
+  --color-surface: #ffffff;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

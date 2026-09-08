@@ -521,7 +521,7 @@ const Auth = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#fcfaff] p-6 font-['Outfit'] overflow-hidden relative">
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6 relative">
       {/* Elegant Ambient Background */}
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-10%] left-[-5%] w-[60%] h-[60%] bg-slate-100/50 rounded-full blur-[120px]" />
@@ -635,7 +635,7 @@ const Auth = () => {
                   {forgotPasswordStep === 1 && (
                     <form onSubmit={handleSendResetOtp} className="space-y-4">
                       <div className="relative group">
-                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-violet-600 transition-colors">
+                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors">
                           <User size={18} />
                         </div>
                         <input
@@ -701,7 +701,7 @@ const Auth = () => {
                   {forgotPasswordStep === 3 && (
                     <form onSubmit={handleResetPassword} className="space-y-4">
                       <div className="relative group">
-                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-violet-600 transition-colors">
+                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors">
                           <Lock size={18} />
                         </div>
                         <input
@@ -721,7 +721,7 @@ const Auth = () => {
                         </button>
                       </div>
                       <div className="relative group">
-                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-violet-600 transition-colors">
+                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors">
                           <Lock size={18} />
                         </div>
                         <input
@@ -750,9 +750,9 @@ const Auth = () => {
                 {(isLogin || signupStep === 1) && (
                   <>
                     {!isLogin && (
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="relative group">
-                          <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-violet-600 transition-colors">
+                          <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors">
                             <User size={18} />
                           </div>
                           <input
@@ -771,7 +771,7 @@ const Auth = () => {
                           />
                         </div>
                         <div className="relative group">
-                          <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-violet-600 transition-colors">
+                          <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors">
                             <Store size={18} />
                           </div>
                           <input
@@ -788,7 +788,7 @@ const Auth = () => {
                     )}
 
                     <div className="relative group">
-                      <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-violet-600 transition-colors">
+                      <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors">
                         <Mail size={18} />
                       </div>
                       <input
@@ -814,7 +814,7 @@ const Auth = () => {
                             !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email || "")
                           }
                           className={`absolute right-3 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-wider transition-all ${verifications.email.status === "verified"
-                            ? "bg-brand-100 text-brand-700 cursor-default"
+                            ? "bg-success/10 text-success cursor-default"
                             : "bg-slate-900 text-white hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed"
                             }`}>
                           {verifications.email.isSending ? (
@@ -855,7 +855,7 @@ const Auth = () => {
                       </div>
                     )}
                     {!isLogin && verifications.email.status === "verified" && (
-                      <div className="flex items-center gap-2 text-[11px] font-bold text-brand-600">
+                      <div className="flex items-center gap-2 text-[11px] font-bold text-success">
                         <CheckCircle className="h-4 w-4" />
                         <span>Email verified successfully.</span>
                       </div>
@@ -864,7 +864,7 @@ const Auth = () => {
                     {!isLogin && (
                       <>
                         <div className="relative group">
-                          <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-violet-600 transition-colors">
+                          <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors">
                             <Phone size={18} />
                           </div>
                           <input
@@ -887,7 +887,7 @@ const Auth = () => {
                               !/^\d{10}$/.test(formData.phone || "")
                             }
                             className={`absolute right-3 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-wider transition-all ${verifications.phone.status === "verified"
-                              ? "bg-brand-100 text-brand-700 cursor-default"
+                              ? "bg-success/10 text-success cursor-default"
                               : "bg-slate-900 text-white hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed"
                               }`}>
                             {verifications.phone.isSending ? (
@@ -927,7 +927,7 @@ const Auth = () => {
                           </div>
                         )}
                         {verifications.phone.status === "verified" && (
-                          <div className="flex items-center gap-2 text-[11px] font-bold text-brand-600">
+                          <div className="flex items-center gap-2 text-[11px] font-bold text-success">
                             <CheckCircle className="h-4 w-4" />
                             <span>Phone number verified successfully.</span>
                           </div>
@@ -936,7 +936,7 @@ const Auth = () => {
                     )}
 
                     <div className="relative group">
-                      <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-violet-600 transition-colors">
+                      <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors">
                         <Lock size={18} />
                       </div>
                       <input
@@ -984,12 +984,12 @@ const Auth = () => {
                         type="button"
                         onClick={() => setIsMapOpen(true)}
                         className={`w-full flex items-center justify-between p-4 rounded-lg border-2 border-dashed transition-all cursor-pointer ${formData.lat
-                          ? "border-brand-200 bg-brand-50/50"
+                          ? "border-success/20 bg-success/5"
                           : "border-slate-200 bg-slate-50 hover:border-slate-300"
                           }`}>
                         <div className="flex items-center gap-3">
                           <div
-                            className={`p-2 rounded-md ${formData.lat ? "bg-brand-100 text-brand-600" : "bg-white text-slate-600 shadow-sm"}`}>
+                            className={`p-2 rounded-md ${formData.lat ? "bg-success/10 text-success" : "bg-white text-slate-600 shadow-sm"}`}>
                             {formData.lat ? (
                               <CheckCircle className="w-4 h-4" />
                             ) : (
@@ -998,7 +998,7 @@ const Auth = () => {
                           </div>
                           <div className="text-left">
                             <p
-                              className={`text-xs font-bold ${formData.lat ? "text-brand-700" : "text-slate-600"}`}>
+                              className={`text-xs font-bold ${formData.lat ? "text-success" : "text-slate-600"}`}>
                               {formData.lat
                                 ? "Location Selected"
                                 : "Pin Shop on Map"}
@@ -1011,7 +1011,7 @@ const Auth = () => {
                           </div>
                         </div>
                         {formData.lat && (
-                          <span className="text-[10px] font-black text-brand-600 bg-brand-100 px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                          <span className="text-[10px] font-black text-success bg-success/10 px-2 py-0.5 rounded-full uppercase tracking-tighter">
                             Verified
                           </span>
                         )}
@@ -1020,7 +1020,7 @@ const Auth = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="relative group">
-                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-violet-600 transition-colors">
+                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors">
                           <MapPin size={18} />
                         </div>
                         <input
@@ -1034,7 +1034,7 @@ const Auth = () => {
                         />
                       </div>
                       <div className="relative group">
-                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-violet-600 transition-colors">
+                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors">
                           <MapPin size={18} />
                         </div>
                         <input
@@ -1048,7 +1048,7 @@ const Auth = () => {
                         />
                       </div>
                       <div className="relative group">
-                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-violet-600 transition-colors">
+                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors">
                           <MapPin size={18} />
                         </div>
                         <input
@@ -1062,7 +1062,7 @@ const Auth = () => {
                         />
                       </div>
                       <div className="relative group">
-                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-violet-600 transition-colors">
+                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors">
                           <MapPin size={18} />
                         </div>
                         <input
@@ -1078,7 +1078,7 @@ const Auth = () => {
                     </div>
 
                     <div className="relative group">
-                      <div className="absolute left-5 top-5 text-slate-300 group-focus-within:text-violet-600 transition-colors">
+                      <div className="absolute left-5 top-5 text-slate-300 group-focus-within:text-primary transition-colors">
                         <MapPin size={18} />
                       </div>
                       <textarea
@@ -1114,12 +1114,12 @@ const Auth = () => {
                             <label
                               htmlFor={doc.id}
                               className={`flex items-center justify-between p-3.5 rounded-lg border-2 border-dashed transition-all cursor-pointer ${documents[doc.id]
-                                ? "border-brand-200 bg-brand-50/50"
+                                ? "border-success/20 bg-success/5"
                                 : "border-slate-200 bg-slate-50 hover:border-slate-300"
                                 }`}>
                               <div className="flex items-center gap-3">
                                 <div
-                                  className={`p-2 rounded-md ${documents[doc.id] ? "bg-brand-100 text-brand-600" : "bg-white text-slate-600 shadow-sm"}`}>
+                                  className={`p-2 rounded-md ${documents[doc.id] ? "bg-success/10 text-success" : "bg-white text-slate-600 shadow-sm"}`}>
                                   {documents[doc.id] ? (
                                     <CheckCircle className="w-4 h-4" />
                                   ) : (
@@ -1128,7 +1128,7 @@ const Auth = () => {
                                 </div>
                                 <div className="text-left">
                                   <p
-                                    className={`text-xs font-bold ${documents[doc.id] ? "text-brand-700" : "text-slate-600"}`}>
+                                    className={`text-xs font-bold ${documents[doc.id] ? "text-success" : "text-slate-600"}`}>
                                     {doc.label}
                                   </p>
                                   <p className="text-xs text-slate-600 font-medium truncate max-w-[150px]">
@@ -1215,7 +1215,7 @@ const Auth = () => {
       </motion.div>
 
       {/* Bottom Tagline */}
-      <div className="absolute bottom-6 flex items-center gap-4 text-slate-300 text-[10px] font-black uppercase tracking-[6px]">
+      <div className="absolute bottom-6 hidden items-center gap-4 text-slate-300 text-[10px] font-black uppercase tracking-[6px] sm:flex">
         Empowering Business Digitalization
       </div>
 

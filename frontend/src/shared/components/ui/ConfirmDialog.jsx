@@ -60,7 +60,7 @@ const ConfirmDialog = ({
             }
         >
             {typeof message === 'string' ? (
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">{message}</p>
+                <p className="text-sm text-slate-700 whitespace-pre-wrap">{message}</p>
             ) : (
                 message
             )}

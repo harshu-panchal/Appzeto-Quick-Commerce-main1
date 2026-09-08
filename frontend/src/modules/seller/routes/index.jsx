@@ -37,34 +37,38 @@ const SellerTermsPage = React.lazy(() => import("../pages/SellerTermsPage"));
 const SellerPrivacyPage = React.lazy(() => import("../pages/SellerPrivacyPage"));
 
 const navItems = [
-  { label: "Dashboard", path: "/seller", icon: HiOutlineSquares2X2, end: true },
-  { label: "Products", path: "/seller/products", icon: HiOutlineCube },
-  { label: "Stock", path: "/seller/inventory", icon: HiOutlineArchiveBox },
-  { label: "Orders", path: "/seller/orders", icon: HiOutlineTruck },
-  { label: "Returns", path: "/seller/returns", icon: HiOutlineArchiveBox },
-  { label: "Track Orders", path: "/seller/tracking", icon: HiOutlineMapPin },
+  { label: "Dashboard", path: "/seller", icon: HiOutlineSquares2X2, group: "Overview", end: true },
+  { label: "Products", path: "/seller/products", icon: HiOutlineCube, group: "Catalog" },
+  { label: "Stock", path: "/seller/inventory", icon: HiOutlineArchiveBox, group: "Catalog" },
+  { label: "Orders", path: "/seller/orders", icon: HiOutlineTruck, group: "Orders" },
+  { label: "Returns", path: "/seller/returns", icon: HiOutlineArchiveBox, group: "Orders" },
+  { label: "Track Orders", path: "/seller/tracking", icon: HiOutlineMapPin, group: "Orders" },
   {
     label: "Sales Reports",
     path: "/seller/analytics",
     icon: HiOutlineChartBarSquare,
+    group: "Finance",
   },
   {
     label: "Money Request",
     path: "/seller/withdrawals",
     icon: HiOutlineCurrencyDollar,
+    group: "Finance",
   },
   {
     label: "Payment History",
     path: "/seller/transactions",
     icon: HiOutlineCreditCard,
+    group: "Finance",
   },
   {
     label: "Earnings",
     path: "/seller/earnings",
     icon: HiOutlineCurrencyDollar,
+    group: "Finance",
   },
-  { label: "Support", path: "/seller/support", icon: HiOutlineQuestionMarkCircle },
-  { label: "Profile", path: "/seller/profile", icon: HiOutlineUser },
+  { label: "Support", path: "/seller/support", icon: HiOutlineQuestionMarkCircle, group: "Account" },
+  { label: "Profile", path: "/seller/profile", icon: HiOutlineUser, group: "Account" },
 ];
 
 const SellerRoutes = () => {

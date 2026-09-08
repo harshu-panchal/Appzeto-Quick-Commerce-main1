@@ -1,9 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import Card from '@shared/components/ui/Card';
 import Badge from '@shared/components/ui/Badge';
+import Button from '@shared/components/ui/Button';
+import PageHeader from '@shared/components/ui/PageHeader';
+import FilterBar from '@shared/components/ui/FilterBar';
+import DataTable from '@shared/components/ui/DataTable';
+import EmptyState from '@shared/components/ui/EmptyState';
 import {
     Search,
-    Filter,
     FileSearch,
     Phone,
     Mail,
@@ -217,241 +220,141 @@ const PendingDeliveryBoys = () => {
             ? rider.avatar
             : PLACEHOLDER_AVATAR;
 
-    return (
-        <div className="ds-section-spacing animate-in fade-in duration-700">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                <div>
-                    <h1 className="ds-h1 flex items-center gap-3">
-                        Rider Applications
-                        <Badge
-                            variant="primary"
-                            className="text-[10px] px-2 py-0.5 uppercase"
-                        >
-                            Pending Review
-                        </Badge>
-                    </h1>
-                    <p className="ds-description mt-1">
-                        Review documents for new delivery partners.
-                    </p>
-                </div>
+    const riderColumns = [
+        {
+            header: 'Applicant Details',
+            key: 'applicant',
+            cell: (rider) => (
                 <div className="flex items-center gap-3">
-                    <button
-                        type="button"
-                        onClick={fetchPendingRiders}
-                        className="p-3 bg-white ring-1 ring-slate-200 rounded-2xl text-slate-400 hover:text-primary transition-all shadow-sm active:rotate-180 duration-500"
-                    >
-                        <RotateCw className="h-5 w-5" />
-                    </button>
-                    <div className="h-10 w-[1px] bg-slate-200 mx-2" />
-                    <div className="flex flex-col items-end">
-                        <p className="ds-label">Total Pending</p>
-                        <h4 className="ds-h2">{pendingRiders.length}</h4>
+                    <img src={avatarSrc(rider)} alt="" className="h-11 w-11 rounded-full bg-slate-100 object-cover" />
+                    <div>
+                        <p className="text-sm font-bold text-slate-900">{rider.name}</p>
+                        <div className="mt-0.5 flex items-center gap-1.5 text-slate-400">
+                            <Phone className="h-3 w-3" />
+                            <span className="text-[11px] font-medium">{rider.phone}</span>
+                        </div>
                     </div>
                 </div>
-            </div>
+            ),
+        },
+        {
+            header: 'Operational Intel',
+            key: 'intel',
+            cell: (rider) => (
+                <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-slate-600">
+                        <Truck className="h-3.5 w-3.5 text-slate-400" />
+                        <span className="text-[11px] font-semibold">{rider.vehicle}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-400">
+                        <MapPin className="h-3.5 w-3.5" />
+                        <span className="text-[11px] font-medium">{rider.location}</span>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            header: 'Submission Status',
+            key: 'status',
+            cell: (rider) => (
+                <div className="flex flex-col items-start gap-1.5">
+                    <Badge variant={rider.status === 'pending_review' ? 'primary' : 'warning'}>
+                        {rider.status.replace('_', ' ')}
+                    </Badge>
+                    <div className="flex gap-1">
+                        {rider.documents.slice(0, 2).map((doc, i) => (
+                            <span key={i} className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">{doc}</span>
+                        ))}
+                        {rider.documents.length > 2 && (
+                            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-400">+{rider.documents.length - 2} more</span>
+                        )}
+                    </div>
+                </div>
+            ),
+        },
+        {
+            header: 'Action',
+            key: 'action',
+            align: 'right',
+            cell: (rider) => (
+                <div className="flex items-center justify-end gap-1.5">
+                    <button onClick={() => handleApprove(rider.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-success/10 text-success transition-all hover:bg-success hover:text-white" title="Approve">
+                        <Check className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => handleReject(rider.id)} className="flex h-8 w-8 items-center justify-center rounded-lg bg-danger/10 text-danger transition-all hover:bg-danger hover:text-white" title="Reject">
+                        <X className="h-4 w-4" />
+                    </button>
+                    <button
+                        onClick={() => setViewingRider(rider)}
+                        className="ml-1 rounded-lg bg-slate-900 px-3.5 py-2 text-[11px] font-bold text-white transition-all hover:bg-slate-800"
+                    >
+                        View Application
+                    </button>
+                </div>
+            ),
+        },
+    ];
 
-            <Card className="p-4 border-none shadow-sm ring-1 ring-slate-100 bg-white/50 backdrop-blur-xl">
-                <div className="flex flex-col lg:flex-row gap-4">
-                    <div className="flex-1 relative group">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400 group-focus-within:text-primary transition-colors" />
+    return (
+        <div className="space-y-5">
+            <PageHeader
+                title={
+                    <span className="flex items-center gap-2">
+                        Rider Applications
+                        <Badge variant="primary">Pending Review</Badge>
+                    </span>
+                }
+                description="Review documents for new delivery partners before they can accept deliveries."
+                actions={
+                    <>
+                        <button
+                            type="button"
+                            onClick={fetchPendingRiders}
+                            className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:text-primary"
+                        >
+                            <RotateCw className="h-4 w-4" />
+                        </button>
+                        <div className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-right">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total Pending</p>
+                            <p className="text-sm font-black text-slate-900">{pendingRiders.length}</p>
+                        </div>
+                    </>
+                }
+            />
+
+            <FilterBar
+                left={
+                    <div className="relative w-full sm:w-80">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <input
                             type="text"
                             placeholder="Search by name or mobile..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3.5 bg-slate-100/50 border-none rounded-2xl text-xs font-semibold outline-none focus:ring-2 focus:ring-primary/10 transition-all"
+                            className="h-9 w-full rounded-md border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                         />
                     </div>
-                    <div className="flex items-center gap-3">
-                        <div className="bg-slate-100/50 p-1 rounded-2xl flex items-center">
-                            {['all', 'pending', 'missing_info'].map((status) => (
-                                <button
-                                    key={status}
-                                    type="button"
-                                    onClick={() => setFilterStatus(status)}
-                                    className={cn(
-                                        'px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all',
-                                        filterStatus === status
-                                            ? 'bg-white text-slate-900 shadow-sm'
-                                            : 'text-slate-400 hover:text-slate-600',
-                                    )}
-                                >
-                                    {status === 'pending'
-                                        ? 'PENDING'
-                                        : status.replace('_', ' ')}
-                                </button>
-                            ))}
-                        </div>
-                        <button
-                            type="button"
-                            className="p-3.5 bg-white ring-1 ring-slate-200 rounded-2xl text-slate-600 hover:text-primary transition-all"
-                        >
-                            <Filter className="h-5 w-5" />
-                        </button>
-                    </div>
-                </div>
-            </Card>
+                }
+                pills={['all', 'pending', 'missing_info'].map((status) => ({
+                    label: status === 'pending' ? 'Pending' : status.replace('_', ' '),
+                    active: filterStatus === status,
+                    onClick: () => setFilterStatus(status),
+                }))}
+            />
 
-            <Card className="border-none shadow-2xl ring-1 ring-slate-100 overflow-hidden bg-white rounded-xl relative min-h-[400px]">
-                {isLoading && (
-                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/50 backdrop-blur-sm">
-                        <div className="flex flex-col items-center gap-3">
-                            <div className="h-10 w-10 border-4 border-slate-200 border-t-primary rounded-full animate-spin" />
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                Loading Applications...
-                            </p>
-                        </div>
-                    </div>
-                )}
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-slate-50/50 border-b border-slate-100">
-                                <th className="ds-table-header-cell px-4">
-                                    Applicant Details
-                                </th>
-                                <th className="ds-table-header-cell px-4">
-                                    Operational Intel
-                                </th>
-                                <th className="ds-table-header-cell px-4">
-                                    Submission Status
-                                </th>
-                                <th className="ds-table-header-cell px-4 text-right">
-                                    Action
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                            {!isLoading && filteredRiders.length === 0 ? (
-                                <tr>
-                                    <td colSpan="4" className="py-20 text-center">
-                                        <FileSearch className="h-10 w-10 text-slate-300 mx-auto mb-4" />
-                                        <p className="text-sm font-bold text-slate-500">
-                                            No pending applications found.
-                                        </p>
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredRiders.map((rider) => (
-                                    <tr
-                                        key={rider.id}
-                                        className="group hover:bg-slate-50/50 transition-colors"
-                                    >
-                                        <td className="px-8 py-6">
-                                            <div className="flex items-center gap-4">
-                                                <img
-                                                    src={avatarSrc(rider)}
-                                                    alt=""
-                                                    className="h-12 w-12 rounded-lg bg-gray-100 ring-2 ring-white shadow-sm object-cover group-hover:scale-110 transition-all"
-                                                />
-                                                <div>
-                                                    <p className="text-sm font-black text-slate-900">
-                                                        {rider.name}
-                                                    </p>
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <Phone className="h-3 w-3 text-slate-400" />
-                                                        <span className="text-[10px] font-bold text-slate-500">
-                                                            {rider.phone}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-6">
-                                            <div className="space-y-1.5">
-                                                <div className="flex items-center gap-2 text-slate-600">
-                                                    <Truck className="h-3.5 w-3.5" />
-                                                    <span className="text-[10px] font-bold">
-                                                        {rider.vehicle}
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-2 text-slate-400">
-                                                    <MapPin className="h-3.5 w-3.5" />
-                                                    <span className="text-[10px] font-bold">
-                                                        {rider.location}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-6">
-                                            <div className="flex flex-col gap-2">
-                                                <Badge
-                                                    variant={
-                                                        rider.status ===
-                                                        'pending_review'
-                                                            ? 'primary'
-                                                            : 'warning'
-                                                    }
-                                                    className="w-fit text-[8px] font-black uppercase"
-                                                >
-                                                    {rider.status.replace(
-                                                        '_',
-                                                        ' ',
-                                                    )}
-                                                </Badge>
-                                                <div className="flex gap-1">
-                                                    {rider.documents
-                                                        .slice(0, 2)
-                                                        .map((doc, i) => (
-                                                            <div
-                                                                key={i}
-                                                                className="h-5 px-2 bg-slate-100 rounded-md text-[8px] font-bold text-slate-500 flex items-center"
-                                                            >
-                                                                {doc}
-                                                            </div>
-                                                        ))}
-                                                    {rider.documents.length >
-                                                        2 && (
-                                                        <div className="h-5 px-2 bg-slate-100 rounded-md text-[8px] font-bold text-slate-400 flex items-center">
-                                                            +
-                                                            {rider.documents
-                                                                .length - 2}{' '}
-                                                            More
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-6 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        handleApprove(rider.id)
-                                                    }
-                                                    className="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 flex items-center justify-center transition-all shadow-sm"
-                                                    title="Approve"
-                                                >
-                                                    <Check className="h-4 w-4" />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        handleReject(rider.id)
-                                                    }
-                                                    className="h-8 w-8 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 flex items-center justify-center transition-all shadow-sm"
-                                                    title="Reject"
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        setViewingRider(rider)
-                                                    }
-                                                    className="px-4 py-2 bg-slate-900 text-white rounded-lg text-[10px] font-bold shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all active:scale-95 ml-2"
-                                                >
-                                                    VIEW APPLICATION
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </Card>
+            <DataTable
+                columns={riderColumns}
+                data={filteredRiders}
+                rowKey={(r) => r.id}
+                loading={isLoading}
+                emptyState={
+                    <EmptyState
+                        icon={<FileSearch className="h-6 w-6" />}
+                        title="No pending applications found"
+                        description="New rider applications will show up here for review."
+                    />
+                }
+            />
 
             <AnimatePresence>
                 {viewingRider && (
@@ -467,19 +370,19 @@ const PendingDeliveryBoys = () => {
                             initial={{ opacity: 0, scale: 0.9, y: 30 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.9, y: 30 }}
-                            className="w-full max-w-5xl max-h-[92vh] relative z-10 bg-white rounded-[48px] shadow-3xl overflow-hidden flex flex-col lg:flex-row"
+                            className="w-full max-w-5xl max-h-[92vh] relative z-10 bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col lg:flex-row"
                         >
                             <div className="lg:w-80 bg-slate-50 p-5 border-r border-slate-100 overflow-y-auto">
                                 <div className="text-center mb-8">
                                     <img
                                         src={avatarSrc(viewingRider)}
                                         alt={viewingRider.name}
-                                        className="h-24 w-24 rounded-2xl bg-white shadow-xl object-cover ring-4 ring-white mx-auto"
+                                        className="h-24 w-24 rounded-2xl bg-white shadow-md object-cover ring-4 ring-white mx-auto"
                                     />
-                                    <h3 className="ds-h2 mt-4">
+                                    <h3 className="text-lg font-bold text-slate-900 mt-4">
                                         {viewingRider.name}
                                     </h3>
-                                    <p className="ds-label text-primary mt-1">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-primary mt-1">
                                         Delivery Applicant
                                     </p>
                                     <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase tracking-widest">
@@ -505,26 +408,10 @@ const PendingDeliveryBoys = () => {
 
                                 <div className="space-y-4">
                                     {[
-                                        {
-                                            label: 'Preferred Area',
-                                            value: viewingRider.preferredArea,
-                                            icon: MapPin,
-                                        },
-                                        {
-                                            label: 'Full Address',
-                                            value: viewingRider.address,
-                                            icon: Home,
-                                        },
-                                        {
-                                            label: 'Date of Birth',
-                                            value: viewingRider.dob,
-                                            icon: Calendar,
-                                        },
-                                        {
-                                            label: 'Blood Group',
-                                            value: viewingRider.bloodGroup,
-                                            icon: Droplets,
-                                        },
+                                        { label: 'Preferred Area', value: viewingRider.preferredArea, icon: MapPin },
+                                        { label: 'Full Address', value: viewingRider.address, icon: Home },
+                                        { label: 'Date of Birth', value: viewingRider.dob, icon: Calendar },
+                                        { label: 'Blood Group', value: viewingRider.bloodGroup, icon: Droplets },
                                     ].map((row) => (
                                         <div key={row.label} className="space-y-1">
                                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
@@ -544,26 +431,19 @@ const PendingDeliveryBoys = () => {
                                         </p>
                                         <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
                                             <div
-                                                className="h-full bg-brand-500"
+                                                className="h-full bg-primary"
                                                 style={{
                                                     width: `${Math.min(
                                                         100,
                                                         40 +
-                                                            (viewingRider
-                                                                .documentFiles
-                                                                ?.length || 0) *
-                                                                20 +
-                                                            (viewingRider.avatar
-                                                                ? 20
-                                                                : 0),
+                                                            (viewingRider.documentFiles?.length || 0) * 20 +
+                                                            (viewingRider.avatar ? 20 : 0),
                                                     )}%`,
                                                 }}
                                             />
                                         </div>
-                                        <p className="text-[9px] font-bold text-brand-600 mt-2">
-                                            {(viewingRider.documentFiles
-                                                ?.length || 0) >= 3 &&
-                                            viewingRider.avatar
+                                        <p className="text-[10px] font-bold text-primary mt-2">
+                                            {(viewingRider.documentFiles?.length || 0) >= 3 && viewingRider.avatar
                                                 ? 'Documents complete'
                                                 : 'Review uploaded media carefully'}
                                         </p>
@@ -572,29 +452,28 @@ const PendingDeliveryBoys = () => {
                             </div>
 
                             <div
-                                className="flex-1 p-5 lg:p-10 bg-white overflow-y-auto min-h-0"
+                                className="flex-1 p-5 lg:p-8 bg-white overflow-y-auto min-h-0"
                                 data-lenis-prevent
                             >
-                                <div className="flex justify-between items-start mb-10">
+                                <div className="flex justify-between items-start mb-8">
                                     <div>
-                                        <h2 className="ds-h1">
+                                        <h2 className="text-xl font-bold text-slate-900">
                                             Vetting Protocol
                                         </h2>
-                                        <p className="ds-description mt-1">
-                                            Check submitted legal documents for
-                                            platform entry.
+                                        <p className="text-sm text-slate-500 mt-1">
+                                            Check submitted legal documents for platform entry.
                                         </p>
                                     </div>
                                     <button
                                         type="button"
                                         onClick={() => setViewingRider(null)}
-                                        className="p-3 hover:bg-slate-50 rounded-2xl transition-all"
+                                        className="p-2.5 hover:bg-slate-50 rounded-xl transition-all"
                                     >
-                                        <X className="h-6 w-6 text-slate-400" />
+                                        <X className="h-5 w-5 text-slate-400" />
                                     </button>
                                 </div>
 
-                                <div className="space-y-8 mb-12">
+                                <div className="space-y-7 mb-10">
                                     <section className="space-y-3">
                                         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
                                             Contact & Personal
@@ -609,20 +488,13 @@ const PendingDeliveryBoys = () => {
                                                 { label: 'Preferred Area', value: viewingRider.preferredArea, icon: MapPin },
                                                 { label: 'Address', value: viewingRider.address, icon: Home },
                                             ].map((item) => (
-                                                <div
-                                                    key={item.label}
-                                                    className="p-4 bg-slate-50 rounded-2xl flex items-start gap-3"
-                                                >
-                                                    <div className="h-9 w-9 rounded-xl bg-white shadow-sm flex items-center justify-center text-primary shrink-0">
+                                                <div key={item.label} className="p-3.5 bg-slate-50 rounded-xl flex items-start gap-3">
+                                                    <div className="h-9 w-9 rounded-lg bg-white shadow-sm flex items-center justify-center text-primary shrink-0">
                                                         <item.icon className="h-4 w-4" />
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                                            {item.label}
-                                                        </p>
-                                                        <p className="text-sm font-bold text-slate-900 break-words mt-0.5">
-                                                            {item.value}
-                                                        </p>
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.label}</p>
+                                                        <p className="text-sm font-bold text-slate-900 break-words mt-0.5">{item.value}</p>
                                                     </div>
                                                 </div>
                                             ))}
@@ -639,20 +511,13 @@ const PendingDeliveryBoys = () => {
                                                 { label: 'Vehicle Number', value: viewingRider.vehicleNumber, icon: IdCard },
                                                 { label: 'Driving License No.', value: viewingRider.drivingLicenseNumber, icon: IdCard },
                                             ].map((item) => (
-                                                <div
-                                                    key={item.label}
-                                                    className="p-4 bg-slate-50 rounded-2xl border border-brand-500/10 flex items-start gap-3"
-                                                >
-                                                    <div className="h-9 w-9 rounded-xl bg-white shadow-sm flex items-center justify-center text-brand-600 shrink-0">
+                                                <div key={item.label} className="p-3.5 bg-slate-50 rounded-xl border border-primary/10 flex items-start gap-3">
+                                                    <div className="h-9 w-9 rounded-lg bg-white shadow-sm flex items-center justify-center text-primary shrink-0">
                                                         <item.icon className="h-4 w-4" />
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                                            {item.label}
-                                                        </p>
-                                                        <p className="text-sm font-bold text-slate-900 break-words mt-0.5">
-                                                            {item.value}
-                                                        </p>
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.label}</p>
+                                                        <p className="text-sm font-bold text-slate-900 break-words mt-0.5">{item.value}</p>
                                                     </div>
                                                 </div>
                                             ))}
@@ -668,20 +533,13 @@ const PendingDeliveryBoys = () => {
                                                 { label: 'Aadhar Number', value: viewingRider.aadharNumber, icon: IdCard },
                                                 { label: 'PAN Number', value: viewingRider.panNumber, icon: CreditCard },
                                             ].map((item) => (
-                                                <div
-                                                    key={item.label}
-                                                    className="p-4 bg-slate-50 rounded-2xl flex items-start gap-3"
-                                                >
-                                                    <div className="h-9 w-9 rounded-xl bg-white shadow-sm flex items-center justify-center text-primary shrink-0">
+                                                <div key={item.label} className="p-3.5 bg-slate-50 rounded-xl flex items-start gap-3">
+                                                    <div className="h-9 w-9 rounded-lg bg-white shadow-sm flex items-center justify-center text-primary shrink-0">
                                                         <item.icon className="h-4 w-4" />
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                                            {item.label}
-                                                        </p>
-                                                        <p className="text-sm font-bold text-slate-900 break-words mt-0.5">
-                                                            {item.value}
-                                                        </p>
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.label}</p>
+                                                        <p className="text-sm font-bold text-slate-900 break-words mt-0.5">{item.value}</p>
                                                     </div>
                                                 </div>
                                             ))}
@@ -698,20 +556,13 @@ const PendingDeliveryBoys = () => {
                                                 { label: 'Account Number', value: viewingRider.accountNumber, icon: CreditCard },
                                                 { label: 'IFSC', value: viewingRider.ifsc, icon: Building2 },
                                             ].map((item) => (
-                                                <div
-                                                    key={item.label}
-                                                    className="p-4 bg-slate-50 rounded-2xl flex items-start gap-3"
-                                                >
-                                                    <div className="h-9 w-9 rounded-xl bg-white shadow-sm flex items-center justify-center text-primary shrink-0">
+                                                <div key={item.label} className="p-3.5 bg-slate-50 rounded-xl flex items-start gap-3">
+                                                    <div className="h-9 w-9 rounded-lg bg-white shadow-sm flex items-center justify-center text-primary shrink-0">
                                                         <item.icon className="h-4 w-4" />
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                                            {item.label}
-                                                        </p>
-                                                        <p className="text-sm font-bold text-slate-900 break-words mt-0.5">
-                                                            {item.value}
-                                                        </p>
+                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.label}</p>
+                                                        <p className="text-sm font-bold text-slate-900 break-words mt-0.5">{item.value}</p>
                                                     </div>
                                                 </div>
                                             ))}
@@ -719,93 +570,65 @@ const PendingDeliveryBoys = () => {
                                     </section>
                                 </div>
 
-                                <div className="space-y-4 mb-14">
+                                <div className="space-y-4 mb-10">
                                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                                        Submitted Documents (
-                                        {viewingRider.documentFiles?.length ||
-                                            0}
-                                        )
+                                        Submitted Documents ({viewingRider.documentFiles?.length || 0})
                                     </h4>
-                                    {(viewingRider.documentFiles || [])
-                                        .length === 0 ? (
-                                        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
-                                            <ImageOff className="h-8 w-8 text-slate-300 mx-auto mb-3" />
-                                            <p className="text-sm font-bold text-slate-500">
-                                                No document files were found for
-                                                this application.
-                                            </p>
-                                        </div>
+                                    {(viewingRider.documentFiles || []).length === 0 ? (
+                                        <EmptyState
+                                            icon={<ImageOff className="h-6 w-6" />}
+                                            title="No documents found"
+                                            description="No document files were found for this application."
+                                        />
                                     ) : (
                                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                            {viewingRider.documentFiles.map(
-                                                (doc) => (
-                                                    <button
-                                                        key={doc.key}
-                                                        type="button"
-                                                        onClick={() =>
-                                                            openDocument(doc)
-                                                        }
-                                                        className="group relative aspect-[4/3] bg-slate-100 rounded-[24px] overflow-hidden hover:ring-2 hover:ring-primary transition-all text-left"
-                                                    >
-                                                        {doc.isImage ? (
-                                                            <img
-                                                                src={doc.url}
-                                                                alt={doc.label}
-                                                                className="absolute inset-0 h-full w-full object-cover"
-                                                            />
-                                                        ) : (
-                                                            <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                                                                <FileSearch className="h-8 w-8 text-slate-400 group-hover:text-primary transition-colors" />
-                                                            </div>
-                                                        )}
-                                                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-900/80 to-transparent p-3">
-                                                            <p className="text-[10px] font-black text-white uppercase tracking-wider">
-                                                                {doc.label}
-                                                            </p>
-                                                            <p className="text-[9px] font-bold text-white/80 mt-0.5 flex items-center gap-1">
-                                                                <ExternalLink className="h-3 w-3" />
-                                                                {doc.isImage
-                                                                    ? 'Tap to enlarge'
-                                                                    : 'Open file'}
-                                                            </p>
+                                            {viewingRider.documentFiles.map((doc) => (
+                                                <button
+                                                    key={doc.key}
+                                                    type="button"
+                                                    onClick={() => openDocument(doc)}
+                                                    className="group relative aspect-[4/3] bg-slate-100 rounded-xl overflow-hidden hover:ring-2 hover:ring-primary transition-all text-left"
+                                                >
+                                                    {doc.isImage ? (
+                                                        <img
+                                                            src={doc.url}
+                                                            alt={doc.label}
+                                                            className="absolute inset-0 h-full w-full object-cover"
+                                                        />
+                                                    ) : (
+                                                        <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+                                                            <FileSearch className="h-8 w-8 text-slate-400 group-hover:text-primary transition-colors" />
                                                         </div>
-                                                    </button>
-                                                ),
-                                            )}
+                                                    )}
+                                                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-900/80 to-transparent p-3">
+                                                        <p className="text-[10px] font-black text-white uppercase tracking-wider">{doc.label}</p>
+                                                        <p className="text-[9px] font-bold text-white/80 mt-0.5 flex items-center gap-1">
+                                                            <ExternalLink className="h-3 w-3" />
+                                                            {doc.isImage ? 'Tap to enlarge' : 'Open file'}
+                                                        </p>
+                                                    </div>
+                                                </button>
+                                            ))}
                                         </div>
                                     )}
                                 </div>
 
-                                <div className="flex flex-col sm:flex-row gap-4">
-                                    <button
-                                        type="button"
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <Button
                                         disabled={isProcessing}
-                                        onClick={() =>
-                                            handleApprove(viewingRider.id)
-                                        }
-                                        className="flex-1 py-5 bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                                        isLoading={isProcessing}
+                                        onClick={() => handleApprove(viewingRider.id)}
+                                        className="flex-1"
                                     >
-                                        {isProcessing ? (
-                                            <>
-                                                <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                                                Processing Vetting...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Check className="h-4 w-4" />
-                                                APPROVE & ACTIVATE RIDER
-                                            </>
-                                        )}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            handleReject(viewingRider.id)
-                                        }
-                                        className="py-5 px-5 bg-rose-50 text-rose-600 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-rose-100 transition-all active:scale-95"
+                                        {!isProcessing && <Check className="h-4 w-4" />}
+                                        {isProcessing ? 'Processing...' : 'Approve & Activate Rider'}
+                                    </Button>
+                                    <Button
+                                        variant="danger"
+                                        onClick={() => handleReject(viewingRider.id)}
                                     >
-                                        REJECT APPLICATION
-                                    </button>
+                                        Reject Application
+                                    </Button>
                                 </div>
                             </div>
                         </motion.div>
@@ -827,32 +650,24 @@ const PendingDeliveryBoys = () => {
                             initial={{ opacity: 0, scale: 0.96 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.96 }}
-                            className="relative z-10 w-full max-w-4xl max-h-[90vh] bg-white rounded-3xl overflow-hidden shadow-2xl"
+                            className="relative z-10 w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl overflow-hidden shadow-2xl"
                         >
                             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
                                 <div>
-                                    <p className="text-sm font-black text-slate-900 uppercase tracking-wider">
-                                        {previewDoc.label}
-                                    </p>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                                        Uploaded document preview
-                                    </p>
+                                    <p className="text-sm font-bold text-slate-900 uppercase tracking-wider">{previewDoc.label}</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Uploaded document preview</p>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <a
                                         href={previewDoc.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-bold uppercase tracking-wider"
+                                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 text-white text-[10px] font-bold uppercase tracking-wider"
                                     >
                                         <ExternalLink className="h-3.5 w-3.5" />
                                         Open
                                     </a>
-                                    <button
-                                        type="button"
-                                        onClick={() => setPreviewDoc(null)}
-                                        className="p-2 rounded-xl hover:bg-slate-100"
-                                    >
+                                    <button type="button" onClick={() => setPreviewDoc(null)} className="p-2 rounded-lg hover:bg-slate-100">
                                         <X className="h-5 w-5 text-slate-500" />
                                     </button>
                                 </div>
@@ -861,7 +676,7 @@ const PendingDeliveryBoys = () => {
                                 <img
                                     src={previewDoc.url}
                                     alt={previewDoc.label}
-                                    className="mx-auto max-h-[70vh] w-auto max-w-full rounded-2xl object-contain shadow-sm"
+                                    className="mx-auto max-h-[70vh] w-auto max-w-full rounded-xl object-contain shadow-sm"
                                 />
                             </div>
                         </motion.div>

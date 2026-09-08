@@ -5,31 +5,29 @@ import Button from '@shared/components/ui/Button';
 import Badge from '@shared/components/ui/Badge';
 import Input from '@shared/components/ui/Input';
 import Pagination from '@shared/components/ui/Pagination';
+import PageHeader from '@shared/components/ui/PageHeader';
+import StatCard from '@shared/components/ui/StatCard';
+import FilterBar from '@shared/components/ui/FilterBar';
+import DataTable from '@shared/components/ui/DataTable';
+import { SkeletonStatCard, SkeletonCard } from '@shared/components/ui/Skeleton';
 import {
     HiOutlineCube,
     HiOutlineExclamationTriangle,
     HiOutlineArchiveBoxXMark,
     HiOutlineArrowsUpDown,
-    HiOutlineMagnifyingGlass,
-    HiOutlineFunnel,
     HiOutlinePlus,
     HiOutlineMinus,
-    HiOutlineArrowPath,
-    HiOutlineClipboardDocumentList,
     HiOutlineXMark,
-    HiOutlineCheck,
     HiOutlineCalendarDays
 } from 'react-icons/hi2';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { BlurFade } from '@/components/ui/blur-fade';
-import { MagicCard } from '@/components/ui/magic-card';
 import { sellerApi } from '../services/sellerApi';
 import { toast } from 'sonner';
 
 const StockManagement = () => {
     const navigate = useNavigate();
-    const [activeView, setActiveView] = useState('inventory'); // 'inventory' or 'history'
+    const [activeView] = useState('inventory'); // 'inventory' or 'history' — history view has no reachable toggle today, kept as-is
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('All');
     const [inventory, setInventory] = useState([]);
@@ -123,10 +121,10 @@ const StockManagement = () => {
     }, [activeView, filterStatus]);
 
     const stats = useMemo(() => [
-        { label: 'Total Inventory', value: inventory.reduce((acc, item) => acc + item.stock, 0), icon: HiOutlineCube, color: 'text-brand-600', bg: 'bg-brand-50', status: 'All' },
-        { label: 'Low Stock Items', value: inventory.filter(i => i.stock > 0 && i.stock <= i.threshold).length, icon: HiOutlineExclamationTriangle, color: 'text-amber-600', bg: 'bg-amber-50', status: 'Low Stock' },
-        { label: 'Out of Stock', value: inventory.filter(i => i.stock === 0).length, icon: HiOutlineArchiveBoxXMark, color: 'text-rose-600', bg: 'bg-rose-50', status: 'Out of Stock' },
-        { label: 'Stock Valuation', value: `₹${inventory.reduce((acc, item) => acc + (item.stock * item.price), 0).toLocaleString()}`, icon: HiOutlineArrowsUpDown, color: 'text-brand-600', bg: 'bg-brand-50', status: 'In Stock' }
+        { label: 'Total Inventory', value: inventory.reduce((acc, item) => acc + item.stock, 0), icon: HiOutlineCube, color: 'text-primary', bg: 'bg-primary/10', status: 'All' },
+        { label: 'Low Stock Items', value: inventory.filter(i => i.stock > 0 && i.stock <= i.threshold).length, icon: HiOutlineExclamationTriangle, color: 'text-warning', bg: 'bg-warning/10', status: 'Low Stock' },
+        { label: 'Out of Stock', value: inventory.filter(i => i.stock === 0).length, icon: HiOutlineArchiveBoxXMark, color: 'text-danger', bg: 'bg-danger/10', status: 'Out of Stock' },
+        { label: 'Stock Valuation', value: `₹${inventory.reduce((acc, item) => acc + (item.stock * item.price), 0).toLocaleString()}`, icon: HiOutlineArrowsUpDown, color: 'text-success', bg: 'bg-success/10', status: 'In Stock' }
     ], [inventory]);
 
     const filteredInventory = useMemo(() => {
@@ -172,271 +170,186 @@ const StockManagement = () => {
         setIsAdjustModalOpen(true);
     };
 
-    if (isLoading && inventory.length === 0 && history.length === 0) {
-        return <div className="flex items-center justify-center h-screen font-black text-slate-600">LOADING STOCK DATA...</div>;
-    }
+    const pagedInventory = filteredInventory.slice((page - 1) * pageSize, page * pageSize);
 
-    return (
-        <div className="space-y-6 pb-16">
-            <BlurFade delay={0.1}>
-                {/* Header */}
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+    const stockColumns = [
+        {
+            header: 'Product Information',
+            key: 'product',
+            cell: (item) => (
+                <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-slate-100 text-slate-500">
+                        {item.mainImage ? (
+                            <img src={item.mainImage} alt={item.name} className="h-full w-full object-cover" />
+                        ) : (
+                            <HiOutlineCube className="h-5 w-5" />
+                        )}
+                    </div>
                     <div>
-                        <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-                            Stock Management
-                            <Badge variant="warning" className="text-[9px] px-1.5 py-0 font-bold tracking-wider uppercase bg-amber-100 text-amber-700">
-                                Inventory Control
-                            </Badge>
-                        </h1>
-                        <p className="text-slate-600 text-sm mt-0.5 font-medium">
-                            Monitor stock levels, manage restocks, and track movements.
-                        </p>
+                        <h4 className="text-sm font-bold text-slate-900">{item.name}</h4>
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">SKU: {item.sku || 'N/A'}</p>
                     </div>
                 </div>
-            </BlurFade>
+            ),
+        },
+        {
+            header: 'Inventory',
+            key: 'stock',
+            cell: (item) => (
+                <div className="flex flex-col">
+                    <span className={cn("text-sm font-bold", item.stock <= item.threshold ? "text-danger" : "text-slate-900")}>
+                        {item.stock} units
+                    </span>
+                    {item.stock <= item.threshold && (
+                        <Badge variant="danger" className="mt-1 w-fit">Low Stock</Badge>
+                    )}
+                </div>
+            ),
+        },
+        {
+            header: 'Stock Health',
+            key: 'status',
+            cell: (item) => <Badge variant={item.status === 'In Stock' ? 'success' : 'danger'}>{item.status}</Badge>,
+        },
+        {
+            header: 'Price',
+            key: 'price',
+            cell: (item) => <span className="text-sm font-bold text-slate-900">₹{item.price}</span>,
+        },
+        {
+            header: 'Actions',
+            key: 'actions',
+            align: 'right',
+            cell: (item) => (
+                <button
+                    onClick={() => openAdjustModal(item)}
+                    className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-200"
+                >
+                    Adjust Stock
+                </button>
+            ),
+        },
+    ];
+
+    return (
+        <div className="space-y-5">
+            <PageHeader
+                title={
+                    <span className="flex items-center gap-2">
+                        Stock Management
+                        <Badge variant="warning">Inventory Control</Badge>
+                    </span>
+                }
+                description="Monitor stock levels, manage restocks, and track every inventory movement across your store."
+            />
 
             {activeView === 'inventory' ? (
                 <>
                     {/* Quick Stats */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        {stats.map((stat, i) => (
-                            <BlurFade key={i} delay={0.1 + (i * 0.05)}>
-                                <div onClick={() => setFilterStatus(stat.status)} className="cursor-pointer">
-                                    <MagicCard
-                                        className="border-none shadow-sm ring-1 ring-slate-100 p-0 overflow-hidden group bg-white"
-                                        gradientColor="#f8fafc"
-                                    >
-                                        <div className="flex items-center gap-3 p-4 relative z-10">
-                                            <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 duration-300 shadow-sm", stat.bg, stat.color)}>
-                                                <stat.icon className="h-5 w-5" />
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-widest">{stat.label}</p>
-                                                <h4 className="text-xl font-black text-slate-900 tracking-tight">{stat.value}</h4>
-                                            </div>
-                                        </div>
-                                    </MagicCard>
-                                </div>
-                            </BlurFade>
-                        ))}
+                    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                        {isLoading && inventory.length === 0
+                            ? Array.from({ length: 4 }).map((_, i) => <SkeletonStatCard key={i} />)
+                            : stats.map((stat, i) => (
+                                <StatCard
+                                    key={i}
+                                    label={stat.label}
+                                    value={stat.value}
+                                    icon={stat.icon}
+                                    color={stat.color}
+                                    bg={stat.bg}
+                                    onClick={() => setFilterStatus(stat.status)}
+                                />
+                            ))}
                     </div>
 
-                    <BlurFade delay={0.3}>
-                        <Card className="border-none shadow-xl shadow-slate-200/50 overflow-hidden rounded-3xl">
-                            {/* Toolbox */}
-                            <div className="p-4 border-b border-slate-50 flex flex-col md:flex-row gap-4 items-center justify-between bg-slate-50/30">
-                                <div className="flex flex-col md:flex-row gap-3 items-center w-full">
-                                    <div className="relative w-full md:w-72">
-                                        <HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-600" />
-                                        <Input
-                                            placeholder="Search by product name or SKU..."
-                                            className="pl-10 pr-4 py-2.5 rounded-2xl border-none ring-1 ring-slate-200 bg-white focus:ring-2 focus:ring-primary/20 transition-all text-xs font-semibold"
-                                            value={searchTerm}
-                                            onChange={(e) => setSearchTerm(e.target.value)}
-                                        />
-                                    </div>
-                                    <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 shadow-sm">
-                                        {['All', 'In Stock', 'Out of Stock'].map((status) => (
-                                            <button
-                                                key={status}
-                                                onClick={() => {
-                                                    setFilterStatus(status);
-                                                    setPage(1);
-                                                }}
-                                                className={cn(
-                                                    "px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all",
-                                                    filterStatus === status
-                                                        ? "bg-white text-slate-900 shadow-md"
-                                                        : "text-slate-600 hover:text-slate-700"
-                                                )}
-                                            >
-                                                {status}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        onClick={() => navigate('/seller/products/add')}
-                                        className="rounded-xl px-4 py-2 text-[10px] font-bold shadow-lg shadow-primary/20"
-                                    >
-                                        <HiOutlinePlus className="h-4 w-4 mr-2" />
-                                        ADD NEW PRODUCT
-                                    </Button>
-                                </div>
-                            </div>
+                    <FilterBar
+                        left={
+                            <Input
+                                placeholder="Search by product name or SKU..."
+                                className="w-full sm:w-72"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        }
+                        right={
+                            <Button onClick={() => navigate('/seller/products/add')}>
+                                <HiOutlinePlus className="h-4 w-4" />
+                                Add New Product
+                            </Button>
+                        }
+                        pills={['All', 'In Stock', 'Out of Stock'].map((status) => ({
+                            label: status,
+                            active: filterStatus === status,
+                            onClick: () => { setFilterStatus(status); setPage(1); },
+                        }))}
+                    />
 
-                            {/* Stock Table */}
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left">
-                                    <thead>
-                                        <tr className="bg-slate-50/50 border-b border-slate-100">
-                                            <th className="px-6 py-4 text-xs font-black text-slate-600 uppercase tracking-widest">Product Information</th>
-                                            <th className="px-6 py-4 text-xs font-black text-slate-600 uppercase tracking-widest">Inventory Capacity</th>
-                                            <th className="px-6 py-4 text-xs font-black text-slate-600 uppercase tracking-widest">Stock Health</th>
-                                            <th className="px-6 py-4 text-xs font-black text-slate-600 uppercase tracking-widest">Price</th>
-                                            <th className="px-6 py-4 text-xs font-black text-slate-600 uppercase tracking-widest text-right whitespace-nowrap">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-50">
-                                        {filteredInventory.length === 0 ? (
-                                            <tr>
-                                                <td
-                                                    colSpan={5}
-                                                    className="px-6 py-10 text-center text-slate-600 text-xs font-black tracking-widest uppercase"
-                                                >
-                                                    No products found for this filter.
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            <AnimatePresence>
-                                                {filteredInventory
-                                                    .slice((page - 1) * pageSize, page * pageSize)
-                                                    .map((item) => (
-                                                        <motion.tr
-                                                            key={item.id}
-                                                            initial={{ opacity: 0 }}
-                                                            animate={{ opacity: 1 }}
-                                                            exit={{ opacity: 0 }}
-                                                            className="group hover:bg-slate-50/80 transition-all cursor-default"
-                                                        >
-                                                            <td className="px-6 py-5">
-                                                                <div className="flex items-center gap-4 group">
-                                                                    <div className="h-12 w-12 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 group-hover:scale-105 transition-transform overflow-hidden">
-                                                                        {item.mainImage ? (
-                                                                            <img src={item.mainImage} alt={item.name} className="h-full w-full object-cover" />
-                                                                        ) : (
-                                                                            <HiOutlineCube className="h-6 w-6" />
-                                                                        )}
-                                                                    </div>
-                                                                    <div>
-                                                                        <h4 className="text-sm font-black text-slate-900 group-hover:text-primary transition-colors">
-                                                                            {item.name}
-                                                                        </h4>
-                                                                        <p className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">
-                                                                            Product Code: {item.sku || 'N/A'}
-                                                                        </p>
-                                                                    </div>
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-6 py-5">
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="flex flex-col">
-                                                                        <span
-                                                                            className={cn(
-                                                                                "text-sm font-black",
-                                                                                item.stock <= item.threshold ? "text-rose-600" : "text-slate-900"
-                                                                            )}
-                                                                        >
-                                                                            {item.stock} units
-                                                                        </span>
-                                                                        {item.stock <= item.threshold && (
-                                                                            <span className="text-[9px] font-bold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded w-fit mt-0.5">
-                                                                                Low Stock
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-6 py-5">
-                                                                <Badge
-                                                                    variant={item.status === 'In Stock' ? 'success' : 'destructive'}
-                                                                    className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg"
-                                                                >
-                                                                    {item.status}
-                                                                </Badge>
-                                                            </td>
-                                                            <td className="px-6 py-5">
-                                                                <p className="text-sm font-black text-slate-900">₹{item.price}</p>
-                                                            </td>
-                                                            <td className="px-6 py-5 text-right">
-                                                                <button
-                                                                    onClick={() => openAdjustModal(item)}
-                                                                    className="px-4 py-2 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200 transition-colors"
-                                                                >
-                                                                    Adjust Stock
-                                                                </button>
-                                                            </td>
-                                                        </motion.tr>
-                                                    ))}
-                                            </AnimatePresence>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </Card>
-                    </BlurFade>
-
-                    <div className="mt-4">
-                        <Pagination
-                            page={page}
-                            totalPages={Math.ceil(filteredInventory.length / pageSize) || 1}
-                            total={filteredInventory.length}
-                            pageSize={pageSize}
-                            onPageChange={(p) => setPage(p)}
-                            onPageSizeChange={(newSize) => {
-                                setPageSize(newSize);
-                                setPage(1);
-                            }}
-                            loading={isLoading}
+                    {isLoading && inventory.length === 0 ? (
+                        <SkeletonCard lines={6} />
+                    ) : (
+                        <DataTable
+                            columns={stockColumns}
+                            data={pagedInventory}
+                            rowKey={(item) => item.id}
+                            emptyState={
+                                <div className="py-10 text-center text-sm text-slate-400">No products found for this filter.</div>
+                            }
                         />
-                    </div>
+                    )}
+
+                    <Pagination
+                        page={page}
+                        totalPages={Math.ceil(filteredInventory.length / pageSize) || 1}
+                        total={filteredInventory.length}
+                        pageSize={pageSize}
+                        onPageChange={(p) => setPage(p)}
+                        onPageSizeChange={(newSize) => {
+                            setPageSize(newSize);
+                            setPage(1);
+                        }}
+                        loading={isLoading}
+                    />
                 </>
             ) : (
                 /* History View */
-                <BlurFade delay={0.2}>
-                    <Card className="border-none shadow-xl shadow-slate-200/50 rounded-3xl p-0 overflow-hidden">
-                        <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/20">
-                            <div>
-                                <h3 className="text-base font-black text-slate-900">Inventory Movement Log</h3>
-                                <p className="text-sm text-slate-600 font-medium">Audit trail for all stock adjustments and sales.</p>
-                            </div>
-                        </div>
-                        <div className="divide-y divide-slate-50">
-                            {history.length === 0 ? (
-                                <div className="p-10 text-center text-slate-600 font-black uppercase tracking-widest">No history found</div>
-                            ) : history.map((log) => (
-                                <div key={log._id} className="p-6 hover:bg-slate-50/50 transition-colors flex items-center justify-between group">
-                                    <div className="flex items-center gap-5">
-                                        <div className={cn(
-                                            "h-12 w-12 rounded-2xl flex items-center justify-center shadow-sm",
-                                            log.type === 'Restock' ? "bg-brand-50 text-brand-600" :
-                                                log.type === 'Sale' ? "bg-brand-50 text-brand-600" : "bg-rose-50 text-rose-600"
-                                        )}>
-                                            {log.type === 'Restock' ? <HiOutlinePlus className="h-6 w-6" /> :
-                                                log.type === 'Sale' ? <HiOutlineCube className="h-6 w-6" /> : <HiOutlineMinus className="h-6 w-6" />}
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <h4 className="text-sm font-black text-slate-900">{log.product?.name || 'Unknown Product'}</h4>
-                                                <Badge className={cn(
-                                                    "text-[9px] font-bold px-1.5 py-0",
-                                                    log.type === 'Restock' ? "bg-brand-100 text-brand-700" :
-                                                        log.type === 'Sale' ? "bg-brand-100 text-brand-700" : "bg-rose-100 text-rose-700"
-                                                )}>
-                                                    {log.type.toUpperCase()}
-                                                </Badge>
-                                            </div>
-                                            <p className="text-[11px] text-slate-600 font-semibold mt-1">Note: {log.note || 'N/A'}</p>
-                                        </div>
+                <Card title="Inventory Movement Log" subtitle="Audit trail for all stock adjustments and sales." contentClassName="p-0">
+                    <div className="divide-y divide-slate-100">
+                        {history.length === 0 ? (
+                            <div className="py-10 text-center text-sm text-slate-400">No history found.</div>
+                        ) : history.map((log) => (
+                            <div key={log._id} className="flex items-center justify-between p-4 transition-colors hover:bg-slate-50">
+                                <div className="flex items-center gap-4">
+                                    <div className={cn(
+                                        "flex h-10 w-10 items-center justify-center rounded-xl",
+                                        log.type === 'Restock' ? "bg-primary/10 text-primary" :
+                                            log.type === 'Sale' ? "bg-success/10 text-success" : "bg-danger/10 text-danger"
+                                    )}>
+                                        {log.type === 'Restock' ? <HiOutlinePlus className="h-5 w-5" /> :
+                                            log.type === 'Sale' ? <HiOutlineCube className="h-5 w-5" /> : <HiOutlineMinus className="h-5 w-5" />}
                                     </div>
-                                    <div className="text-right">
-                                        <div className={cn(
-                                            "text-lg font-black tracking-tight mb-0.5",
-                                            log.quantity > 0 ? "text-brand-600" : "text-rose-600"
-                                        )}>
-                                            {log.quantity > 0 ? `+${log.quantity}` : log.quantity}
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <h4 className="text-sm font-bold text-slate-900">{log.product?.name || 'Unknown Product'}</h4>
+                                            <Badge variant={log.type === 'Restock' ? 'primary' : log.type === 'Sale' ? 'success' : 'danger'}>
+                                                {log.type}
+                                            </Badge>
                                         </div>
-                                        <div className="flex items-center justify-end gap-1.5 text-[10px] font-bold text-slate-600">
-                                            <HiOutlineCalendarDays className="h-3.5 w-3.5" />
-                                            {new Date(log.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })} • {new Date(log.createdAt).toLocaleTimeString()}
-                                        </div>
+                                        <p className="mt-0.5 text-xs text-slate-500">Note: {log.note || 'N/A'}</p>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-                    </Card>
-                </BlurFade>
+                                <div className="text-right">
+                                    <div className={cn("mb-0.5 text-base font-black tracking-tight", log.quantity > 0 ? "text-success" : "text-danger")}>
+                                        {log.quantity > 0 ? `+${log.quantity}` : log.quantity}
+                                    </div>
+                                    <div className="flex items-center justify-end gap-1.5 text-[10px] font-semibold text-slate-400">
+                                        <HiOutlineCalendarDays className="h-3.5 w-3.5" />
+                                        {new Date(log.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })} • {new Date(log.createdAt).toLocaleTimeString()}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </Card>
             )}
 
             {/* Advanced Adjustment Modal */}
@@ -454,47 +367,45 @@ const StockManagement = () => {
                             initial={{ opacity: 0, scale: 0.95, y: 10 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                            className="w-full max-w-md relative z-10 bg-white rounded-3xl shadow-2xl overflow-hidden"
+                            className="w-full max-w-md relative z-10 bg-white rounded-2xl shadow-2xl overflow-hidden"
                         >
-                            <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                            <div className="p-5 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 bg-slate-900 text-white rounded-xl flex items-center justify-center shadow-lg shadow-slate-900/20">
+                                    <div className="h-10 w-10 bg-slate-900 text-white rounded-xl flex items-center justify-center">
                                         <HiOutlineArrowsUpDown className="h-5 w-5" />
                                     </div>
                                     <div>
-                                        <h3 className="text-base font-black text-slate-900">Adjust Inventory</h3>
-                                        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest leading-none mt-1">Update product stock</p>
+                                        <h3 className="text-base font-bold text-slate-900">Adjust Inventory</h3>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">Update product stock</p>
                                     </div>
                                 </div>
-                                <button onClick={() => setIsAdjustModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-600">
+                                <button onClick={() => setIsAdjustModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
                                     <HiOutlineXMark className="h-5 w-5" />
                                 </button>
                             </div>
 
-                            <div className="p-8 space-y-6">
-                                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-4">
-                                    <div className="h-12 w-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 overflow-hidden">
+                            <div className="p-6 space-y-5">
+                                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-3">
+                                    <div className="h-11 w-11 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-500 overflow-hidden">
                                         {selectedItem.mainImage ? (
                                             <img src={selectedItem.mainImage} alt="" className="h-full w-full object-cover" />
-                                        ) : <HiOutlineCube className="h-6 w-6" />}
+                                        ) : <HiOutlineCube className="h-5 w-5" />}
                                     </div>
                                     <div>
-                                        <h4 className="text-sm font-black text-slate-900">{selectedItem.name}</h4>
-                                        <p className="text-[10px] font-bold text-slate-600">CURRENT STOCK: <span className="text-slate-900 font-black">{selectedItem.stock} UNITS</span></p>
+                                        <h4 className="text-sm font-bold text-slate-900">{selectedItem.name}</h4>
+                                        <p className="text-xs font-medium text-slate-500">Current stock: <span className="font-bold text-slate-900">{selectedItem.stock} units</span></p>
                                     </div>
                                 </div>
 
                                 <div className="space-y-4">
-                                    <div className="flex p-1 bg-slate-100 rounded-2xl border border-slate-200">
+                                    <div className="flex rounded-lg border border-slate-200 bg-slate-100 p-1">
                                         {['Restock', 'Remove'].map((type) => (
                                             <button
                                                 key={type}
                                                 onClick={() => setAdjustType(type)}
                                                 className={cn(
-                                                    "flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
-                                                    adjustType === type
-                                                        ? "bg-white text-slate-900 shadow-md"
-                                                        : "text-slate-600 hover:text-slate-600"
+                                                    "flex-1 rounded-md py-2 text-xs font-bold uppercase tracking-wide transition-all",
+                                                    adjustType === type ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
                                                 )}
                                             >
                                                 {type}
@@ -503,44 +414,37 @@ const StockManagement = () => {
                                     </div>
 
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-black text-slate-600 uppercase tracking-widest ml-1">Quantity Change</label>
-                                        <div className="relative group">
-                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-black text-slate-600">#</div>
+                                        <label className="text-xs font-medium text-slate-700 ml-0.5">Quantity Change</label>
+                                        <div className="relative">
+                                            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-lg font-black text-slate-400">#</div>
                                             <input
                                                 type="number"
                                                 value={adjustValue}
                                                 onChange={(e) => setAdjustValue(e.target.value)}
-                                                className="w-full pl-10 pr-4 py-4 bg-slate-50 border-none rounded-2xl text-2xl font-black text-slate-900 focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                                                className="w-full rounded-md border border-slate-200 bg-slate-50 pl-10 pr-4 py-3 text-xl font-black text-slate-900 outline-none transition-all focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20"
                                                 placeholder="0"
                                             />
                                         </div>
                                     </div>
 
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-black text-slate-600 uppercase tracking-widest ml-1">Internal Note (Optional)</label>
+                                        <label className="text-xs font-medium text-slate-700 ml-0.5">Internal Note (Optional)</label>
                                         <textarea
                                             value={adjustNote}
                                             onChange={(e) => setAdjustNote(e.target.value)}
-                                            className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-semibold text-slate-700 focus:ring-2 focus:ring-primary/20 transition-all outline-none resize-none h-20"
+                                            className="h-20 w-full resize-none rounded-md border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-700 outline-none transition-all focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20"
                                             placeholder="Reason for adjustment..."
                                         />
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
-                                <Button
-                                    onClick={() => setIsAdjustModalOpen(false)}
-                                    variant="outline"
-                                    className="flex-1 py-4 text-xs font-bold rounded-2xl bg-white"
-                                >
-                                    CANCEL
+                            <div className="p-5 bg-slate-50 border-t border-slate-100 flex gap-3">
+                                <Button onClick={() => setIsAdjustModalOpen(false)} variant="outline" className="flex-1">
+                                    Cancel
                                 </Button>
-                                <Button
-                                    onClick={handleFullAdjustment}
-                                    className="flex-1 py-4 text-xs font-bold rounded-2xl shadow-xl shadow-primary/20"
-                                >
-                                    SAVE CHANGES
+                                <Button onClick={handleFullAdjustment} className="flex-1">
+                                    Save Changes
                                 </Button>
                             </div>
                         </motion.div>

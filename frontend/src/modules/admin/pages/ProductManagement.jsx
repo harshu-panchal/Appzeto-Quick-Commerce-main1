@@ -1,6 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import Card from '@shared/components/ui/Card';
 import Badge from '@shared/components/ui/Badge';
+import Button from '@shared/components/ui/Button';
+import PageHeader from '@shared/components/ui/PageHeader';
+import StatCard from '@shared/components/ui/StatCard';
+import FilterBar from '@shared/components/ui/FilterBar';
+import DataTable from '@shared/components/ui/DataTable';
+import EmptyState from '@shared/components/ui/EmptyState';
+import { SkeletonStatCard, SkeletonCard } from '@shared/components/ui/Skeleton';
 import { adminApi } from '../services/adminApi';
 import { toast } from 'sonner';
 import {
@@ -20,7 +26,6 @@ import {
     HiOutlineExclamationCircle,
     HiOutlineFolderOpen,
     HiOutlineSwatch,
-    HiOutlineSquaresPlus
 } from 'react-icons/hi2';
 import Modal from '@shared/components/ui/Modal';
 import Pagination from '@shared/components/ui/Pagination';
@@ -368,327 +373,288 @@ const ProductManagement = () => {
     }, [moderationCounts, total]);
 
     const StatusBadge = ({ status, stock }) => {
-        if (stock === 0) return <Badge variant="error" className="text-[10px] px-1.5 py-0">Out of Stock</Badge>;
-        if (stock <= 10) return <Badge variant="warning" className="text-[10px] px-1.5 py-0">Low Stock</Badge>;
-        if (status === 'active') return <Badge variant="success" className="text-[10px] px-1.5 py-0">Active</Badge>;
-        return <Badge variant="gray" className="text-[10px] px-1.5 py-0">Draft</Badge>;
+        if (stock === 0) return <Badge variant="danger">Out of Stock</Badge>;
+        if (stock <= 10) return <Badge variant="warning">Low Stock</Badge>;
+        if (status === 'active') return <Badge variant="success">Active</Badge>;
+        return <Badge variant="secondary">Draft</Badge>;
     };
 
     const ApprovalBadge = ({ approvalStatus }) => {
         const normalized = String(approvalStatus || 'approved').toLowerCase();
         if (normalized === 'pending') {
-            return <Badge variant="warning" className="text-[10px] px-1.5 py-0">Pending</Badge>;
+            return <Badge variant="warning">Pending</Badge>;
         }
         if (normalized === 'rejected') {
-            return <Badge variant="error" className="text-[10px] px-1.5 py-0">Rejected</Badge>;
+            return <Badge variant="danger">Rejected</Badge>;
         }
-        return <Badge variant="success" className="text-[10px] px-1.5 py-0">Approved</Badge>;
+        return <Badge variant="success">Approved</Badge>;
     };
 
-    return (
-        <div className="ds-section-spacing animate-in fade-in slide-in-from-bottom-2 duration-700 pb-16">
-            {/* Page Header */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div>
-                    <h1 className="ds-h1 flex items-center gap-2">
-                        Product List
-                        <Badge variant="primary" className="text-[9px] px-1.5 py-0 font-bold tracking-wider uppercase">Live</Badge>
-                    </h1>
-                    <p className="ds-description mt-0.5">Track your items, prices, and how many are left in stock.</p>
+    const columns = [
+        {
+            header: 'Product',
+            key: 'product',
+            cell: (p) => (
+                <div className="flex min-w-0 items-center gap-3">
+                    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+                        <img src={p.mainImage || p.images?.[0]} alt={p.name} className="h-full w-full object-cover" />
+                    </div>
+                    <div className="min-w-0">
+                        <p className="truncate text-[13px] font-semibold text-slate-900" title={p.name}>{p.name}</p>
+                        <p className="truncate text-[10px] font-medium uppercase tracking-widest text-slate-400" title={p.unit}>{p.unit}</p>
+                        {p.approvalStatus === 'rejected' && p.approvalNote ? (
+                            <p className="truncate text-[10px] font-medium text-danger" title={p.approvalNote}>
+                                Note: {p.approvalNote}
+                            </p>
+                        ) : null}
+                    </div>
                 </div>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                    { id: 'all', label: 'All Items', val: stats.total, icon: HiOutlineCube, color: 'text-brand-600', bg: 'bg-brand-50' },
-                    { id: 'active', label: 'Active Items', val: stats.active, icon: HiOutlineCheckCircle, color: 'text-brand-600', bg: 'bg-brand-50' },
-                    { id: 'low', label: 'Low Stock', val: stats.lowStock, icon: HiOutlineExclamationCircle, color: 'text-amber-600', bg: 'bg-amber-50' },
-                    { id: 'out', label: 'Out of Stock', val: stats.outOfStock, icon: HiOutlineArchiveBox, color: 'text-rose-600', bg: 'bg-rose-50' }
-                ].map((stat, i) => (
-                    <Card 
-                        key={i} 
-                        className={cn(
-                            "border-none shadow-sm ring-1 p-4 relative overflow-hidden group cursor-pointer transition-all",
-                            (stat.id === 'low' || stat.id === 'out') && filterStockStatus === stat.id ? "ring-2 ring-primary/50 shadow-md bg-slate-50" : "ring-slate-100"
-                        )}
-                        onClick={() => {
-                            if (stat.id === 'low' || stat.id === 'out') {
-                                setFilterStockStatus(prev => prev === stat.id ? 'all' : stat.id);
-                            }
-                        }}
-                    >
-                        <div className="flex items-center gap-3">
-                            <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 duration-300", stat.bg, stat.color)}>
-                                <stat.icon className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <p className="ds-label">{stat.label}</p>
-                                <h4 className="ds-stat-medium">{stat.val}</h4>
-                            </div>
+            ),
+        },
+        {
+            header: 'Seller',
+            key: 'seller',
+            cell: (p) => (
+                <div className="flex min-w-0 items-center gap-2">
+                    <div className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span className="truncate text-[13px] font-medium text-slate-700" title={p.sellerId?.shopName || 'Admin'}>
+                        {p.sellerId?.shopName || 'Admin'}
+                    </span>
+                </div>
+            ),
+        },
+        {
+            header: 'Variant',
+            key: 'variant',
+            cell: (p) => (
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setViewingVariants(p);
+                        setIsVariantsViewModalOpen(true);
+                    }}
+                    className="text-left"
+                >
+                    {p.variants && p.variants.length > 0 ? (
+                        <div className="inline-flex items-center gap-1.5 rounded-full border border-info/20 bg-info/10 px-2.5 py-1 text-info transition-transform hover:-translate-y-0.5">
+                            <HiOutlineSwatch className="h-3.5 w-3.5 shrink-0" />
+                            <span className="whitespace-nowrap text-[12px] font-medium">
+                                {p.variants.length} Variant{p.variants.length > 1 ? 's' : ''}
+                            </span>
                         </div>
-                    </Card>
-                ))}
-            </div>
-
-            <Card className="border-none shadow-sm ring-1 ring-slate-100 p-3 bg-white/60 backdrop-blur-xl">
-                <div className="flex flex-wrap gap-2">
-                    {[
-                        { key: 'all', label: 'All', count: moderationCounts.all },
-                        { key: 'approved', label: 'Approved', count: moderationCounts.approved },
-                        { key: 'pending', label: 'Pending Approval', count: moderationCounts.pending },
-                        { key: 'rejected', label: 'Rejected', count: moderationCounts.rejected },
-                    ].map((item) => (
-                        <button
-                            key={item.key}
-                            type="button"
-                            onClick={() => setFilterApprovalStatus(item.key)}
-                            className={cn(
-                                "rounded-xl px-4 py-2 text-xs font-bold transition-all",
-                                filterApprovalStatus === item.key
-                                    ? "bg-slate-900 text-white"
-                                    : "bg-white ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50"
-                            )}
-                        >
-                            {item.label} ({item.count})
-                        </button>
-                    ))}
+                    ) : (
+                        <span className="text-[12px] font-medium text-slate-400">No variants</span>
+                    )}
+                </button>
+            ),
+        },
+        {
+            header: 'Category',
+            key: 'category',
+            cell: (p) => (
+                <span className="inline-block max-w-full truncate rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-[12px] font-medium text-slate-700" title={p.categoryId?.name || 'N/A'}>
+                    {p.categoryId?.name || 'N/A'}
+                </span>
+            ),
+        },
+        {
+            header: 'Subcategory',
+            key: 'subcategory',
+            cell: (p) => (
+                <span className="inline-block max-w-full truncate rounded-full border border-slate-100 bg-slate-50 px-3 py-1 text-[12px] font-medium text-slate-600" title={p.subcategoryId?.name || 'N/A'}>
+                    {p.subcategoryId?.name || 'N/A'}
+                </span>
+            ),
+        },
+        {
+            header: 'Status',
+            key: 'status',
+            align: 'center',
+            cell: (p) => (
+                <div className="flex flex-col items-center gap-1">
+                    <StatusBadge status={p.status} stock={getEffectiveStock(p)} />
+                    <ApprovalBadge approvalStatus={p.approvalStatus} />
                 </div>
-            </Card>
+            ),
+        },
+        {
+            header: 'Actions',
+            key: 'actions',
+            align: 'center',
+            cell: (p) => (
+                <div className="flex items-center justify-center gap-1.5">
+                    {String(p.approvalStatus || '').toLowerCase() !== 'approved' && (
+                        <button
+                            onClick={() => handleModerationAction(p, 'approve')}
+                            disabled={moderatingActionId === `approve:${p._id}`}
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-100 text-slate-400 shadow-sm transition-all hover:bg-success/10 hover:text-success disabled:opacity-60"
+                            title="Approve product"
+                        >
+                            <HiOutlineCheckCircle className="h-4 w-4" />
+                        </button>
+                    )}
+                    {String(p.approvalStatus || '').toLowerCase() !== 'rejected' && (
+                        <button
+                            onClick={() => handleModerationAction(p, 'reject')}
+                            disabled={moderatingActionId === `reject:${p._id}`}
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-100 text-slate-400 shadow-sm transition-all hover:bg-warning/10 hover:text-warning disabled:opacity-60"
+                            title="Reject product"
+                        >
+                            <HiOutlineXMark className="h-4 w-4" />
+                        </button>
+                    )}
+                    <button
+                        onClick={() => openModal(p)}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-100 text-slate-400 shadow-sm transition-all hover:bg-primary/10 hover:text-primary"
+                    >
+                        <HiOutlinePencilSquare className="h-4 w-4" />
+                    </button>
+                    <button
+                        onClick={() => (setItemToDelete(p), setIsDeleteModalOpen(true))}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-100 text-slate-400 shadow-sm transition-all hover:bg-danger/10 hover:text-danger"
+                    >
+                        <HiOutlineTrash className="h-4 w-4" />
+                    </button>
+                </div>
+            ),
+        },
+    ];
 
-            {/* Toolbox */}
-            <Card className="border-none shadow-sm ring-1 ring-slate-100 p-3 bg-white/60 backdrop-blur-xl">
-                <div className="flex flex-col lg:flex-row gap-3 items-center">
-                    <div className="relative flex-1 group w-full">
-                        <HiOutlineMagnifyingGlass className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-all" />
-                        <input
-                            type="text"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder="Search by name, SKU or slug..."
-                            className="w-full pl-10 pr-4 py-2.5 bg-slate-100/50 border-none rounded-xl text-xs font-semibold text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/5 transition-all outline-none"
+    return (
+        <div className="space-y-5">
+            <PageHeader
+                title={
+                    <span className="flex items-center gap-2">
+                        Product List
+                        <Badge variant="primary">Live</Badge>
+                    </span>
+                }
+                description="Track your items, prices, and how many are left in stock."
+            />
+
+            {isLoading && productsList.length === 0 ? (
+                <div className="space-y-5">
+                    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                        {Array.from({ length: 4 }).map((_, i) => <SkeletonStatCard key={i} />)}
+                    </div>
+                    <SkeletonCard lines={6} />
+                </div>
+            ) : (
+                <>
+                    {/* Quick Stats */}
+                    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                        <StatCard label="All Items" value={stats.total} icon={HiOutlineCube} color="text-primary" bg="bg-primary/10" />
+                        <StatCard label="Active Items" value={stats.active} icon={HiOutlineCheckCircle} color="text-success" bg="bg-success/10" />
+                        <StatCard
+                            label="Low Stock"
+                            value={stats.lowStock}
+                            icon={HiOutlineExclamationCircle}
+                            color="text-warning"
+                            bg="bg-warning/10"
+                            onClick={() => setFilterStockStatus(prev => prev === 'low' ? 'all' : 'low')}
+                            className={filterStockStatus === 'low' ? 'ring-2 ring-warning/40' : ''}
+                        />
+                        <StatCard
+                            label="Out of Stock"
+                            value={stats.outOfStock}
+                            icon={HiOutlineArchiveBox}
+                            color="text-danger"
+                            bg="bg-danger/10"
+                            onClick={() => setFilterStockStatus(prev => prev === 'out' ? 'all' : 'out')}
+                            className={filterStockStatus === 'out' ? 'ring-2 ring-danger/40' : ''}
                         />
                     </div>
-                    <div className="flex gap-2 shrink-0 w-full lg:w-auto">
-                        <select
-                            value={filterCategory}
-                            onChange={(e) => setFilterCategory(e.target.value)}
-                            className="flex-1 lg:flex-none px-4 py-2.5 bg-white ring-1 ring-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-primary/5 outline-none appearance-none cursor-pointer"
-                        >
-                            <option value="all">All Categories</option>
-                            {categories.map(h => (
-                                <optgroup key={h._id} label={h.name}>
-                                    <option value={h._id}>All {h.name}</option>
-                                    {(h.children || []).map(c => (
-                                        <option key={c._id} value={c._id}>{c.name}</option>
-                                    ))}
-                                </optgroup>
-                            ))}
-                        </select>
-                        <button
-                            onClick={() => {
-                                const nextStatus = filterStatus === 'all' ? 'active' : filterStatus === 'active' ? 'inactive' : 'all';
-                                setFilterStatus(nextStatus);
-                            }}
-                            className={cn(
-                                "flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
-                                filterStatus === 'active' ? "bg-emerald-500 text-white shadow-md shadow-emerald-100" :
-                                    filterStatus === 'inactive' ? "bg-amber-500 text-white shadow-md shadow-amber-100" :
-                                        "bg-white ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50"
-                            )}
-                            >
-                            <HiOutlineFunnel className="h-4 w-4" />
-                            <span>
-                                {filterStatus === 'active' ? 'ONLY LIVE' :
-                                    filterStatus === 'inactive' ? 'ONLY DRAFT' :
-                                        'SHOW ALL'}
-                            </span>
-                        </button>
-                        <select
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value)}
-                            className="flex-1 lg:flex-none px-4 py-2.5 bg-white ring-1 ring-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:ring-2 focus:ring-primary/5 outline-none appearance-none cursor-pointer"
-                        >
-                            <option value="newest">Newest first</option>
-                            <option value="oldest">Oldest first</option>
-                            <option value="name-asc">Name A-Z</option>
-                            <option value="name-desc">Name Z-A</option>
-                            <option value="price-asc">Price Low-High</option>
-                            <option value="price-desc">Price High-Low</option>
-                            <option value="stock-asc">Stock Low-High</option>
-                            <option value="stock-desc">Stock High-Low</option>
-                        </select>
-                    </div>
-                </div>
-            </Card>
 
-            {/* Product Table */}
-            <Card className="border-none shadow-xl ring-1 ring-slate-100 overflow-hidden rounded-xl">
-                <div className="overflow-x-auto">
-                    <table className="w-full min-w-[1180px] table-fixed text-left border-collapse">
-                        <colgroup>
-                            <col className="w-[24%]" />
-                            <col className="w-[13%]" />
-                            <col className="w-[11%]" />
-                            <col className="w-[12%]" />
-                            <col className="w-[14%]" />
-                            <col className="w-[11%]" />
-                            <col className="w-[15%]" />
-                        </colgroup>
-                        <thead>
-                            <tr className="bg-slate-50/50 border-b border-slate-100">
-                                <th className="px-6 py-3 text-left text-[10px] font-medium text-slate-500 uppercase tracking-[0.18em]">Product</th>
-                                <th className="px-6 py-3 text-left text-[10px] font-medium text-slate-500 uppercase tracking-[0.18em]">Seller</th>
-                                <th className="px-6 py-3 text-left text-[10px] font-medium text-slate-500 uppercase tracking-[0.18em]">Variant</th>
-                                <th className="px-6 py-3 text-left text-[10px] font-medium text-slate-500 uppercase tracking-[0.18em]">Category</th>
-                                <th className="px-6 py-3 text-left text-[10px] font-medium text-slate-500 uppercase tracking-[0.18em]">Subcategory</th>
-                                <th className="px-4 py-3 text-center text-[10px] font-medium text-slate-500 uppercase tracking-[0.18em] whitespace-nowrap">Status</th>
-                                <th className="px-4 py-3 text-center text-[10px] font-medium text-slate-500 uppercase tracking-[0.18em] whitespace-nowrap">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                            {isLoading ? (
-                                <tr>
-                                    <td colSpan="7" className="px-6 py-20 text-center">
-                                        <div className="flex flex-col items-center gap-3">
-                                            <HiOutlineArrowPath className="h-8 w-8 text-primary animate-spin" />
-                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Loading Products...</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : productsList.length === 0 ? (
-                                <tr>
-                                    <td colSpan="7" className="px-6 py-20 text-center text-slate-400 font-bold text-xs uppercase tracking-widest">No products found</td>
-                                </tr>
-                            ) : productsList.map((p) => (
-                                <tr
-                                    key={p._id}
+                    <FilterBar
+                        pills={[
+                            { label: `All (${moderationCounts.all})`, active: filterApprovalStatus === 'all', onClick: () => setFilterApprovalStatus('all') },
+                            { label: `Approved (${moderationCounts.approved})`, active: filterApprovalStatus === 'approved', onClick: () => setFilterApprovalStatus('approved') },
+                            { label: `Pending Approval (${moderationCounts.pending})`, active: filterApprovalStatus === 'pending', onClick: () => setFilterApprovalStatus('pending') },
+                            { label: `Rejected (${moderationCounts.rejected})`, active: filterApprovalStatus === 'rejected', onClick: () => setFilterApprovalStatus('rejected') },
+                        ]}
+                    />
+
+                    <FilterBar
+                        left={
+                            <div className="relative w-full sm:w-80">
+                                <HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                <input
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    placeholder="Search by name, SKU or slug..."
+                                    className="h-9 w-full rounded-md border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                />
+                            </div>
+                        }
+                        right={
+                            <div className="flex flex-wrap items-center gap-2">
+                                <select
+                                    value={filterCategory}
+                                    onChange={(e) => setFilterCategory(e.target.value)}
+                                    className="h-9 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-primary/20"
+                                >
+                                    <option value="all">All Categories</option>
+                                    {categories.map(h => (
+                                        <optgroup key={h._id} label={h.name}>
+                                            <option value={h._id}>All {h.name}</option>
+                                            {(h.children || []).map(c => (
+                                                <option key={c._id} value={c._id}>{c.name}</option>
+                                            ))}
+                                        </optgroup>
+                                    ))}
+                                </select>
+                                <button
+                                    onClick={() => {
+                                        const nextStatus = filterStatus === 'all' ? 'active' : filterStatus === 'active' ? 'inactive' : 'all';
+                                        setFilterStatus(nextStatus);
+                                    }}
                                     className={cn(
-                                        "group transition-colors hover:bg-slate-50/60",
-                                        String(p.approvalStatus || '').toLowerCase() === 'pending' && "bg-amber-50/40"
+                                        "flex h-9 items-center gap-1.5 whitespace-nowrap rounded-md px-3 text-xs font-bold transition-all",
+                                        filterStatus === 'active' ? "bg-success text-white" :
+                                            filterStatus === 'inactive' ? "bg-warning text-white" :
+                                                "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                                     )}
                                 >
-                                    {/* Product Column */}
-                                    <td className="px-6 py-5 align-middle">
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <div className="h-11 w-11 shrink-0 rounded-xl overflow-hidden bg-slate-100 ring-1 ring-slate-200 shadow-sm">
-                                                <img src={p.mainImage || p.images?.[0]} alt={p.name} className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className="truncate text-[13px] font-semibold leading-5 text-slate-900" title={p.name}>{p.name}</p>
-                                                <p className="truncate text-[10px] font-medium uppercase tracking-widest text-slate-400" title={p.unit}>{p.unit}</p>
-                                                {p.approvalStatus === 'rejected' && p.approvalNote ? (
-                                                    <p className="truncate text-[10px] font-medium text-rose-500" title={p.approvalNote}>
-                                                        Note: {p.approvalNote}
-                                                    </p>
-                                                ) : null}
-                                            </div>
-                                        </div>
-                                    </td>
+                                    <HiOutlineFunnel className="h-3.5 w-3.5" />
+                                    <span>
+                                        {filterStatus === 'active' ? 'Only Live' :
+                                            filterStatus === 'inactive' ? 'Only Draft' :
+                                                'Show All'}
+                                    </span>
+                                </button>
+                                <select
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value)}
+                                    className="h-9 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-primary/20"
+                                >
+                                    <option value="newest">Newest first</option>
+                                    <option value="oldest">Oldest first</option>
+                                    <option value="name-asc">Name A-Z</option>
+                                    <option value="name-desc">Name Z-A</option>
+                                    <option value="price-asc">Price Low-High</option>
+                                    <option value="price-desc">Price High-Low</option>
+                                    <option value="stock-asc">Stock Low-High</option>
+                                    <option value="stock-desc">Stock High-Low</option>
+                                </select>
+                            </div>
+                        }
+                    />
 
-                                    {/* Seller Column */}
-                                    <td className="px-6 py-5 align-middle">
-                                        <div className="flex items-center gap-2 min-w-0">
-                                            <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-brand-500 shadow-[0_0_0_4px_rgba(59,130,246,0.12)]" />
-                                            <span className="truncate text-[13px] font-medium text-slate-700" title={p.sellerId?.shopName || 'Admin'}>
-                                                {p.sellerId?.shopName || 'Admin'}
-                                            </span>
-                                        </div>
-                                    </td>
+                    <DataTable
+                        columns={columns}
+                        data={productsList}
+                        rowKey={(p) => p._id}
+                        loading={isLoading && productsList.length > 0}
+                        emptyState={
+                            <EmptyState
+                                icon={<HiOutlineCube className="h-6 w-6" />}
+                                title="No products found"
+                                description="No products match your current search criteria."
+                            />
+                        }
+                    />
 
-                                    {/* Variant Column */}
-                                    <td
-                                        className="px-6 py-5 cursor-pointer align-middle transition-colors group/variant hover:bg-purple-50/60"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setViewingVariants(p);
-                                            setIsVariantsViewModalOpen(true);
-                                        }}
-                                    >
-                                        {p.variants && p.variants.length > 0 ? (
-                                            <div className="inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-2.5 py-1 text-purple-700 ring-1 ring-purple-100 transition-transform group-hover/variant:-translate-y-0.5">
-                                                <HiOutlineSwatch className="h-3.5 w-3.5 shrink-0 text-purple-500" />
-                                                <span className="text-[12px] font-medium whitespace-nowrap">
-                                                    {p.variants.length} Variant{p.variants.length > 1 ? 's' : ''}
-                                                </span>
-                                            </div>
-                                        ) : (
-                                            <span className="text-[12px] font-medium text-slate-400">No variants</span>
-                                        )}
-                                    </td>
-
-                                    {/* Category Column */}
-                                    <td className="px-6 py-5 align-middle">
-                                        <span
-                                            className="inline-block max-w-full rounded-full bg-slate-100 px-3 py-1 text-[12px] font-medium text-slate-700 ring-1 ring-slate-200 truncate"
-                                            title={p.categoryId?.name || 'N/A'}
-                                        >
-                                            {p.categoryId?.name || 'N/A'}
-                                        </span>
-                                    </td>
-
-                                    {/* Subcategory Column */}
-                                    <td className="px-6 py-5 align-middle">
-                                        <span
-                                            className="inline-block max-w-full rounded-full bg-slate-50 px-3 py-1 text-[12px] font-medium text-slate-600 ring-1 ring-slate-100 truncate"
-                                            title={p.subcategoryId?.name || 'N/A'}
-                                        >
-                                            {p.subcategoryId?.name || 'N/A'}
-                                        </span>
-                                    </td>
-
-
-                                    {/* Status Column */}
-                                    <td className="px-4 py-5 text-center align-middle whitespace-nowrap">
-                                        <div className="flex flex-col items-center gap-1">
-                                            <StatusBadge status={p.status} stock={getEffectiveStock(p)} />
-                                            <ApprovalBadge approvalStatus={p.approvalStatus} />
-                                        </div>
-                                    </td>
-
-                                    {/* Actions Column */}
-                                    <td className="px-4 py-5 text-center align-middle">
-                                        <div className="flex items-center justify-center gap-2">
-                                            {String(p.approvalStatus || '').toLowerCase() !== 'approved' && (
-                                                <button
-                                                    onClick={() => handleModerationAction(p, 'approve')}
-                                                    disabled={moderatingActionId === `approve:${p._id}`}
-                                                    className="flex h-9 w-9 shrink-0 items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all text-slate-400 shadow-sm ring-1 ring-slate-100 disabled:opacity-60"
-                                                    title="Approve product"
-                                                >
-                                                    <HiOutlineCheckCircle className="h-4 w-4" />
-                                                </button>
-                                            )}
-                                            {String(p.approvalStatus || '').toLowerCase() !== 'rejected' && (
-                                                <button
-                                                    onClick={() => handleModerationAction(p, 'reject')}
-                                                    disabled={moderatingActionId === `reject:${p._id}`}
-                                                    className="flex h-9 w-9 shrink-0 items-center justify-center hover:bg-amber-50 hover:text-amber-600 rounded-xl transition-all text-slate-400 shadow-sm ring-1 ring-slate-100 disabled:opacity-60"
-                                                    title="Reject product"
-                                                >
-                                                    <HiOutlineXMark className="h-4 w-4" />
-                                                </button>
-                                            )}
-                                            <button
-                                                onClick={() => openModal(p)}
-                                                className="flex h-9 w-9 shrink-0 items-center justify-center hover:bg-white hover:text-primary rounded-xl transition-all text-slate-400 shadow-sm ring-1 ring-slate-100"
-                                            >
-                                                <HiOutlinePencilSquare className="h-4 w-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => (setItemToDelete(p), setIsDeleteModalOpen(true))}
-                                                className="flex h-9 w-9 shrink-0 items-center justify-center hover:bg-rose-50 hover:text-rose-600 rounded-xl transition-all text-slate-400 shadow-sm ring-1 ring-slate-100"
-                                            >
-                                                <HiOutlineTrash className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-                <div className="px-6 py-3 border-t border-slate-100">
                     <Pagination
                         page={page}
                         totalPages={Math.ceil(total / pageSize) || 1}
@@ -701,14 +667,14 @@ const ProductManagement = () => {
                         }}
                         loading={isLoading}
                     />
-                </div>
-            </Card>
+                </>
+            )}
 
             {/* Super Detailed Modal */}
             <AnimatePresence>
                 {isProductModalOpen && (
                     <div
-                        className="fixed inset-0 z-[100] flex items-center justify-center p-4 lg:p-12 overflow-hidden overscroll-contain touch-pan-y"
+                        className="fixed inset-0 z-[100] flex touch-pan-y items-center justify-center overflow-hidden overscroll-contain p-4 lg:p-12"
                         onWheelCapture={(e) => e.stopPropagation()}
                     >
                         <motion.div
@@ -722,33 +688,33 @@ const ProductManagement = () => {
                             initial={{ opacity: 0, scale: 0.95, y: 10 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                            className="w-full max-w-5xl relative z-10 bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col"
+                            className="relative z-10 flex w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
                         >
                             {/* Modal Header */}
-                            <div className="flex items-center justify-between p-6 border-b border-slate-100">
+                            <div className="flex items-center justify-between border-b border-slate-100 p-5">
                                 <div className="flex items-center space-x-3">
-                                    <div className="h-10 w-10 bg-slate-900 text-white rounded-xl flex items-center justify-center">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-white">
                                         <HiOutlineCube className="h-5 w-5" />
                                     </div>
                                     <div>
-                                        <h3 className="admin-h3">
+                                        <h3 className="text-base font-black text-slate-900">
                                             Edit Product
                                         </h3>
-                                        <div className="flex items-center space-x-2 mt-0.5">
-                                            <Badge variant="primary" className="text-[7px] font-bold uppercase tracking-widest px-1">SYSTEM</Badge>
+                                        <div className="mt-0.5 flex items-center space-x-2">
+                                            <Badge variant="primary">System</Badge>
                                             <HiOutlineChevronRight className="h-2.5 w-2.5 text-slate-300" />
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{formData.sku || 'PENDING SKU'}</span>
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{formData.sku || 'PENDING SKU'}</span>
                                         </div>
                                     </div>
                                 </div>
-                                <button onClick={() => setIsProductModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
+                                <button onClick={() => setIsProductModalOpen(false)} className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100">
                                     <HiOutlineXMark className="h-5 w-5" />
                                 </button>
                             </div>
 
-                            <div className="flex flex-col lg:flex-row flex-1 min-h-0 min-h-[400px] max-h-[calc(100vh-200px)] overflow-hidden">
+                            <div className="flex min-h-0 min-h-[400px] max-h-[calc(100vh-200px)] flex-1 flex-col overflow-hidden md:flex-row">
                                 {/* Modal Sidebar Tabs */}
-                                <div className="lg:w-1/4 bg-slate-50/50 border-r border-slate-100 p-4 space-y-1 overflow-y-auto overscroll-contain scrollbar-hide min-h-0">
+                                <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain border-r border-slate-100 bg-slate-50/50 p-4 scrollbar-hide md:w-1/4">
                                     {[
                                         { id: 'general', label: 'General Info', icon: HiOutlineTag },
                                         { id: 'variants', label: 'Item Variants', icon: HiOutlineSwatch },
@@ -759,9 +725,9 @@ const ProductManagement = () => {
                                             key={tab.id}
                                             onClick={() => setModalTab(tab.id)}
                                             className={cn(
-                                                "w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-xs font-bold transition-all",
+                                                "flex w-full items-center space-x-3 rounded-xl px-4 py-3 text-xs font-bold transition-all",
                                                 modalTab === tab.id
-                                                    ? "bg-white text-primary shadow-sm ring-1 ring-slate-100"
+                                                    ? "border border-slate-100 bg-white text-primary shadow-sm"
                                                     : "text-slate-500 hover:bg-slate-100"
                                             )}
                                         >
@@ -770,84 +736,84 @@ const ProductManagement = () => {
                                         </button>
                                     ))}
 
-                                    <div className="pt-8 px-4">
-                                        <div className="p-4 bg-brand-50 rounded-2xl border border-brand-100">
-                                            <p className="text-[9px] font-bold text-brand-600 uppercase tracking-widest mb-1">Status</p>
+                                    <div className="px-4 pt-8">
+                                        <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                                            <p className="mb-1 text-[9px] font-bold uppercase tracking-widest text-primary">Status</p>
                                             <select
                                                 value={formData.status}
                                                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                                className="w-full bg-transparent border-none text-xs font-bold text-brand-700 outline-none p-0 cursor-pointer"
+                                                className="w-full cursor-pointer border-none bg-transparent p-0 text-xs font-bold text-primary outline-none"
                                             >
-                                                <option value="active">PUBLISHED</option>
-                                                <option value="inactive">DRAFT</option>
+                                                <option value="active">Published</option>
+                                                <option value="inactive">Draft</option>
                                             </select>
                                         </div>
-                                        <div className="mt-3 p-4 bg-brand-50 rounded-2xl border border-brand-100 flex items-center justify-between">
-                                            <p className="text-[9px] font-bold text-brand-600 uppercase tracking-widest">Featured</p>
+                                        <div className="mt-3 flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 p-4">
+                                            <p className="text-[9px] font-bold uppercase tracking-widest text-primary">Featured</p>
                                             <input
                                                 type="checkbox"
                                                 checked={formData.isFeatured}
                                                 onChange={(e) => setFormData({ ...formData, isFeatured: e.target.checked })}
-                                                className="h-4 w-4 rounded border-brand-300 text-primary focus:ring-primary"
+                                                className="h-4 w-4 rounded border-primary/30 text-primary focus:ring-primary"
                                             />
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Modal Content Area */}
-                                <div className="flex-1 p-4 overflow-y-auto overscroll-contain touch-pan-y min-h-0">
+                                <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain p-4">
                                     {modalTab === 'general' && (
-                                        <div className="ds-section-spacing animate-in fade-in slide-in-from-right-2 duration-300">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                <div className="space-y-1.5 flex flex-col">
-                                                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Product Title</label>
+                                        <div className="space-y-5">
+                                            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                                                <div className="flex flex-col space-y-1.5">
+                                                    <label className="ml-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">Product Title</label>
                                                     <input
                                                         value={formData.name}
                                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                                        className="w-full px-4 py-2.5 bg-slate-100 border-none rounded-xl text-sm font-semibold outline-none ring-primary/5 focus:ring-2"
+                                                        className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-sm font-semibold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                                                         placeholder="e.g. Premium Basmati Rice"
                                                     />
                                                 </div>
-                                                <div className="space-y-1.5 flex flex-col">
-                                                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Web Address</label>
-                                                    <div className="flex items-center bg-slate-50 rounded-xl px-4 py-2.5">
-                                                        <span className="text-[10px] text-slate-400 font-bold mr-1">/product/</span>
+                                                <div className="flex flex-col space-y-1.5">
+                                                    <label className="ml-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">Web Address</label>
+                                                    <div className="flex items-center rounded-md border border-slate-200 bg-white px-3.5">
+                                                        <span className="mr-1 text-[10px] font-bold text-slate-400">/product/</span>
                                                         <input
                                                             value={formData.slug}
                                                             onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                                                            className="flex-1 bg-transparent border-none text-sm text-slate-500 font-semibold outline-none"
+                                                            className="h-10 flex-1 border-none bg-transparent text-sm font-semibold text-slate-500 outline-none"
                                                             placeholder="premium-basmati-rice"
                                                         />
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="space-y-1.5 flex flex-col">
-                                                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">About this item</label>
+                                            <div className="flex flex-col space-y-1.5">
+                                                <label className="ml-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">About this item</label>
                                                 <textarea
                                                     value={formData.description}
                                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                                     onWheel={(e) => e.stopPropagation()}
                                                     onTouchMove={(e) => e.stopPropagation()}
-                                                    className="w-full px-4 py-3 bg-slate-100 border-none rounded-2xl text-sm font-semibold min-h-[160px] max-h-[260px] outline-none resize-none overflow-y-auto custom-scrollbar"
+                                                    className="custom-scrollbar min-h-[160px] max-h-[260px] w-full resize-none overflow-y-auto rounded-md border border-slate-200 bg-white px-3.5 py-3 text-sm font-medium outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                                                     placeholder="Describe the item here..."
                                                 />
                                             </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                <div className="space-y-1.5 flex flex-col">
-                                                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Brand Name</label>
+                                            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                                                <div className="flex flex-col space-y-1.5">
+                                                    <label className="ml-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">Brand Name</label>
                                                     <input
                                                         value={formData.brand}
                                                         onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                                                        className="w-full px-4 py-2.5 bg-slate-100 border-none rounded-xl text-sm font-semibold outline-none ring-primary/5 focus:ring-2"
+                                                        className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-sm font-semibold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                                                         placeholder="e.g. Amul"
                                                     />
                                                 </div>
-                                                <div className="space-y-1.5 flex flex-col">
-                                                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Product Code</label>
+                                                <div className="flex flex-col space-y-1.5">
+                                                    <label className="ml-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">Product Code</label>
                                                     <input
                                                         value={formData.sku}
                                                         onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                                                        className="w-full px-4 py-2.5 bg-slate-100 border-none rounded-xl text-sm font-mono font-bold outline-none ring-primary/5 focus:ring-2"
+                                                        className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-sm font-mono font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                                                         placeholder="AUTO-GENERATED"
                                                     />
                                                 </div>
@@ -856,26 +822,26 @@ const ProductManagement = () => {
                                     )}
 
                                     {modalTab === 'category' && (
-                                        <div className="ds-section-spacing animate-in fade-in slide-in-from-right-2 duration-300">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                <div className="space-y-1.5 flex flex-col">
-                                                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Main Group (Header) <span className="text-rose-500">*</span></label>
+                                        <div className="space-y-5">
+                                            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                                                <div className="flex flex-col space-y-1.5">
+                                                    <label className="ml-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">Main Group (Header) <span className="text-danger">*</span></label>
                                                     <select
                                                         value={formData.header}
                                                         onChange={(e) => setFormData({ ...formData, header: e.target.value, categoryId: '', subcategoryId: '' })}
-                                                        className="w-full px-4 py-2.5 bg-slate-100 border-none rounded-xl text-sm font-bold outline-none cursor-pointer"
+                                                        className="h-10 w-full cursor-pointer rounded-md border border-slate-200 bg-white px-3.5 text-sm font-bold outline-none"
                                                     >
                                                         <option value="">Select Main Group</option>
                                                         {categories.map(h => <option key={h._id} value={h._id}>{h.name}</option>)}
                                                     </select>
                                                 </div>
-                                                <div className="space-y-1.5 flex flex-col">
-                                                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Specific Category <span className="text-rose-500">*</span></label>
+                                                <div className="flex flex-col space-y-1.5">
+                                                    <label className="ml-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">Specific Category <span className="text-danger">*</span></label>
                                                     <select
                                                         value={formData.categoryId}
                                                         onChange={(e) => setFormData({ ...formData, categoryId: e.target.value, subcategoryId: '' })}
                                                         disabled={!formData.header}
-                                                        className="w-full px-4 py-2.5 bg-slate-100 border-none rounded-xl text-sm font-bold outline-none cursor-pointer disabled:opacity-50"
+                                                        className="h-10 w-full cursor-pointer rounded-md border border-slate-200 bg-white px-3.5 text-sm font-bold outline-none disabled:opacity-50"
                                                     >
                                                         <option value="">Select Category</option>
                                                         {categories.find(h => h._id === formData.header)?.children?.map(c => (
@@ -884,13 +850,13 @@ const ProductManagement = () => {
                                                     </select>
                                                 </div>
                                             </div>
-                                            <div className="space-y-1.5 flex flex-col">
-                                                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Sub-Category <span className="text-rose-500">*</span></label>
+                                            <div className="flex flex-col space-y-1.5">
+                                                <label className="ml-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">Sub-Category <span className="text-danger">*</span></label>
                                                 <select
                                                     value={formData.subcategoryId}
                                                     onChange={(e) => setFormData({ ...formData, subcategoryId: e.target.value })}
                                                     disabled={!formData.categoryId}
-                                                    className="w-full px-4 py-2.5 bg-slate-100 border-none rounded-xl text-sm font-bold outline-none cursor-pointer disabled:opacity-50"
+                                                    className="h-10 w-full cursor-pointer rounded-md border border-slate-200 bg-white px-3.5 text-sm font-bold outline-none disabled:opacity-50"
                                                 >
                                                     <option value="">Select Sub-Category</option>
                                                     {categories.find(h => h._id === formData.header)?.children?.find(c => c._id === formData.categoryId)?.children?.map(sc => (
@@ -902,20 +868,20 @@ const ProductManagement = () => {
                                     )}
 
                                     {modalTab === 'variants' && (
-                                        <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
+                                        <div className="space-y-5">
                                             <div className="flex items-center justify-between">
                                                 <h4 className="text-sm font-bold text-slate-900">Product Variants</h4>
                                                 <button
                                                     type="button"
                                                     onClick={() => setFormData({ ...formData, variants: [...formData.variants, { id: Date.now(), name: '', price: '', salePrice: '', stock: '', sku: '' }] })}
-                                                    className="rounded-xl bg-rose-50 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-rose-600 transition-colors hover:bg-rose-100"
+                                                    className="rounded-lg bg-danger/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-danger transition-colors hover:bg-danger/20"
                                                 >
-                                                    + ADD
+                                                    + Add
                                                 </button>
                                             </div>
                                             <div className="space-y-3">
                                                 {formData.variants.map((v, i) => (
-                                                    <div key={v.id} className="rounded-3xl border border-slate-100 bg-slate-50/80 p-4 shadow-sm">
+                                                    <div key={v.id} className="rounded-xl border border-slate-100 bg-slate-50/80 p-4 shadow-sm">
                                                         <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
                                                             <div className="space-y-1.5">
                                                                 <label className="ml-1 text-[8px] font-bold uppercase tracking-widest text-slate-400">Variant Name</label>
@@ -927,7 +893,7 @@ const ProductManagement = () => {
                                                                         setFormData({ ...formData, variants: news });
                                                                     }}
                                                                     placeholder="500g"
-                                                                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none ring-0 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+                                                                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
                                                                 />
                                                             </div>
                                                             <div className="space-y-1.5">
@@ -941,11 +907,11 @@ const ProductManagement = () => {
                                                                         setFormData({ ...formData, variants: news });
                                                                     }}
                                                                     placeholder="200"
-                                                                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none ring-0 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+                                                                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
                                                                 />
                                                             </div>
                                                             <div className="space-y-1.5">
-                                                                <label className="ml-1 text-[8px] font-bold uppercase tracking-widest text-brand-500">Sale Price</label>
+                                                                <label className="ml-1 text-[8px] font-bold uppercase tracking-widest text-primary">Sale Price</label>
                                                                 <input
                                                                     type="number"
                                                                     value={v.salePrice}
@@ -955,7 +921,7 @@ const ProductManagement = () => {
                                                                         setFormData({ ...formData, variants: news });
                                                                     }}
                                                                     placeholder="150"
-                                                                    className="w-full rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-2.5 text-sm outline-none ring-0 focus:border-brand-300 focus:ring-2 focus:ring-brand-100"
+                                                                    className="w-full rounded-md border border-primary/20 bg-primary/5 px-3 py-2.5 text-sm outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
                                                                 />
                                                             </div>
                                                             <div className="space-y-1.5">
@@ -969,7 +935,7 @@ const ProductManagement = () => {
                                                                         setFormData({ ...formData, variants: news });
                                                                     }}
                                                                     placeholder="50"
-                                                                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none ring-0 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+                                                                    className="w-full rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
                                                                 />
                                                             </div>
                                                             <div className="space-y-1.5">
@@ -983,12 +949,12 @@ const ProductManagement = () => {
                                                                             setFormData({ ...formData, variants: news });
                                                                         }}
                                                                         placeholder="mango-001"
-                                                                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none ring-0 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+                                                                        className="w-full rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
                                                                     />
                                                                     <button
                                                                         type="button"
                                                                         onClick={() => setFormData({ ...formData, variants: formData.variants.filter((_, idx) => idx !== i) })}
-                                                                        className="mt-0.5 rounded-xl p-2 text-rose-500 transition-colors hover:bg-rose-50"
+                                                                        className="mt-0.5 rounded-lg p-2 text-danger transition-colors hover:bg-danger/10"
                                                                         aria-label="Delete variant"
                                                                     >
                                                                         <HiOutlineTrash className="h-4 w-4" />
@@ -1003,22 +969,22 @@ const ProductManagement = () => {
                                     )}
 
                                     {modalTab === 'media' && (
-                                        <div className="ds-section-spacing animate-in fade-in slide-in-from-right-2 duration-300">
+                                        <div className="space-y-5">
                                             <div className="space-y-3">
-                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Main Cover Photo</label>
-                                                <div className="flex flex-col md:flex-row items-start gap-6">
-                                                    <div className="w-48 aspect-square rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center group hover:border-primary hover:bg-primary/5 transition-all cursor-pointer overflow-hidden relative">
+                                                <label className="ml-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Main Cover Photo</label>
+                                                <div className="flex flex-col items-start gap-6 md:flex-row">
+                                                    <div className="group relative flex aspect-square w-48 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 transition-all hover:border-primary hover:bg-primary/5">
                                                         <input
                                                             type="file"
-                                                            className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                                                            className="absolute inset-0 z-10 cursor-pointer opacity-0"
                                                             onChange={(e) => handleImageUpload(e, 'main')}
                                                         />
                                                         {formData.mainImage ? (
-                                                            <img src={formData.mainImage} alt="Main Preview" className="w-full h-full object-cover" />
+                                                            <img src={formData.mainImage} alt="Main Preview" className="h-full w-full object-cover" />
                                                         ) : (
                                                             <div className="flex flex-col items-center">
                                                                 <HiOutlinePhoto className="h-10 w-10 text-slate-200" />
-                                                                <p className="text-[10px] text-slate-400 font-bold mt-2">UPLOAD</p>
+                                                                <p className="mt-2 text-[10px] font-bold text-slate-400">UPLOAD</p>
                                                             </div>
                                                         )}
                                                     </div>
@@ -1027,8 +993,8 @@ const ProductManagement = () => {
 
                                             <div className="space-y-3 pt-2">
                                                 <div className="flex items-center justify-between gap-4">
-                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Gallery Photos</label>
-                                                    <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest cursor-pointer hover:-translate-y-0.5 transition-all">
+                                                    <label className="ml-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Gallery Photos</label>
+                                                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition-all hover:-translate-y-0.5">
                                                         <HiOutlinePhoto className="h-4 w-4" />
                                                         <span>Add Photos</span>
                                                         <input
@@ -1041,10 +1007,10 @@ const ProductManagement = () => {
                                                     </label>
                                                 </div>
 
-                                                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                                                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
                                                     {(formData.galleryImages || []).length > 0 ? (
                                                         formData.galleryImages.map((image, index) => (
-                                                            <div key={`${image}-${index}`} className="group relative aspect-square rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 shadow-sm">
+                                                            <div key={`${image}-${index}`} className="group relative aspect-square overflow-hidden rounded-xl border border-slate-200 bg-slate-50 shadow-sm">
                                                                 <img src={image} alt={`Gallery ${index + 1}`} className="h-full w-full object-cover" />
                                                                 <button
                                                                     type="button"
@@ -1052,21 +1018,21 @@ const ProductManagement = () => {
                                                                         ...formData,
                                                                         galleryImages: formData.galleryImages.filter((_, i) => i !== index)
                                                                     })}
-                                                                    className="absolute top-2 right-2 p-2 rounded-full bg-white/90 text-rose-500 shadow-md opacity-0 group-hover:opacity-100 transition-all"
+                                                                    className="absolute right-2 top-2 rounded-full bg-white/90 p-2 text-danger opacity-0 shadow-md transition-all group-hover:opacity-100"
                                                                 >
                                                                     <HiOutlineTrash className="h-4 w-4" />
                                                                 </button>
                                                             </div>
                                                         ))
                                                     ) : (
-                                                        <div className="col-span-full rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
+                                                        <div className="col-span-full rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
                                                             <p className="text-xs font-medium text-slate-400">No gallery photos added yet.</p>
                                                         </div>
                                                     )}
                                                 </div>
                                             </div>
 
-                                            <p className="text-[10px] text-slate-400 font-medium italic text-center pt-4 border-t border-slate-50 outline-none">
+                                            <p className="border-t border-slate-50 pt-4 text-center text-[10px] font-medium italic text-slate-400">
                                                 Quick Tip: Multiple photos help users trust your products more!
                                             </p>
                                         </div>
@@ -1075,20 +1041,13 @@ const ProductManagement = () => {
                             </div>
 
                             {/* Modal Footer */}
-                            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-3">
-                                <button
-                                    onClick={() => setIsProductModalOpen(false)}
-                                    className="px-6 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:bg-slate-100"
-                                >
-                                    CLOSE
-                                </button>
-                                <button
-                                    onClick={handleSave}
-                                    disabled={isSaving}
-                                    className="bg-slate-900 text-white px-10 py-2.5 rounded-xl text-xs font-bold shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50"
-                                >
-                                    {isSaving ? 'SAVING...' : 'SAVE CHANGES'}
-                                </button>
+                            <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/50 p-5">
+                                <Button variant="ghost" onClick={() => setIsProductModalOpen(false)}>
+                                    Close
+                                </Button>
+                                <Button onClick={handleSave} isLoading={isSaving}>
+                                    {isSaving ? 'Saving...' : 'Save Changes'}
+                                </Button>
                             </div>
                         </motion.div>
                     </div>
@@ -1107,40 +1066,38 @@ const ProductManagement = () => {
                 size="sm"
                 footer={
                     <>
-                        <button
-                            type="button"
+                        <Button
+                            variant="ghost"
                             onClick={() => {
                                 setIsRejectModalOpen(false);
                                 setItemToReject(null);
                                 setRejectionNote('');
                             }}
                             disabled={moderatingActionId === `reject:${itemToReject?._id}`}
-                            className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors disabled:opacity-50"
                         >
-                            CANCEL
-                        </button>
-                        <button
-                            type="button"
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="danger"
                             onClick={confirmReject}
-                            disabled={moderatingActionId === `reject:${itemToReject?._id}`}
-                            className="px-6 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-rose-100 hover:bg-rose-700 transition-all active:scale-95 disabled:opacity-50"
+                            isLoading={moderatingActionId === `reject:${itemToReject?._id}`}
                         >
-                            {moderatingActionId === `reject:${itemToReject?._id}` ? 'REJECTING...' : 'REJECT PRODUCT'}
-                        </button>
+                            {moderatingActionId === `reject:${itemToReject?._id}` ? 'Rejecting...' : 'Reject Product'}
+                        </Button>
                     </>
                 }
             >
                 <div className="space-y-5 py-2">
-                    <div className="rounded-2xl bg-rose-50 border border-rose-100 px-4 py-3">
-                        <p className="text-xs font-black text-slate-900 line-clamp-2">
+                    <div className="rounded-xl border border-danger/20 bg-danger/5 px-4 py-3">
+                        <p className="line-clamp-2 text-xs font-black text-slate-900">
                             {itemToReject?.name || 'Selected product'}
                         </p>
-                        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-rose-500">
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-danger">
                             Rejection reason required
                         </p>
                     </div>
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                             Reason for seller
                         </label>
                         <textarea
@@ -1149,7 +1106,7 @@ const ProductManagement = () => {
                             rows={5}
                             autoFocus
                             placeholder="Tell the seller what needs to be fixed before resubmitting..."
-                            className="w-full resize-none rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all focus:ring-2 focus:ring-rose-100"
+                            className="w-full resize-none rounded-md border border-slate-200 bg-white px-3.5 py-3 text-sm font-medium text-slate-800 outline-none transition-all focus:border-danger focus:ring-2 focus:ring-danger/20"
                         />
                     </div>
                 </div>
@@ -1163,27 +1120,21 @@ const ProductManagement = () => {
                 size="sm"
                 footer={
                     <>
-                        <button
-                            onClick={() => setIsDeleteModalOpen(false)}
-                            className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors"
-                        >
-                            CANCEL
-                        </button>
-                        <button
-                            onClick={confirmDelete}
-                            className="px-6 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-rose-100 hover:bg-rose-700 transition-all active:scale-95"
-                        >
-                            DELETE PRODUCT
-                        </button>
+                        <Button variant="ghost" onClick={() => setIsDeleteModalOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button variant="danger" onClick={confirmDelete}>
+                            Delete Product
+                        </Button>
                     </>
                 }
             >
-                <div className="flex flex-col items-center text-center py-4">
-                    <div className="h-16 w-16 bg-rose-50 rounded-full flex items-center justify-center mb-4">
-                        <HiOutlineExclamationCircle className="h-10 w-10 text-rose-500" />
+                <div className="flex flex-col items-center py-4 text-center">
+                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-danger/10">
+                        <HiOutlineExclamationCircle className="h-8 w-8 text-danger" />
                     </div>
-                    <h3 className="text-lg font-black text-slate-900 mb-2 uppercase tracking-tight">Delete Product?</h3>
-                    <p className="text-sm text-slate-500 font-medium">
+                    <h3 className="mb-2 text-lg font-black text-slate-900">Delete Product?</h3>
+                    <p className="text-sm font-medium text-slate-500">
                         Are you sure you want to delete <span className="font-bold text-slate-900">"{itemToDelete?.name}"</span>?
                         This action cannot be undone.
                     </p>
@@ -1198,71 +1149,76 @@ const ProductManagement = () => {
                 size="lg"
             >
                 <div className="py-2">
-                    <div className="flex items-center gap-4 mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                        <div className="h-16 w-16 bg-white rounded-xl shadow-sm overflow-hidden flex items-center justify-center border border-slate-100">
+                    <div className="mb-5 flex items-center gap-4 rounded-xl border border-slate-100 bg-slate-50 p-4">
+                        <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-lg border border-slate-100 bg-white">
                             {viewingVariants?.mainImage || viewingVariants?.images?.[0] || viewingVariants?.galleryImages?.[0] ? (
                                 <img src={viewingVariants.mainImage || viewingVariants.images?.[0] || viewingVariants.galleryImages?.[0]} alt="" className="h-full w-full object-cover" />
                             ) : (
-                                <HiOutlineCube className="h-8 w-8 text-slate-200" />
+                                <HiOutlineCube className="h-7 w-7 text-slate-200" />
                             )}
                         </div>
                         <div>
-                            <h3 className="text-lg font-black text-slate-900 leading-tight">{viewingVariants?.name}</h3>
-                            <div className="flex items-center gap-2 mt-1">
-                                <Badge variant="primary" className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5">{viewingVariants?.categoryId?.name || 'Category'}</Badge>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Master SKU: {viewingVariants?.sku || viewingVariants?._id?.slice(-6).toUpperCase() || 'N/A'}</span>
+                            <h3 className="text-lg font-black leading-tight text-slate-900">{viewingVariants?.name}</h3>
+                            <div className="mt-1 flex items-center gap-2">
+                                <Badge variant="primary">{viewingVariants?.categoryId?.name || 'Category'}</Badge>
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Master SKU: {viewingVariants?.sku || viewingVariants?._id?.slice(-6).toUpperCase() || 'N/A'}</span>
                             </div>
                         </div>
                     </div>
 
-                    <div className="overflow-hidden rounded-2xl border border-slate-100 shadow-sm bg-white">
-                        <table className="w-full text-left">
-                            <thead>
-                                <tr className="bg-slate-50/50 border-b border-slate-100">
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Variant Specification</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Unit Price</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Available Stock</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Variant SKU</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                                {viewingVariants?.variants?.map((v, idx) => (
-                                    <tr key={idx} className="hover:bg-slate-50/30 transition-all cursor-default">
-                                        <td className="px-6 py-4">
-                                            <div className="flex flex-col">
-                                                <span className="text-xs font-black text-slate-700 group-hover:text-primary transition-colors">{v.name}</span>
-                                                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Variation {idx + 1}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <div className="flex flex-col items-center">
-                                                <span className={cn("text-xs font-bold", v.salePrice > 0 ? "text-slate-400 line-through scale-90" : "text-slate-900")}>₹{v.price}</span>
-                                                {v.salePrice > 0 && <span className="text-xs font-bold text-brand-600">₹{v.salePrice}</span>}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <Badge variant={v.stock === 0 ? "rose" : v.stock <= 10 ? "amber" : "emerald"} className="text-[10px] font-black uppercase tracking-widest px-2 shadow-sm">
-                                                {v.stock === 0 ? 'OUT OF STOCK' : `${v.stock} UNITS`}
-                                            </Badge>
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <span className="text-[10px] font-bold text-slate-400 font-mono tracking-tighter uppercase bg-slate-100 px-2 py-1 rounded-lg">
-                                                {v.sku || 'N/A'}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    <DataTable
+                        columns={[
+                            {
+                                key: 'spec',
+                                header: 'Variant Specification',
+                                primary: true,
+                                cell: (v) => (
+                                    <div className="flex flex-col">
+                                        <span className="text-xs font-black text-slate-700">{v.name}</span>
+                                        <span className="mt-0.5 text-[9px] font-bold uppercase tracking-widest text-slate-400">Variation {(viewingVariants?.variants || []).indexOf(v) + 1}</span>
+                                    </div>
+                                ),
+                            },
+                            {
+                                key: 'price',
+                                header: 'Unit Price',
+                                align: 'center',
+                                cell: (v) => (
+                                    <div className="flex flex-col items-center">
+                                        <span className={cn("text-xs font-bold", v.salePrice > 0 ? "scale-90 text-slate-400 line-through" : "text-slate-900")}>₹{v.price}</span>
+                                        {v.salePrice > 0 && <span className="text-xs font-bold text-primary">₹{v.salePrice}</span>}
+                                    </div>
+                                ),
+                            },
+                            {
+                                key: 'stock',
+                                header: 'Available Stock',
+                                align: 'center',
+                                cell: (v) => (
+                                    <Badge variant={v.stock === 0 ? "danger" : v.stock <= 10 ? "warning" : "success"}>
+                                        {v.stock === 0 ? 'Out of Stock' : `${v.stock} Units`}
+                                    </Badge>
+                                ),
+                            },
+                            {
+                                key: 'sku',
+                                header: 'Variant SKU',
+                                align: 'right',
+                                cell: (v) => (
+                                    <span className="rounded-md bg-slate-100 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-tighter text-slate-400">
+                                        {v.sku || 'N/A'}
+                                    </span>
+                                ),
+                            },
+                        ]}
+                        data={viewingVariants?.variants || []}
+                        rowKey={(v, idx) => idx}
+                    />
 
-                    <div className="mt-8 flex justify-end">
-                        <button
-                            onClick={() => setIsVariantsViewModalOpen(false)}
-                            className="bg-slate-900 text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:-translate-y-0.5 transition-all active:scale-95"
-                        >
-                            CLOSE VIEWER
-                        </button>
+                    <div className="mt-6 flex justify-end">
+                        <Button onClick={() => setIsVariantsViewModalOpen(false)}>
+                            Close Viewer
+                        </Button>
                     </div>
                 </div>
             </Modal>
@@ -1272,4 +1228,3 @@ const ProductManagement = () => {
 };
 
 export default ProductManagement;
-

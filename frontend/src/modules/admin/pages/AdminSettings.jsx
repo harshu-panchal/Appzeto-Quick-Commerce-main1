@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Card from '@shared/components/ui/Card';
+import Button from '@shared/components/ui/Button';
+import PageHeader from '@shared/components/ui/PageHeader';
 import {
     Save,
     Settings,
@@ -16,7 +18,6 @@ import {
     Facebook,
     Twitter,
     Instagram,
-    Linkedin,
     Youtube,
     Loader2,
     X,
@@ -160,7 +161,7 @@ const AdminSettings = () => {
             };
             const res = await adminApi.updateSettings(payload);
             const updatedData = res.data?.result ?? res.data;
-            
+
             if (updatedData) {
                 setSettings(prev => ({
                     ...prev,
@@ -253,103 +254,115 @@ const AdminSettings = () => {
         { id: 'storage', label: 'Media Storage', icon: HardDrive },
     ];
 
-    return (
-        <div className="ds-section-spacing animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
-            {/* Header Section */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-1">
-                <div>
-                    <h1 className="ds-h1 flex items-center gap-3">
-                        Platform Settings
-                        <div className="p-2 bg-slate-100 rounded-xl">
-                            <Settings className="h-5 w-5 text-slate-600" />
-                        </div>
-                    </h1>
-                    <p className="ds-description mt-1">Manage global configurations, branding, and legal information.</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        className={cn(
-                            "flex items-center gap-2 px-8 py-4 bg-black text-primary-foreground rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-brand-200 hover:shadow-brand-300 active:scale-95 active:shadow-inner",
-                            isSaving ? "opacity-70 cursor-wait" : "hover:bg-brand-700"
-                        )}
-                    >
-                        {isSaving ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : (
-                            <Save className="h-5 w-5" />
-                        )}
-                        {isSaving ? 'Updating...' : 'Save All Changes'}
-                    </button>
-                </div>
-            </div>
+    const inputClass = "h-11 w-full rounded-md border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-900 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20";
+    const inputWithIconClass = "h-11 w-full rounded-md border border-slate-200 bg-white pl-10 pr-3.5 text-sm font-semibold text-slate-900 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20";
+    const labelClass = "text-[10px] font-bold uppercase tracking-widest text-slate-400";
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+    const Toggle = ({ checked, onClick }) => (
+        <button
+            type="button"
+            role="switch"
+            aria-checked={checked}
+            onClick={onClick}
+            className={cn(
+                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200",
+                checked ? "bg-success" : "bg-slate-300"
+            )}
+        >
+            <span
+                className={cn(
+                    "inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200",
+                    checked ? "translate-x-[22px]" : "translate-x-0.5"
+                )}
+            />
+        </button>
+    );
+
+    return (
+        <div className="space-y-5">
+            <PageHeader
+                title={
+                    <span className="flex items-center gap-2">
+                        Platform Settings
+                        <div className="rounded-lg bg-slate-100 p-1.5">
+                            <Settings className="h-4 w-4 text-slate-600" />
+                        </div>
+                    </span>
+                }
+                description="Manage global configurations, branding, and legal information."
+                actions={
+                    <Button onClick={handleSave} isLoading={isSaving}>
+                        {!isSaving && <Save className="h-4 w-4" />}
+                        {isSaving ? 'Updating...' : 'Save All Changes'}
+                    </Button>
+                }
+            />
+
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
                 {/* Sidebar Navigation */}
-                <div className="lg:col-span-3 space-y-2">
+                <div className="space-y-1.5 lg:col-span-3">
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={cn(
-                                "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all text-left",
+                                "flex w-full items-center gap-3 rounded-xl px-4 py-2.5 text-left text-sm font-medium transition-all",
                                 activeTab === tab.id
-                                    ? "bg-brand-50 text-brand-700 ring-1 ring-brand-200 shadow-sm"
+                                    ? "border border-primary/20 bg-primary/10 text-primary shadow-sm"
                                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
                             )}
                         >
-                            <tab.icon className={cn("h-4 w-4", activeTab === tab.id ? "text-brand-600" : "text-slate-400")} />
+                            <tab.icon className={cn("h-4 w-4", activeTab === tab.id ? "text-primary" : "text-slate-400")} />
                             {tab.label}
                         </button>
                     ))}
                 </div>
 
                 {/* Content Area */}
-                <div className="lg:col-span-9 space-y-6">
+                <div className="space-y-5 lg:col-span-9">
 
                     {isLoading && (
-                        <Card className="border-none shadow-xl ring-1 ring-slate-100 bg-white rounded-xl overflow-hidden">
-                            <div className="p-8 flex items-center justify-center">
-                                <div className="h-8 w-8 border-2 border-slate-200 border-t-slate-500 rounded-full animate-spin" />
+                        <Card className="overflow-hidden p-0">
+                            <div className="flex items-center justify-center p-8">
+                                <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-slate-500" />
                             </div>
                         </Card>
                     )}
 
                     {/* General Settings */}
                     {activeTab === 'general' && (
-                        <Card className="border-none shadow-xl ring-1 ring-slate-100 bg-white rounded-xl overflow-hidden">
-                            <div className="p-6 border-b border-slate-50 bg-slate-50/30">
-                                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-3">
+                        <Card className="overflow-hidden p-0">
+                            <div className="border-b border-slate-100 bg-slate-50/30 p-5">
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-900">
                                     General Information
                                 </h3>
                             </div>
-                            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">App Name</label>
+                            <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
+                                <div className="space-y-1.5">
+                                    <label className={labelClass}>App Name</label>
                                     <input
                                         type="text"
                                         value={settings.appName}
                                         onChange={(e) => handleInputChange('appName', e.target.value)}
-                                        className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
+                                        className={inputClass}
                                     />
                                 </div>
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Support Email</label>
-                                    <div className="relative group">
-                                        <Mail className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                <div className="space-y-1.5">
+                                    <label className={labelClass}>Support Email</label>
+                                    <div className="relative">
+                                        <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                                         <input
                                             type="email"
                                             value={settings.supportEmail}
                                             onChange={(e) => handleInputChange('supportEmail', e.target.value)}
-                                            className="w-full pl-12 pr-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
+                                            className={inputWithIconClass}
                                         />
                                     </div>
                                 </div>
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Support Phone</label>
-                                    <div className="relative group">
-                                        <Phone className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                <div className="space-y-1.5">
+                                    <label className={labelClass}>Support Phone</label>
+                                    <div className="relative">
+                                        <Phone className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                                         <input
                                             type="text"
                                             value={settings.supportPhone}
@@ -360,107 +373,59 @@ const AdminSettings = () => {
                                                 }
                                                 handleInputChange('supportPhone', val.slice(0, 10));
                                             }}
-                                            className="w-full pl-12 pr-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
+                                            className={inputWithIconClass}
                                         />
                                     </div>
                                 </div>
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Currency Symbol</label>
+                                <div className="space-y-1.5">
+                                    <label className={labelClass}>Currency Symbol</label>
                                     <input
                                         type="text"
                                         value={settings.currencySymbol}
                                         onChange={(e) => handleInputChange('currencySymbol', e.target.value)}
-                                        className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
+                                        className={inputClass}
                                     />
                                 </div>
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Estimated Delivery Time</label>
+                                <div className="space-y-1.5">
+                                    <label className={labelClass}>Estimated Delivery Time</label>
                                     <input
                                         type="text"
                                         value={settings.estimatedDeliveryTime || ''}
                                         onChange={(e) => handleInputChange('estimatedDeliveryTime', e.target.value)}
                                         placeholder="e.g. 12-15 mins"
                                         maxLength={40}
-                                        className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
+                                        className={inputClass}
                                     />
                                     <p className="text-[11px] font-medium text-slate-400">
                                         Shown in the customer app header next to the clock (e.g. &quot;12-15 mins&quot;).
                                     </p>
                                 </div>
-                                <div className="md:col-span-2 rounded-2xl bg-slate-50 border border-slate-200 px-5 py-4 flex items-center justify-between gap-4">
+                                <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-5 py-4 md:col-span-2">
                                     <div>
                                         <p className="text-sm font-black text-slate-900">Auto Low Stock Alerts</p>
-                                        <p className="text-xs font-bold text-slate-500 mt-1">
+                                        <p className="mt-1 text-xs font-bold text-slate-500">
                                             Automatically notify sellers when any product stock drops to its low-stock threshold.
                                         </p>
                                     </div>
-                                    <button
-                                        type="button"
-                                        role="switch"
-                                        aria-checked={settings.lowStockAlertsEnabled}
-                                        onClick={() => handleInputChange('lowStockAlertsEnabled', !settings.lowStockAlertsEnabled)}
-                                        className={cn(
-                                            "relative inline-flex h-7 w-14 items-center rounded-full transition-colors duration-200",
-                                            settings.lowStockAlertsEnabled ? "bg-emerald-500" : "bg-slate-300"
-                                        )}
-                                    >
-                                        <span
-                                            className={cn(
-                                                "inline-block h-6 w-6 transform rounded-full bg-white shadow transition-transform duration-200",
-                                                settings.lowStockAlertsEnabled ? "translate-x-7" : "translate-x-1"
-                                            )}
-                                        />
-                                    </button>
+                                    <Toggle checked={settings.lowStockAlertsEnabled} onClick={() => handleInputChange('lowStockAlertsEnabled', !settings.lowStockAlertsEnabled)} />
                                 </div>
-                                <div className="md:col-span-2 rounded-2xl bg-slate-50 border border-slate-200 px-5 py-4 flex items-center justify-between gap-4">
+                                <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-5 py-4 md:col-span-2">
                                     <div>
                                         <p className="text-sm font-black text-slate-900">Require approval for new seller products</p>
-                                        <p className="text-xs font-bold text-slate-500 mt-1">
+                                        <p className="mt-1 text-xs font-bold text-slate-500">
                                             When enabled, newly added seller products remain hidden until approved by admin.
                                         </p>
                                     </div>
-                                    <button
-                                        type="button"
-                                        role="switch"
-                                        aria-checked={Boolean(settings.productApproval?.sellerCreateRequiresApproval)}
-                                        onClick={() => handleProductApprovalToggle('sellerCreateRequiresApproval')}
-                                        className={cn(
-                                            "relative inline-flex h-7 w-14 items-center rounded-full transition-colors duration-200",
-                                            settings.productApproval?.sellerCreateRequiresApproval ? "bg-emerald-500" : "bg-slate-300"
-                                        )}
-                                    >
-                                        <span
-                                            className={cn(
-                                                "inline-block h-6 w-6 transform rounded-full bg-white shadow transition-transform duration-200",
-                                                settings.productApproval?.sellerCreateRequiresApproval ? "translate-x-7" : "translate-x-1"
-                                            )}
-                                        />
-                                    </button>
+                                    <Toggle checked={Boolean(settings.productApproval?.sellerCreateRequiresApproval)} onClick={() => handleProductApprovalToggle('sellerCreateRequiresApproval')} />
                                 </div>
-                                <div className="md:col-span-2 rounded-2xl bg-slate-50 border border-slate-200 px-5 py-4 flex items-center justify-between gap-4">
+                                <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-5 py-4 md:col-span-2">
                                     <div>
                                         <p className="text-sm font-black text-slate-900">Require approval for seller product edits</p>
-                                        <p className="text-xs font-bold text-slate-500 mt-1">
+                                        <p className="mt-1 text-xs font-bold text-slate-500">
                                             When enabled, seller changes to existing products remain hidden until approved by admin.
                                         </p>
                                     </div>
-                                    <button
-                                        type="button"
-                                        role="switch"
-                                        aria-checked={Boolean(settings.productApproval?.sellerEditRequiresApproval)}
-                                        onClick={() => handleProductApprovalToggle('sellerEditRequiresApproval')}
-                                        className={cn(
-                                            "relative inline-flex h-7 w-14 items-center rounded-full transition-colors duration-200",
-                                            settings.productApproval?.sellerEditRequiresApproval ? "bg-emerald-500" : "bg-slate-300"
-                                        )}
-                                    >
-                                        <span
-                                            className={cn(
-                                                "inline-block h-6 w-6 transform rounded-full bg-white shadow transition-transform duration-200",
-                                                settings.productApproval?.sellerEditRequiresApproval ? "translate-x-7" : "translate-x-1"
-                                            )}
-                                        />
-                                    </button>
+                                    <Toggle checked={Boolean(settings.productApproval?.sellerEditRequiresApproval)} onClick={() => handleProductApprovalToggle('sellerEditRequiresApproval')} />
                                 </div>
                             </div>
                         </Card>
@@ -468,114 +433,114 @@ const AdminSettings = () => {
 
                     {/* Branding Settings */}
                     {activeTab === 'branding' && (
-                        <Card className="border-none shadow-xl ring-1 ring-slate-100 bg-white rounded-xl overflow-hidden">
-                            <div className="p-6 border-b border-slate-50 bg-slate-50/30">
-                                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-3">
+                        <Card className="overflow-hidden p-0">
+                            <div className="border-b border-slate-100 bg-slate-50/30 p-5">
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-900">
                                     Visual Identity
                                 </h3>
                             </div>
-                            <div className="p-8 space-y-8">
+                            <div className="space-y-6 p-6">
                                 <input type="file" ref={logoInputRef} accept="image/*" className="hidden" onChange={handleLogoUpload} />
                                 <input type="file" ref={faviconInputRef} accept="image/*" className="hidden" onChange={handleFaviconUpload} />
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">App Logo</label>
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <div className="space-y-1.5">
+                                        <label className={labelClass}>App Logo</label>
                                         <div
                                             role="button"
                                             tabIndex={0}
                                             onClick={() => !logoUploading && logoInputRef.current?.click()}
                                             onKeyDown={(e) => e.key === 'Enter' && !logoUploading && logoInputRef.current?.click()}
                                             className={cn(
-                                                "h-40 w-full rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all group overflow-hidden",
-                                                settings.logoUrl ? "border-slate-200 bg-slate-50/50" : "border-slate-200 hover:border-brand-500/50 hover:bg-brand-50/10 cursor-pointer"
+                                                "flex h-36 w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border-2 border-dashed transition-all",
+                                                settings.logoUrl ? "border-slate-200 bg-slate-50/50" : "cursor-pointer border-slate-200 hover:border-primary/50 hover:bg-primary/5"
                                             )}
                                         >
                                             {logoUploading ? (
-                                                <Loader2 className="h-10 w-10 text-brand-600 animate-spin" />
+                                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                             ) : settings.logoUrl ? (
                                                 <>
-                                                    <img src={settings.logoUrl} alt="App logo" className="max-h-24 w-auto object-contain" />
+                                                    <img src={settings.logoUrl} alt="App logo" className="max-h-20 w-auto object-contain" />
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-xs font-bold text-slate-500">Click to replace</span>
-                                                        <button type="button" onClick={(e) => { e.stopPropagation(); handleInputChange('logoUrl', ''); }} className="p-1 rounded hover:bg-red-100 text-slate-400 hover:text-red-600" title="Remove logo"><X className="h-4 w-4" /></button>
+                                                        <button type="button" onClick={(e) => { e.stopPropagation(); handleInputChange('logoUrl', ''); }} className="rounded p-1 text-slate-400 hover:bg-danger/10 hover:text-danger" title="Remove logo"><X className="h-4 w-4" /></button>
                                                     </div>
                                                 </>
                                             ) : (
                                                 <>
-                                                    <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                        <Upload className="h-5 w-5 text-slate-400 group-hover:text-brand-600" />
+                                                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100">
+                                                        <Upload className="h-4 w-4 text-slate-400" />
                                                     </div>
-                                                    <span className="text-xs font-bold text-slate-400 group-hover:text-brand-600">Click to upload logo</span>
+                                                    <span className="text-xs font-bold text-slate-400">Click to upload logo</span>
                                                 </>
                                             )}
                                         </div>
-                                        <input type="url" value={settings.logoUrl} onChange={(e) => handleInputChange('logoUrl', e.target.value)} placeholder="Or paste logo URL" className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-500/20" />
+                                        <input type="url" value={settings.logoUrl} onChange={(e) => handleInputChange('logoUrl', e.target.value)} placeholder="Or paste logo URL" className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20" />
                                     </div>
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Favicon</label>
+                                    <div className="space-y-1.5">
+                                        <label className={labelClass}>Favicon</label>
                                         <div
                                             role="button"
                                             tabIndex={0}
                                             onClick={() => !faviconUploading && faviconInputRef.current?.click()}
                                             onKeyDown={(e) => e.key === 'Enter' && !faviconUploading && faviconInputRef.current?.click()}
                                             className={cn(
-                                                "h-40 w-full rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all group overflow-hidden",
-                                                settings.faviconUrl ? "border-slate-200 bg-slate-50/50" : "border-slate-200 hover:border-brand-500/50 hover:bg-brand-50/10 cursor-pointer"
+                                                "flex h-36 w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border-2 border-dashed transition-all",
+                                                settings.faviconUrl ? "border-slate-200 bg-slate-50/50" : "cursor-pointer border-slate-200 hover:border-primary/50 hover:bg-primary/5"
                                             )}
                                         >
                                             {faviconUploading ? (
-                                                <Loader2 className="h-10 w-10 text-brand-600 animate-spin" />
+                                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                             ) : settings.faviconUrl ? (
                                                 <>
-                                                    <img src={settings.faviconUrl} alt="Favicon" className="max-h-16 w-auto object-contain" />
+                                                    <img src={settings.faviconUrl} alt="Favicon" className="max-h-14 w-auto object-contain" />
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-xs font-bold text-slate-500">Click to replace</span>
-                                                        <button type="button" onClick={(e) => { e.stopPropagation(); handleInputChange('faviconUrl', ''); }} className="p-1 rounded hover:bg-red-100 text-slate-400 hover:text-red-600" title="Remove favicon"><X className="h-4 w-4" /></button>
+                                                        <button type="button" onClick={(e) => { e.stopPropagation(); handleInputChange('faviconUrl', ''); }} className="rounded p-1 text-slate-400 hover:bg-danger/10 hover:text-danger" title="Remove favicon"><X className="h-4 w-4" /></button>
                                                     </div>
                                                 </>
                                             ) : (
                                                 <>
-                                                    <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                        <Upload className="h-5 w-5 text-slate-400 group-hover:text-brand-600" />
+                                                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100">
+                                                        <Upload className="h-4 w-4 text-slate-400" />
                                                     </div>
-                                                    <span className="text-xs font-bold text-slate-400 group-hover:text-brand-600">Click to upload favicon</span>
+                                                    <span className="text-xs font-bold text-slate-400">Click to upload favicon</span>
                                                 </>
                                             )}
                                         </div>
-                                        <input type="url" value={settings.faviconUrl} onChange={(e) => handleInputChange('faviconUrl', e.target.value)} placeholder="Or paste favicon URL" className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-500/20" />
+                                        <input type="url" value={settings.faviconUrl} onChange={(e) => handleInputChange('faviconUrl', e.target.value)} placeholder="Or paste favicon URL" className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20" />
                                     </div>
                                 </div>
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Primary Brand Color</label>
-                                    <div className="flex items-center gap-4">
+                                <div className="space-y-1.5">
+                                    <label className={labelClass}>Primary Brand Color</label>
+                                    <div className="flex items-center gap-3">
                                         <input
                                             type="color"
                                             value={settings.primaryColor}
                                             onChange={(e) => handleInputChange('primaryColor', e.target.value)}
-                                            className="h-12 w-24 rounded-lg cursor-pointer bg-transparent"
+                                            className="h-10 w-20 cursor-pointer rounded-md bg-transparent"
                                         />
                                         <input
                                             type="text"
                                             value={settings.primaryColor}
                                             onChange={(e) => handleInputChange('primaryColor', e.target.value)}
-                                            className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all font-mono"
+                                            className={cn(inputClass, "font-mono")}
                                         />
                                     </div>
                                 </div>
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Secondary Brand Color</label>
-                                    <div className="flex items-center gap-4">
+                                <div className="space-y-1.5">
+                                    <label className={labelClass}>Secondary Brand Color</label>
+                                    <div className="flex items-center gap-3">
                                         <input
                                             type="color"
                                             value={settings.secondaryColor}
                                             onChange={(e) => handleInputChange('secondaryColor', e.target.value)}
-                                            className="h-12 w-24 rounded-lg cursor-pointer bg-transparent"
+                                            className="h-10 w-20 cursor-pointer rounded-md bg-transparent"
                                         />
                                         <input
                                             type="text"
                                             value={settings.secondaryColor}
                                             onChange={(e) => handleInputChange('secondaryColor', e.target.value)}
-                                            className="w-full px-5 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all font-mono"
+                                            className={cn(inputClass, "font-mono")}
                                         />
                                     </div>
                                 </div>
@@ -585,45 +550,45 @@ const AdminSettings = () => {
 
                     {/* Legal Settings */}
                     {activeTab === 'legal' && (
-                        <Card className="border-none shadow-xl ring-1 ring-slate-100 bg-white rounded-xl overflow-hidden">
-                            <div className="p-6 border-b border-slate-50 bg-slate-50/30">
-                                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-3">
+                        <Card className="overflow-hidden p-0">
+                            <div className="border-b border-slate-100 bg-slate-50/30 p-5">
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-900">
                                     Legal Entity & Contact
                                 </h3>
                             </div>
-                            <div className="p-8 grid grid-cols-1 gap-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Company Legal Name</label>
+                            <div className="grid grid-cols-1 gap-4 p-6">
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <div className="space-y-1.5">
+                                        <label className={labelClass}>Company Legal Name</label>
                                         <input
                                             type="text"
                                             value={settings.companyName}
                                             onChange={(e) => handleInputChange('companyName', e.target.value)}
-                                            className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
+                                            className={inputClass}
                                         />
                                     </div>
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tax ID / GSTIN / VAT</label>
-                                        <div className="relative group">
-                                            <CreditCard className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                    <div className="space-y-1.5">
+                                        <label className={labelClass}>Tax ID / GSTIN / VAT</label>
+                                        <div className="relative">
+                                            <CreditCard className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                                             <input
                                                 type="text"
                                                 value={settings.taxId}
                                                 onChange={(e) => handleInputChange('taxId', e.target.value)}
-                                                className="w-full pl-12 pr-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
+                                                className={inputWithIconClass}
                                             />
                                         </div>
                                     </div>
                                 </div>
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Registered Office Address</label>
-                                    <div className="relative group">
-                                        <MapPin className="absolute left-5 top-6 h-4 w-4 text-slate-400" />
+                                <div className="space-y-1.5">
+                                    <label className={labelClass}>Registered Office Address</label>
+                                    <div className="relative">
+                                        <MapPin className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
                                         <textarea
                                             rows={3}
                                             value={settings.address}
                                             onChange={(e) => handleInputChange('address', e.target.value)}
-                                            className="w-full pl-12 pr-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all resize-none"
+                                            className="w-full resize-none rounded-md border border-slate-200 bg-white py-3 pl-10 pr-3.5 text-sm font-semibold text-slate-900 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                                         />
                                     </div>
                                 </div>
@@ -635,85 +600,85 @@ const AdminSettings = () => {
 
                     {/* Social & Apps */}
                     {activeTab === 'social' && (
-                        <Card className="border-none shadow-xl ring-1 ring-slate-100 bg-white rounded-xl overflow-hidden">
-                            <div className="p-6 border-b border-slate-50 bg-slate-50/30">
-                                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-3">
+                        <Card className="overflow-hidden p-0">
+                            <div className="border-b border-slate-100 bg-slate-50/30 p-5">
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-900">
                                     Social Media & App Links
                                 </h3>
                             </div>
-                            <div className="p-8 space-y-8">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Facebook URL</label>
-                                        <div className="relative group">
-                                            <Facebook className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-600" />
+                            <div className="space-y-6 p-6">
+                                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                                    <div className="space-y-1.5">
+                                        <label className={labelClass}>Facebook URL</label>
+                                        <div className="relative">
+                                            <Facebook className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
                                             <input
                                                 type="url"
                                                 value={settings.facebook}
                                                 onChange={(e) => handleInputChange('facebook', e.target.value)}
-                                                className="w-full pl-12 pr-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
+                                                className={inputWithIconClass}
                                             />
                                         </div>
                                     </div>
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Twitter / X URL</label>
-                                        <div className="relative group">
-                                            <Twitter className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-500" />
+                                    <div className="space-y-1.5">
+                                        <label className={labelClass}>Twitter / X URL</label>
+                                        <div className="relative">
+                                            <Twitter className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                                             <input
                                                 type="url"
                                                 value={settings.twitter}
                                                 onChange={(e) => handleInputChange('twitter', e.target.value)}
-                                                className="w-full pl-12 pr-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
+                                                className={inputWithIconClass}
                                             />
                                         </div>
                                     </div>
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Instagram URL</label>
-                                        <div className="relative group">
-                                            <Instagram className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-pink-600" />
+                                    <div className="space-y-1.5">
+                                        <label className={labelClass}>Instagram URL</label>
+                                        <div className="relative">
+                                            <Instagram className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-pink-600" />
                                             <input
                                                 type="url"
                                                 value={settings.instagram}
                                                 onChange={(e) => handleInputChange('instagram', e.target.value)}
-                                                className="w-full pl-12 pr-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
+                                                className={inputWithIconClass}
                                             />
                                         </div>
                                     </div>
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">YouTube URL</label>
-                                        <div className="relative group">
-                                            <Youtube className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-red-600" />
+                                    <div className="space-y-1.5">
+                                        <label className={labelClass}>YouTube URL</label>
+                                        <div className="relative">
+                                            <Youtube className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-danger" />
                                             <input
                                                 type="url"
                                                 value={settings.youtube}
                                                 onChange={(e) => handleInputChange('youtube', e.target.value)}
-                                                className="w-full pl-12 pr-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
+                                                className={inputWithIconClass}
                                             />
                                         </div>
                                     </div>
                                 </div>
-                                <div className="pt-6 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Play Store Link (Android)</label>
-                                        <div className="relative group">
-                                            <Smartphone className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-600" />
+                                <div className="grid grid-cols-1 gap-5 border-t border-slate-100 pt-6 md:grid-cols-2">
+                                    <div className="space-y-1.5">
+                                        <label className={labelClass}>Play Store Link (Android)</label>
+                                        <div className="relative">
+                                            <Smartphone className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
                                             <input
                                                 type="url"
                                                 value={settings.playStoreLink}
                                                 onChange={(e) => handleInputChange('playStoreLink', e.target.value)}
-                                                className="w-full pl-12 pr-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
+                                                className={inputWithIconClass}
                                             />
                                         </div>
                                     </div>
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">App Store Link (iOS)</label>
-                                        <div className="relative group">
-                                            <Smartphone className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-800" />
+                                    <div className="space-y-1.5">
+                                        <label className={labelClass}>App Store Link (iOS)</label>
+                                        <div className="relative">
+                                            <Smartphone className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-800" />
                                             <input
                                                 type="url"
                                                 value={settings.appStoreLink}
                                                 onChange={(e) => handleInputChange('appStoreLink', e.target.value)}
-                                                className="w-full pl-12 pr-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
+                                                className={inputWithIconClass}
                                             />
                                         </div>
                                     </div>
@@ -724,42 +689,42 @@ const AdminSettings = () => {
 
                     {/* SEO Settings */}
                     {activeTab === 'seo' && (
-                        <Card className="border-none shadow-xl ring-1 ring-slate-100 bg-white rounded-xl overflow-hidden">
-                            <div className="p-6 border-b border-slate-50 bg-slate-50/30">
-                                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-3">
+                        <Card className="overflow-hidden p-0">
+                            <div className="border-b border-slate-100 bg-slate-50/30 p-5">
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-900">
                                     SEO & Meta Information
                                 </h3>
                             </div>
-                            <div className="p-8 space-y-6">
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Default Meta Title</label>
+                            <div className="space-y-5 p-6">
+                                <div className="space-y-1.5">
+                                    <label className={labelClass}>Default Meta Title</label>
                                     <input
                                         type="text"
                                         value={settings.metaTitle}
                                         onChange={(e) => handleInputChange('metaTitle', e.target.value)}
-                                        className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
+                                        className={inputClass}
                                     />
                                 </div>
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Default Meta Description</label>
+                                <div className="space-y-1.5">
+                                    <label className={labelClass}>Default Meta Description</label>
                                     <textarea
                                         rows={3}
                                         value={settings.metaDescription}
                                         onChange={(e) => handleInputChange('metaDescription', e.target.value)}
-                                        className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all resize-none"
+                                        className="w-full resize-none rounded-md border border-slate-200 bg-white px-3.5 py-3 text-sm font-semibold text-slate-900 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                                     />
-                                    <p className="text-[10px] font-bold text-slate-400 italic text-right">Recommended length: 150-160 characters</p>
+                                    <p className="text-right text-[10px] font-bold italic text-slate-400">Recommended length: 150-160 characters</p>
                                 </div>
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meta Keywords</label>
+                                <div className="space-y-1.5">
+                                    <label className={labelClass}>Meta Keywords</label>
                                     <input
                                         type="text"
                                         value={settings.metaKeywords}
                                         onChange={(e) => handleInputChange('metaKeywords', e.target.value)}
-                                        className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
+                                        className={inputClass}
                                         placeholder="keyword1, keyword2, keyword3"
                                     />
-                                    <p className="text-[10px] font-bold text-slate-400 italic text-right">Separate keywords with commas</p>
+                                    <p className="text-right text-[10px] font-bold italic text-slate-400">Separate keywords with commas</p>
                                 </div>
                             </div>
                         </Card>
@@ -767,33 +732,33 @@ const AdminSettings = () => {
 
                     {/* Media Storage Settings */}
                     {activeTab === 'storage' && (
-                        <Card className="border-none shadow-xl ring-1 ring-slate-100 bg-white rounded-xl overflow-hidden">
-                            <div className="p-6 border-b border-slate-50 bg-slate-50/30">
-                                <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-3">
+                        <Card className="overflow-hidden p-0">
+                            <div className="border-b border-slate-100 bg-slate-50/30 p-5">
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-900">
                                     Media Storage
                                 </h3>
-                                <p className="text-xs font-medium text-slate-400 mt-1">
+                                <p className="mt-1 text-xs font-medium text-slate-400">
                                     Choose where NEW image and file uploads are stored. Switching providers never moves or deletes existing files.
                                 </p>
                             </div>
-                            <div className="p-8 space-y-6">
+                            <div className="space-y-5 p-6">
                                 {storageProviderLoading ? (
                                     <div className="flex items-center justify-center py-8">
-                                        <Loader2 className="h-8 w-8 text-slate-300 animate-spin" />
+                                        <Loader2 className="h-7 w-7 animate-spin text-slate-300" />
                                     </div>
                                 ) : (
                                     <>
                                         <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-                                            <span className={cn("h-2.5 w-2.5 rounded-full", storageProvider === 'local' ? "bg-emerald-500" : "bg-emerald-500")} />
+                                            <span className="h-2.5 w-2.5 rounded-full bg-success" />
                                             Currently active: {storageProvider === 'local' ? 'Local Server' : 'Cloudinary'}
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                             <label
                                                 className={cn(
-                                                    "flex items-start gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-all",
+                                                    "flex cursor-pointer items-start gap-4 rounded-xl border-2 p-4 transition-all",
                                                     selectedStorageProvider === 'cloudinary'
-                                                        ? "border-brand-500 bg-brand-50/30"
+                                                        ? "border-primary bg-primary/5"
                                                         : "border-slate-200 hover:border-slate-300"
                                                 )}
                                             >
@@ -809,15 +774,15 @@ const AdminSettings = () => {
                                                     <div className="flex items-center gap-2 text-sm font-black text-slate-900">
                                                         <Cloud className="h-4 w-4" /> Cloudinary
                                                     </div>
-                                                    <p className="text-xs font-medium text-slate-400 mt-1">Uploads are stored on Cloudinary's CDN (current default).</p>
+                                                    <p className="mt-1 text-xs font-medium text-slate-400">Uploads are stored on Cloudinary's CDN (current default).</p>
                                                 </div>
                                             </label>
 
                                             <label
                                                 className={cn(
-                                                    "flex items-start gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-all",
+                                                    "flex cursor-pointer items-start gap-4 rounded-xl border-2 p-4 transition-all",
                                                     selectedStorageProvider === 'local'
-                                                        ? "border-brand-500 bg-brand-50/30"
+                                                        ? "border-primary bg-primary/5"
                                                         : "border-slate-200 hover:border-slate-300"
                                                 )}
                                             >
@@ -833,24 +798,19 @@ const AdminSettings = () => {
                                                     <div className="flex items-center gap-2 text-sm font-black text-slate-900">
                                                         <Server className="h-4 w-4" /> Local Server
                                                     </div>
-                                                    <p className="text-xs font-medium text-slate-400 mt-1">Uploads are stored on this server's disk and served via your domain.</p>
+                                                    <p className="mt-1 text-xs font-medium text-slate-400">Uploads are stored on this server's disk and served via your domain.</p>
                                                 </div>
                                             </label>
                                         </div>
 
-                                        <button
+                                        <Button
                                             onClick={handleStorageProviderSave}
                                             disabled={storageProviderSaving || !selectedStorageProvider || selectedStorageProvider === storageProvider}
-                                            className={cn(
-                                                "flex items-center gap-2 px-8 py-4 bg-black text-primary-foreground rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-brand-200",
-                                                (storageProviderSaving || !selectedStorageProvider || selectedStorageProvider === storageProvider)
-                                                    ? "opacity-50 cursor-not-allowed"
-                                                    : "hover:bg-brand-700 active:scale-95"
-                                            )}
+                                            isLoading={storageProviderSaving}
                                         >
-                                            {storageProviderSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+                                            {!storageProviderSaving && <Save className="h-4 w-4" />}
                                             {storageProviderSaving ? 'Saving...' : 'Save Storage Provider'}
-                                        </button>
+                                        </Button>
                                     </>
                                 )}
                             </div>
@@ -863,4 +823,3 @@ const AdminSettings = () => {
 };
 
 export default AdminSettings;
-

@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import Card from "@shared/components/ui/Card";
 import Badge from "@shared/components/ui/Badge";
 import Button from "@shared/components/ui/Button";
+import PageHeader from "@shared/components/ui/PageHeader";
+import StatCard from "@shared/components/ui/StatCard";
+import EmptyState from "@shared/components/ui/EmptyState";
+import { SkeletonStatCard, SkeletonCard } from "@shared/components/ui/Skeleton";
 import { sellerApi } from "../services/sellerApi";
 import { useToast } from "@shared/components/ui/Toast";
 import {
@@ -10,9 +13,10 @@ import {
     HiOutlineEye,
     HiOutlineCalendarDays,
     HiOutlineTruck,
+    HiOutlineClock,
+    HiOutlineCheckCircle,
+    HiOutlineXCircle,
 } from "react-icons/hi2";
-import { BlurFade } from "@/components/ui/blur-fade";
-import { MagicCard } from "@/components/ui/magic-card";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Loader2, X } from "lucide-react";
@@ -210,124 +214,87 @@ const Returns = () => {
     };
 
     return (
-        <div className="space-y-4 sm:space-y-6 pb-20 sm:pb-16">
-            <BlurFade delay={0.1}>
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
-                    <div className="min-w-0">
-                        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 flex flex-wrap items-center gap-2">
-                            Return Requests
-                            <Badge
-                                variant="secondary"
-                                className="text-[10px] px-1.5 py-0 font-bold tracking-widest uppercase"
-                            >
-                                New
-                            </Badge>
-                        </h1>
-                        <p className="text-slate-600 text-sm sm:text-base mt-0.5 font-medium">
-                            Review and manage customer return requests.
-                        </p>
-                    </div>
-                    <div className="flex gap-2 flex-shrink-0">
-                        <Button
-                            onClick={fetchReturns}
-                            variant="outline"
-                            className="flex items-center space-x-1.5 sm:space-x-2 px-3 py-2 sm:px-5 sm:py-2.5 rounded-lg text-xs sm:text-sm font-bold text-slate-600 bg-white hover:bg-slate-50 border-slate-200"
-                        >
-                            <HiOutlineArrowPath className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                            <span className="hidden sm:inline">REFRESH</span>
-                        </Button>
-                    </div>
-                </div>
-            </BlurFade>
+        <div className="space-y-5">
+            <PageHeader
+                title={
+                    <span className="flex items-center gap-2">
+                        Return Requests
+                        <Badge variant="secondary">New</Badge>
+                    </span>
+                }
+                description="Review customer return requests and manage approvals, pickups, and quality checks."
+                actions={
+                    <Button onClick={fetchReturns} variant="outline">
+                        <HiOutlineArrowPath className="h-4 w-4" />
+                        Refresh
+                    </Button>
+                }
+            />
 
             {loading ? (
-                <div className="min-h-[320px] flex flex-col items-center justify-center bg-white rounded-3xl border border-slate-100 shadow-sm">
-                    <Loader2 className="h-10 w-10 text-primary animate-spin" />
-                    <p className="text-slate-600 font-bold mt-4 uppercase tracking-widest text-xs">
-                        Loading Return Requests...
-                    </p>
+                <div className="space-y-5">
+                    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                        {Array.from({ length: 4 }).map((_, i) => <SkeletonStatCard key={i} />)}
+                    </div>
+                    <SkeletonCard lines={6} />
                 </div>
             ) : (
                 <>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                        {["Requested", "Approved", "Rejected", "Completed"].map(
-                            (label, i) => {
-                                const count = returns.filter(
-                                    (r) => mapReturnStatusLabel(r.returnStatus) === label
-                                ).length;
-                                return (
-                                    <BlurFade key={label} delay={0.1 + i * 0.05}>
-                                        <MagicCard
-                                            className="border-none shadow-sm ring-1 ring-slate-100 p-0 overflow-hidden group bg-white"
-                                            gradientColor="#eef2ff"
-                                        >
-                                            <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 relative z-10">
-                                                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg flex items-center justify-center bg-slate-900 text-white shadow-sm shrink-0">
-                                                    <HiOutlineInboxStack className="h-5 w-5 sm:h-6 sm:w-6" />
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <p className="text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-widest truncate">
-                                                        {label}
-                                                    </p>
-                                                    <h4 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight">
-                                                        {count}
-                                                    </h4>
-                                                </div>
-                                            </div>
-                                        </MagicCard>
-                                    </BlurFade>
-                                );
-                            }
-                        )}
+                    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                        {[
+                            { label: "Requested", icon: HiOutlineClock, color: "text-warning", bg: "bg-warning/10" },
+                            { label: "Approved", icon: HiOutlineCheckCircle, color: "text-info", bg: "bg-info/10" },
+                            { label: "Rejected", icon: HiOutlineXCircle, color: "text-danger", bg: "bg-danger/10" },
+                            { label: "Completed", icon: HiOutlineInboxStack, color: "text-success", bg: "bg-success/10" },
+                        ].map((stat) => {
+                            const count = returns.filter(
+                                (r) => mapReturnStatusLabel(r.returnStatus) === stat.label
+                            ).length;
+                            return (
+                                <StatCard
+                                    key={stat.label}
+                                    label={stat.label}
+                                    value={count}
+                                    icon={stat.icon}
+                                    color={stat.color}
+                                    bg={stat.bg}
+                                    onClick={() => setActiveTab(stat.label)}
+                                />
+                            );
+                        })}
                     </div>
 
-                    <BlurFade delay={0.2}>
-                        <Card className="border-none shadow-xl ring-1 ring-slate-100 rounded-lg bg-white overflow-hidden">
-                            <div className="border-b border-slate-100 bg-slate-50/30 overflow-x-auto scrollbar-hide">
-                                <div className="flex px-3 sm:px-6 items-center min-w-max">
-                                    {tabs.map((tab) => (
-                                        <button
-                                            key={tab}
-                                            onClick={() => setActiveTab(tab)}
-                                            className={cn(
-                                                "relative py-3 sm:py-4 px-2.5 sm:px-4 text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-300",
-                                                activeTab === tab
-                                                    ? "text-primary scale-105"
-                                                    : "text-slate-600 hover:text-slate-700"
-                                            )}
-                                        >
-                                            {tab}
-                                            {activeTab === tab && (
-                                                <motion.div
-                                                    layoutId="returns-tab-underline"
-                                                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full mx-2 sm:mx-4"
-                                                />
-                                            )}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+                    <div className="flex overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm scrollbar-hide">
+                        {tabs.map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={cn(
+                                    "relative shrink-0 whitespace-nowrap px-3.5 py-2.5 text-xs font-bold transition-colors",
+                                    activeTab === tab ? "text-primary" : "text-slate-500 hover:text-slate-700"
+                                )}
+                            >
+                                {tab}
+                                {activeTab === tab && (
+                                    <motion.div layoutId="returns-tab-underline" className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-primary" />
+                                )}
+                            </button>
+                        ))}
+                    </div>
 
-                            <div className="p-3 sm:p-4">
-                                {filteredReturns.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center py-16 px-4">
-                                        <div className="h-14 w-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 mb-3">
-                                            <HiOutlineInboxStack className="h-7 w-7" />
-                                        </div>
-                                        <h3 className="text-sm font-bold text-slate-900">
-                                            No return requests found
-                                        </h3>
-                                        <p className="text-xs text-slate-600 font-medium text-center mt-1">
-                                            You will see customer return requests here.
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {filteredReturns.map((ret) => (
-                                            <div
-                                                key={ret._id}
-                                                className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm hover:bg-slate-50/40 transition-colors flex items-start justify-between gap-3"
-                                            >
+                    {filteredReturns.length === 0 ? (
+                        <EmptyState
+                            icon={<HiOutlineInboxStack className="h-6 w-6" />}
+                            title="No return requests found"
+                            description="You'll see customer return requests here as soon as one comes in."
+                        />
+                    ) : (
+                        <div className="space-y-3">
+                            {filteredReturns.map((ret) => (
+                                <div
+                                    key={ret._id}
+                                    className="bg-white border border-slate-200 rounded-xl p-4 shadow-[0_2px_10px_rgba(15,23,42,0.12)] hover:bg-slate-50/40 transition-colors flex items-start justify-between gap-3"
+                                >
                                                 <div
                                                     className="min-w-0 flex-1 cursor-pointer"
                                                     onClick={() => openDetails(ret)}
@@ -357,9 +324,9 @@ const Returns = () => {
                                                     </p>
                                                     {/* Proper Data: Rider tracking for in-transit */}
                                                     {(ret.returnStatus === "return_in_transit" || ret.returnStatus === "return_drop_pending" || ret.returnStatus === "return_pickup_assigned") && ret.returnDeliveryBoy && (
-                                                        <div className="mt-2 flex items-center gap-1.5 px-2 py-1 bg-brand-50 rounded-lg border border-brand-100 w-fit">
-                                                            <HiOutlineTruck className="h-3 w-3 text-brand-600" />
-                                                            <span className="text-[10px] font-bold text-brand-700">Rider: {ret.returnDeliveryBoy.name}</span>
+                                                        <div className="mt-2 flex items-center gap-1.5 px-2 py-1 bg-primary/10 rounded-lg border border-primary/20 w-fit">
+                                                            <HiOutlineTruck className="h-3 w-3 text-primary" />
+                                                            <span className="text-[10px] font-bold text-primary">Rider: {ret.returnDeliveryBoy.name}</span>
                                                         </div>
                                                     )}
                                                     {/* Proper Data: QC Note for passed/failed */}
@@ -393,12 +360,9 @@ const Returns = () => {
                                                     </button>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
-                                )}
+                                ))}
                             </div>
-                        </Card>
-                    </BlurFade>
+                        )}
                 </>
             )}
 
@@ -473,7 +437,7 @@ const Returns = () => {
                                         )}
                                         {selectedReturn.returnConditionAssurance !== undefined && (
                                             <div className="flex items-start gap-1.5 pt-1">
-                                                <div className={`mt-1 h-2 w-2 shrink-0 rounded-full ${selectedReturn.returnConditionAssurance ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                                                <div className={`mt-1 h-2 w-2 shrink-0 rounded-full ${selectedReturn.returnConditionAssurance ? 'bg-success' : 'bg-slate-300'}`} />
                                                 <p className="text-xs font-semibold text-slate-600">
                                                     {selectedReturn.returnConditionAssurance ? "Customer confirmed proper accessories & good condition." : "Customer did NOT confirm condition."}
                                                 </p>
@@ -496,7 +460,7 @@ const Returns = () => {
                                         </div>
                                     )}
                                     {selectedReturn.returnRejectedReason && (
-                                        <p className="text-xs text-rose-600 font-semibold">
+                                        <p className="text-xs text-danger font-semibold">
                                             Rejection reason:{" "}
                                             {selectedReturn.returnRejectedReason}
                                         </p>
@@ -507,26 +471,26 @@ const Returns = () => {
                                 {(selectedReturn.returnStatus === "return_pickup_assigned" ||
                                     selectedReturn.returnStatus === "return_in_transit" ||
                                     selectedReturn.returnStatus === "return_drop_pending") && selectedReturn.returnDeliveryBoy && (
-                                        <div className="bg-brand-50 rounded-2xl p-4 border border-brand-100 space-y-2">
+                                        <div className="bg-primary/5 rounded-2xl p-4 border border-primary/10 space-y-2">
                                             <div className="flex items-center gap-2">
-                                                <div className="h-8 w-8 rounded-lg bg-black  flex items-center justify-center text-white">
+                                                <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-white">
                                                     <HiOutlineTruck className="h-5 w-5" />
                                                 </div>
                                                 <div>
-                                                    <p className="text-[10px] font-black text-brand-600 uppercase tracking-widest leading-none mb-1">Rider Assigned</p>
+                                                    <p className="text-[10px] font-black text-primary uppercase tracking-widest leading-none mb-1">Rider Assigned</p>
                                                     <p className="text-sm font-bold text-slate-900 leading-none">{selectedReturn.returnDeliveryBoy.name}</p>
                                                 </div>
                                             </div>
                                             {selectedReturn.returnDeliveryBoy.phone && (
                                                 <a
                                                     href={`tel:${selectedReturn.returnDeliveryBoy.phone}`}
-                                                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-brand-700 bg-white px-3 py-1.5 rounded-lg border border-brand-200 shadow-sm hover:bg-brand-100 transition-colors"
+                                                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary bg-white px-3 py-1.5 rounded-lg border border-primary/20 shadow-sm hover:bg-primary/10 transition-colors"
                                                 >
                                                     📞 {selectedReturn.returnDeliveryBoy.phone}
                                                 </a>
                                             )}
                                             {selectedReturn.returnStatus === "return_drop_pending" && (
-                                                <p className="text-[10px] font-bold text-brand-800 italic mt-1 bg-white/50 p-2 rounded-lg">
+                                                <p className="text-[10px] font-bold text-primary italic mt-1 bg-white/50 p-2 rounded-lg">
                                                     Rider is at your location. Please check the OTP below to confirm the drop.
                                                 </p>
                                             )}
@@ -535,15 +499,15 @@ const Returns = () => {
 
                                 {/* QC Info Section */}
                                 {(selectedReturn.returnStatus === "qc_passed" || selectedReturn.returnStatus === "qc_failed") && (
-                                    <div className={`rounded-2xl p-4 border space-y-2 ${selectedReturn.returnStatus === "qc_passed" ? "bg-emerald-50 border-emerald-100" : "bg-rose-50 border-rose-100"
+                                    <div className={`rounded-2xl p-4 border space-y-2 ${selectedReturn.returnStatus === "qc_passed" ? "bg-success/10 border-success/20" : "bg-danger/10 border-danger/20"
                                         }`}>
                                         <div className="flex items-center gap-2">
-                                            <div className={`h-8 w-8 rounded-lg flex items-center justify-center text-white ${selectedReturn.returnStatus === "qc_passed" ? "bg-emerald-600" : "bg-rose-600"
+                                            <div className={`h-8 w-8 rounded-lg flex items-center justify-center text-white ${selectedReturn.returnStatus === "qc_passed" ? "bg-success" : "bg-danger"
                                                 }`}>
                                                 <HiOutlineInboxStack className="h-5 w-5" />
                                             </div>
                                             <div>
-                                                <p className={`text-[10px] font-black uppercase tracking-widest leading-none mb-1 ${selectedReturn.returnStatus === "qc_passed" ? "text-emerald-600" : "text-rose-600"
+                                                <p className={`text-[10px] font-black uppercase tracking-widest leading-none mb-1 ${selectedReturn.returnStatus === "qc_passed" ? "text-success" : "text-danger"
                                                     }`}>Quality Check Results</p>
                                                 <p className="text-sm font-bold text-slate-900 leading-none">
                                                     {selectedReturn.returnStatus === "qc_passed" ? "QC Passed" : "QC Failed"}
@@ -602,7 +566,7 @@ const Returns = () => {
                                                         <p className="text-[8px] font-bold leading-tight uppercase">Not Picked Yet</p>
                                                     </div>
                                                 )}
-                                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-emerald-900/60 to-transparent p-2">
+                                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-success/80 to-transparent p-2">
                                                     <p className="text-[9px] font-black text-white uppercase leading-none">Return</p>
                                                 </div>
                                             </div>
@@ -610,8 +574,8 @@ const Returns = () => {
                                     </div>
                                     {selectedReturn.returnPickupCondition && (
                                         <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl">
-                                            <div className={`h-2 w-2 rounded-full ${selectedReturn.returnPickupCondition === 'good' ? 'bg-emerald-500' :
-                                                    selectedReturn.returnPickupCondition === 'damaged' ? 'bg-rose-500' : 'bg-amber-500'
+                                            <div className={`h-2 w-2 rounded-full ${selectedReturn.returnPickupCondition === 'good' ? 'bg-success' :
+                                                    selectedReturn.returnPickupCondition === 'damaged' ? 'bg-danger' : 'bg-warning'
                                                 }`} />
                                             <p className="text-[11px] font-bold text-slate-600">
                                                 Rider Condition Report: <span className="uppercase text-slate-900">{selectedReturn.returnPickupCondition}</span>
@@ -673,13 +637,13 @@ const Returns = () => {
 
                                 {/* Active OTP Display */}
                                 {activeOtps[selectedReturn.orderId] && (
-                                    <div className="bg-brand-50 border-2 border-dashed border-brand-200 rounded-3xl p-6 text-center space-y-3 animate-in fade-in zoom-in duration-500">
-                                        <p className="text-[10px] font-black text-brand-600 uppercase tracking-[0.2em]">
+                                    <div className="bg-primary/5 border-2 border-dashed border-primary/20 rounded-3xl p-6 text-center space-y-3 animate-in fade-in zoom-in duration-500">
+                                        <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">
                                             Rider Arrived - Share OTP
                                         </p>
                                         <div className="flex items-center justify-center gap-3">
                                             {activeOtps[selectedReturn.orderId].otp.split('').map((char, i) => (
-                                                <div key={i} className="h-14 w-12 bg-white rounded-xl shadow-sm border border-brand-100 flex items-center justify-center text-3xl font-black text-slate-900 border-b-4 border-b-brand-500">
+                                                <div key={i} className="h-14 w-12 bg-white rounded-xl shadow-sm border border-primary/20 flex items-center justify-center text-3xl font-black text-slate-900 border-b-4 border-b-primary">
                                                     {char}
                                                 </div>
                                             ))}
@@ -692,7 +656,7 @@ const Returns = () => {
                             </div>
 
                             <div className="px-4 py-3 sm:px-6 sm:py-4 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center justify-end shrink-0">
-                                <div className="flex gap-2 items-center">
+                                <div className="flex flex-wrap gap-2 items-center justify-end">
                                     <button
                                         onClick={() => setIsDetailsOpen(false)}
                                         className="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-all"
@@ -704,14 +668,12 @@ const Returns = () => {
                                     {canManageReturns && selectedReturn.returnStatus === "return_requested" && (
                                         <>
                                             <Button
-                                                variant="outline"
-                                                className="text-xs font-bold border-rose-200 text-rose-600 hover:bg-rose-50"
+                                                variant="danger"
                                                 onClick={() => setIsRejectModalOpen(true)}
                                             >
                                                 Reject Request
                                             </Button>
                                             <Button
-                                                className="text-xs font-bold bg-slate-900"
                                                 onClick={() => handleApprove(selectedReturn.orderId)}
                                             >
                                                 Approve Return
@@ -722,7 +684,6 @@ const Returns = () => {
                                     {/* Action: Assign Pickup */}
                                     {canManageReturns && (selectedReturn.returnStatus === "return_approved") && (
                                         <Button
-                                            className="text-xs font-bold bg-black  hover:bg-brand-700"
                                             disabled={assigningPickup}
                                             onClick={() => handleAssignPickup(selectedReturn.orderId)}
                                         >
@@ -780,7 +741,8 @@ const Returns = () => {
                                     Cancel
                                 </Button>
                                 <Button
-                                    className="flex-1 font-bold bg-rose-600 hover:bg-rose-700"
+                                    variant="danger"
+                                    className="flex-1"
                                     onClick={handleReject}
                                     isLoading={submittingReject}
                                     disabled={!rejectReason.trim() || submittingReject}

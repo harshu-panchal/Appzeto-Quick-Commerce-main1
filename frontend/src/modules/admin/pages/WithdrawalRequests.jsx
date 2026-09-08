@@ -1,30 +1,30 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import Card from '@shared/components/ui/Card';
 import Badge from '@shared/components/ui/Badge';
+import Button from '@shared/components/ui/Button';
 import Modal from '@shared/components/ui/Modal';
+import PageHeader from '@shared/components/ui/PageHeader';
+import StatCard from '@shared/components/ui/StatCard';
+import FilterBar from '@shared/components/ui/FilterBar';
+import DataTable from '@shared/components/ui/DataTable';
+import EmptyState from '@shared/components/ui/EmptyState';
+import { SkeletonStatCard, SkeletonCard } from '@shared/components/ui/Skeleton';
+import Pagination from '@shared/components/ui/Pagination';
 import {
     Banknote,
     Clock,
     CheckCircle2,
     XCircle,
     Search,
-    Filter,
-    ChevronRight,
     Building2,
     Truck,
-    ArrowUpRight,
     CreditCard,
-    MoreVertical,
     Download,
     Eye,
     CheckCircle,
     FileText,
-    AlertCircle,
     RotateCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
-import Pagination from '@shared/components/ui/Pagination';
 import { adminApi } from "../services/adminApi";
 import { toast } from "sonner";
 
@@ -149,18 +149,18 @@ const WithdrawalRequests = () => {
         try {
             toast.loading(`Exporting ${activeTab} data...`, { id: "export" });
             const apiMethod = activeTab === 'sellers' ? adminApi.getSellerWithdrawals : adminApi.getDeliveryWithdrawals;
-            
+
             const params = { page: 1, limit: 5000 };
             if (searchTerm.trim()) params.search = searchTerm.trim();
             if (filterStatus !== 'all') params.status = filterStatus;
 
             const res = await apiMethod(params).catch(() => ({ data: { success: false } }));
-            
+
             if (!res.data.success) throw new Error("Failed to fetch data");
-            
+
             const payload = res.data.result || {};
             const items = Array.isArray(payload.items) ? payload.items : (res.data.results || []);
-            
+
             if (!items.length) {
                 toast.error("No data to export", { id: "export" });
                 return;
@@ -168,7 +168,7 @@ const WithdrawalRequests = () => {
 
             const csvRows = [];
             csvRows.push(['Date', 'Time', 'Requester Name', 'Requester Phone', 'Amount (INR)', 'Status', 'Reference ID'].join(','));
-            
+
             items.forEach(req => {
                 const dt = new Date(req.createdAt);
                 const date = dt.toLocaleDateString();
@@ -189,7 +189,7 @@ const WithdrawalRequests = () => {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            
+
             toast.success("Export successful", { id: "export" });
         } catch (error) {
             console.error("Export error:", error);
@@ -197,286 +197,243 @@ const WithdrawalRequests = () => {
         }
     };
 
-    return (
-        <div className="ds-section-spacing animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {/* Header Section */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-1">
-                <div>
-                    <h1 className="ds-h1 flex items-center gap-3">
-                        Withdrawal Requests
-                        <Badge variant="primary" className="text-[10px] px-2 py-0.5 font-bold uppercase tracking-wider">Financial Hub</Badge>
-                    </h1>
-                    <p className="ds-description mt-1">Review and process fund disbursement requests from sellers and delivery partners.</p>
-                </div>
+    const columns = [
+        {
+            header: 'Requester Details',
+            key: 'requester',
+            cell: (req) => (
                 <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        {activeTab === 'sellers' ? <Building2 className="h-4.5 w-4.5" /> : <Truck className="h-4.5 w-4.5" />}
+                    </div>
+                    <div>
+                        <p
+                            className="cursor-pointer text-sm font-bold text-slate-900 transition-colors hover:text-primary"
+                            onClick={() => setSelectedRequest(req)}
+                        >
+                            {req.user?.shopName || req.user?.name || 'Unknown'}
+                        </p>
+                        <div className="mt-0.5 flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold uppercase tracking-tight text-slate-400">{req.user?.phone}</span>
+                            <span className="h-1 w-1 rounded-full bg-slate-300" />
+                            <span className="text-[10px] font-bold uppercase tracking-tight text-slate-400">
+                                {new Date(req.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            header: 'Transaction ID',
+            key: 'txn',
+            cell: (req) => <span className="font-mono text-[10px] font-bold text-slate-500">{req.reference || req._id}</span>,
+        },
+        {
+            header: 'Amount Requested',
+            key: 'amount',
+            align: 'center',
+            cell: (req) => <p className="text-sm font-black text-slate-900">₹{Math.abs(req.amount).toLocaleString()}</p>,
+        },
+        {
+            header: 'Gateway Status',
+            key: 'status',
+            cell: (req) => (
+                <Badge variant={req.status === 'Pending' ? 'warning' : req.status === 'Settled' ? 'success' : req.status === 'Processing' ? 'primary' : 'danger'}>
+                    {req.status}
+                </Badge>
+            ),
+        },
+        {
+            header: 'Actions',
+            key: 'actions',
+            align: 'right',
+            cell: (req) => (
+                <div className="flex items-center justify-end gap-1.5">
+                    {req.status === 'Pending' && (
+                        <>
+                            <button
+                                onClick={() => handleAction('approve', req)}
+                                className="rounded-lg p-2 text-success transition-all hover:bg-success hover:text-white"
+                            >
+                                <CheckCircle className="h-4 w-4" />
+                            </button>
+                            <button
+                                onClick={() => handleAction('reject', req)}
+                                className="rounded-lg p-2 text-danger transition-all hover:bg-danger hover:text-white"
+                            >
+                                <XCircle className="h-4 w-4" />
+                            </button>
+                        </>
+                    )}
                     <button
-                        onClick={() => fetchData(sellerPage, deliveryPage)}
-                        className="p-2.5 bg-white ring-1 ring-slate-200 text-slate-600 rounded-2xl hover:bg-slate-50 transition-all shadow-sm"
+                        onClick={() => setSelectedRequest(req)}
+                        className="rounded-lg p-2 text-slate-400 transition-all hover:bg-slate-900 hover:text-white"
                     >
-                        <RotateCw className={cn("h-4 w-4", loading && "animate-spin")} />
-                    </button>
-                    <button 
-                        onClick={handleExport}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-white ring-1 ring-slate-200 text-slate-600 rounded-2xl text-xs font-bold hover:bg-slate-50 transition-all shadow-sm">
-                        <Download className="h-4 w-4" />
-                        EXPORT ALL
+                        <Eye className="h-4 w-4" />
                     </button>
                 </div>
-            </div>
+            ),
+        },
+    ];
 
-            {/* Quick Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {[
-                    { label: 'Total Pending', value: stats.sellers.pending + stats.delivery.pending, icon: Clock, color: 'amber', bg: 'bg-amber-50', iconColor: 'text-amber-500' },
-                    { label: 'Pending Volume', value: `₹${(stats.sellers.amount + stats.delivery.amount).toLocaleString()}`, icon: Banknote, color: 'blue', bg: 'bg-brand-50', iconColor: 'text-brand-500' },
-                    { label: 'Settled Today', value: stats.sellers.processed + stats.delivery.processed, icon: CheckCircle2, color: 'emerald', bg: 'bg-brand-50', iconColor: 'text-brand-500' },
-                ].map((stat, i) => (
-                    <Card key={i} className="p-6 border-none shadow-sm ring-1 ring-slate-100 bg-white">
-                        <div className="flex items-center gap-4">
-                            <div className={cn("p-3 rounded-2xl", stat.bg)}>
-                                <stat.icon className={cn("h-6 w-6", stat.iconColor)} />
-                            </div>
-                            <div>
-                                <p className="ds-label mb-1">{stat.label}</p>
-                                <h3 className="ds-stat-medium">{stat.value}</h3>
-                            </div>
-                        </div>
-                    </Card>
-                ))}
-            </div>
+    return (
+        <div className="space-y-5">
+            <PageHeader
+                title={
+                    <span className="flex items-center gap-2">
+                        Withdrawal Requests
+                        <Badge variant="primary">Financial Hub</Badge>
+                    </span>
+                }
+                description="Review and process fund disbursement requests from sellers and delivery partners."
+                actions={
+                    <>
+                        <Button variant="outline" onClick={() => fetchData(sellerPage, deliveryPage)}>
+                            <RotateCw className={cn('h-4 w-4', loading && 'animate-spin')} />
+                        </Button>
+                        <Button variant="outline" onClick={handleExport}>
+                            <Download className="h-4 w-4" />
+                            Export All
+                        </Button>
+                    </>
+                }
+            />
 
-            {/* Main Interface Tab Structure */}
-            <div className="space-y-6">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex bg-slate-100 p-1.5 rounded-2xl w-fit">
-                        <button
-                            onClick={() => setActiveTab('sellers')}
-                            className={cn(
-                                "flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold transition-all",
-                                activeTab === 'sellers' ? "bg-white text-slate-900 shadow-md" : "text-slate-500 hover:text-slate-700"
-                            )}
-                        >
-                            <Building2 className="h-4 w-4" />
-                            SELLER REQUESTS
-                            <span className={cn(
-                                "ml-1 px-2 py-0.5 rounded-full text-[10px]",
-                                activeTab === 'sellers' ? "bg-slate-900 text-white" : "bg-slate-200 text-slate-600"
-                            )}>{sellerRequests.length}</span>
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('delivery')}
-                            className={cn(
-                                "flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold transition-all",
-                                activeTab === 'delivery' ? "bg-white text-slate-900 shadow-md" : "text-slate-500 hover:text-slate-700"
-                            )}
-                        >
-                            <Truck className="h-4 w-4" />
-                            DELIVERY PARTNERS
-                            <span className={cn(
-                                "ml-1 px-2 py-0.5 rounded-full text-[10px]",
-                                activeTab === 'delivery' ? "bg-slate-900 text-white" : "bg-slate-200 text-slate-600"
-                            )}>{deliveryRequests.length}</span>
-                        </button>
+            {loading && sellerRequests.length === 0 && deliveryRequests.length === 0 ? (
+                <div className="space-y-5">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        {Array.from({ length: 3 }).map((_, i) => <SkeletonStatCard key={i} />)}
                     </div>
-
-                    <div className="flex items-center gap-3">
-                        <div className="relative group">
-                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
-                            <input
-                                type="text"
-                                placeholder="Search by ID or Name..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10 pr-4 py-2.5 bg-white ring-1 ring-slate-200 rounded-2xl text-xs font-semibold outline-none focus:ring-2 focus:ring-primary/10 w-64 transition-all"
-                            />
-                        </div>
-                        <div className="flex bg-slate-100 p-1 rounded-xl">
-                            {['all', 'pending', 'settled'].map((status) => (
-                                <button
-                                    key={status}
-                                    onClick={() => setFilterStatus(status)}
-                                    className={cn(
-                                        "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-tight transition-all",
-                                        filterStatus === status ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
-                                    )}
-                                >
-                                    {status}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                    <SkeletonCard lines={6} />
                 </div>
+            ) : (
+                <>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <StatCard label="Total Pending" value={stats.sellers.pending + stats.delivery.pending} icon={Clock} color="text-warning" bg="bg-warning/10" />
+                        <StatCard label="Pending Volume" value={`₹${(stats.sellers.amount + stats.delivery.amount).toLocaleString()}`} icon={Banknote} color="text-primary" bg="bg-primary/10" />
+                        <StatCard label="Settled Today" value={stats.sellers.processed + stats.delivery.processed} icon={CheckCircle2} color="text-success" bg="bg-success/10" />
+                    </div>
 
-                {/* Content Area */}
-                <Card className="border-none shadow-2xl ring-1 ring-slate-100 overflow-hidden bg-white rounded-xl">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-slate-50/50 border-b border-slate-100">
-                                    <th className="ds-table-header-cell pl-8">Requester Details</th>
-                                    <th className="ds-table-header-cell">Transaction ID</th>
-                                    <th className="ds-table-header-cell text-center">Amount Requested</th>
-                                    <th className="ds-table-header-cell">Gateway Status</th>
-                                    <th className="ds-table-header-cell text-right pr-8">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                                {currentData.map((req, i) => (
-                                    <tr key={req._id} className="group hover:bg-slate-50/30 transition-all">
-                                        <td className="px-6 py-5 pl-8">
-                                            <div className="flex items-center gap-4">
-                                                <div className={cn(
-                                                    "h-12 w-12 rounded-2xl flex items-center justify-center shadow-inner",
-                                                    activeTab === 'sellers' ? "bg-brand-50 text-brand-600" : "bg-brand-50 text-brand-600"
-                                                )}>
-                                                    {activeTab === 'sellers' ? <Building2 className="h-6 w-6" /> : <Truck className="h-6 w-6" />}
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-bold text-slate-900 group-hover:text-primary transition-colors cursor-pointer" onClick={() => setSelectedRequest(req)}>
-                                                        {req.user?.shopName || req.user?.name || "Unknown"}
-                                                    </p>
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{req.user?.phone}</span>
-                                                        <span className="h-1 w-1 rounded-full bg-slate-300" />
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{new Date(req.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <span className="text-[10px] font-mono font-bold text-slate-500">{req.reference || req._id}</span>
-                                        </td>
-                                        <td className="px-6 py-5 text-center">
-                                            <p className="text-sm font-black text-slate-900">₹{Math.abs(req.amount).toLocaleString()}</p>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <Badge
-                                                variant={req.status === 'Pending' ? 'warning' : req.status === 'Settled' ? 'success' : req.status === 'Processing' ? 'primary' : 'danger'}
-                                                className="text-[9px] font-black px-3 py-1 uppercase tracking-wider"
-                                            >
-                                                {req.status}
-                                            </Badge>
-                                        </td>
-                                        <td className="px-6 py-5 text-right pr-8">
-                                            <div className="flex items-center justify-end gap-2">
-                                                {req.status === 'Pending' && (
-                                                    <>
-                                                        <button
-                                                            onClick={() => handleAction('approve', req)}
-                                                            className="p-2 bg-brand-50 text-brand-600 rounded-xl hover:bg-black  hover:text-white transition-all active:scale-90"
-                                                        >
-                                                            <CheckCircle className="h-4 w-4" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleAction('reject', req)}
-                                                            className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-600 hover:text-white transition-all active:scale-90"
-                                                        >
-                                                            <XCircle className="h-4 w-4" />
-                                                        </button>
-                                                    </>
-                                                )}
-                                                <button
-                                                    onClick={() => setSelectedRequest(req)}
-                                                    className="p-2 bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-900 hover:text-white transition-all active:scale-90"
-                                                >
-                                                    <Eye className="h-4 w-4" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {currentData.length === 0 && (
-                                    <tr>
-                                        <td colSpan="5" className="px-6 py-20 text-center">
-                                            <div className="flex flex-col items-center">
-                                                <div className="p-4 bg-slate-50 rounded-full mb-4">
-                                                    <FileText className="h-8 w-8 text-slate-200" />
-                                                </div>
-                                                <p className="text-slate-400 font-bold text-sm">No withdrawal requests found for this category.</p>
-                                            </div>
-                                        </td>
-                                    </tr>
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div className="flex w-fit rounded-xl bg-slate-100 p-1">
+                            <button
+                                onClick={() => setActiveTab('sellers')}
+                                className={cn(
+                                    'flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all',
+                                    activeTab === 'sellers' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                                 )}
-                            </tbody>
-                        </table>
+                            >
+                                <Building2 className="h-4 w-4" />
+                                Seller Requests
+                                <span className={cn('ml-1 rounded-full px-2 py-0.5 text-[10px]', activeTab === 'sellers' ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-600')}>
+                                    {sellerRequests.length}
+                                </span>
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('delivery')}
+                                className={cn(
+                                    'flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all',
+                                    activeTab === 'delivery' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                                )}
+                            >
+                                <Truck className="h-4 w-4" />
+                                Delivery Partners
+                                <span className={cn('ml-1 rounded-full px-2 py-0.5 text-[10px]', activeTab === 'delivery' ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-600')}>
+                                    {deliveryRequests.length}
+                                </span>
+                            </button>
+                        </div>
                     </div>
-                    <div className="px-6 py-3 border-t border-slate-100">
-                        <Pagination
-                            page={activeTab === 'sellers' ? sellerPage : deliveryPage}
-                            totalPages={Math.ceil((activeTab === 'sellers' ? sellerTotal : deliveryTotal) / pageSize) || 1}
-                            total={activeTab === 'sellers' ? sellerTotal : deliveryTotal}
-                            pageSize={pageSize}
-                            onPageChange={activeTab === 'sellers' ? fetchSellerPage : fetchDeliveryPage}
-                            onPageSizeChange={(newSize) => {
-                                setPageSize(newSize);
-                                setSellerPage(1);
-                                setDeliveryPage(1);
-                            }}
-                            loading={loading}
-                        />
-                    </div>
-                </Card>
-            </div>
+
+                    <FilterBar
+                        left={
+                            <div className="relative w-full sm:w-80">
+                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search by ID or Name..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="h-9 w-full rounded-md border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                />
+                            </div>
+                        }
+                        pills={['all', 'pending', 'settled'].map((status) => ({
+                            label: status,
+                            active: filterStatus === status,
+                            onClick: () => setFilterStatus(status),
+                        }))}
+                    />
+
+                    <DataTable
+                        columns={columns}
+                        data={currentData}
+                        rowKey={(r) => r._id}
+                        loading={loading}
+                        emptyState={
+                            <EmptyState
+                                icon={<FileText className="h-6 w-6" />}
+                                title="No withdrawal requests found"
+                                description="No requests match this category and filter combination."
+                            />
+                        }
+                    />
+
+                    <Pagination
+                        page={activeTab === 'sellers' ? sellerPage : deliveryPage}
+                        totalPages={Math.ceil((activeTab === 'sellers' ? sellerTotal : deliveryTotal) / pageSize) || 1}
+                        total={activeTab === 'sellers' ? sellerTotal : deliveryTotal}
+                        pageSize={pageSize}
+                        onPageChange={activeTab === 'sellers' ? fetchSellerPage : fetchDeliveryPage}
+                        onPageSizeChange={(newSize) => {
+                            setPageSize(newSize);
+                            setSellerPage(1);
+                            setDeliveryPage(1);
+                        }}
+                        loading={loading}
+                    />
+                </>
+            )}
 
             {/* Request Detail Modal */}
-            <Modal
-                isOpen={!!selectedRequest}
-                onClose={() => setSelectedRequest(null)}
-                title="Withdrawal Intel"
-                size="md"
-            >
+            <Modal isOpen={!!selectedRequest} onClose={() => setSelectedRequest(null)} title="Withdrawal Intel" size="md">
                 {selectedRequest && (
-                    <div className="ds-section-spacing">
-                        <div className="flex items-center gap-6 p-6 bg-slate-50 rounded-xl border border-slate-100">
-                            <div className={cn(
-                                "h-20 w-20 rounded-xl flex items-center justify-center shadow-xl",
-                                activeTab === 'sellers' ? "bg-black  text-primary-foreground" : "bg-black  text-primary-foreground"
-                            )}>
-                                {activeTab === 'sellers' ? <Building2 className="h-10 w-10" /> : <Truck className="h-10 w-10" />}
+                    <div className="space-y-5">
+                        <div className="flex items-center gap-5 rounded-xl border border-slate-100 bg-slate-50 p-5">
+                            <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-slate-900 text-white">
+                                {activeTab === 'sellers' ? <Building2 className="h-8 w-8" /> : <Truck className="h-8 w-8" />}
                             </div>
                             <div>
-                                <h3 className="text-2xl font-black text-slate-900 tracking-tight">{selectedRequest.user?.shopName || selectedRequest.user?.name || "Unknown"}</h3>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">{selectedRequest._id}</p>
-                                <div className="flex items-center gap-2 mt-3">
-                                    <Badge variant={selectedRequest.status === 'Pending' ? 'warning' : 'success'}>
-                                        {selectedRequest.status.toUpperCase()}
-                                    </Badge>
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase">Requested on {new Date(selectedRequest.createdAt).toLocaleString()}</span>
+                                <h3 className="text-xl font-black tracking-tight text-slate-900">{selectedRequest.user?.shopName || selectedRequest.user?.name || 'Unknown'}</h3>
+                                <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">{selectedRequest._id}</p>
+                                <div className="mt-2 flex items-center gap-2">
+                                    <Badge variant={selectedRequest.status === 'Pending' ? 'warning' : 'success'}>{selectedRequest.status.toUpperCase()}</Badge>
+                                    <span className="text-[10px] font-bold uppercase text-slate-400">Requested on {new Date(selectedRequest.createdAt).toLocaleString()}</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-4">
-                            <Card className="p-5 border-none bg-slate-50 ring-1 ring-slate-100 rounded-xl">
-                                <p className="ds-label mb-2">Request Amount</p>
-                                <h4 className="text-2xl font-black text-slate-900">₹{Math.abs(selectedRequest.amount).toLocaleString()}</h4>
-                                <p className="text-[10px] font-semibold text-slate-400 mt-1">Reference: {selectedRequest.reference}</p>
-                            </Card>
+                        <div className="rounded-xl border border-slate-100 bg-slate-50 p-5">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Request Amount</p>
+                            <h4 className="mt-1 text-2xl font-black text-slate-900">₹{Math.abs(selectedRequest.amount).toLocaleString()}</h4>
+                            <p className="mt-1 text-[10px] font-semibold text-slate-400">Reference: {selectedRequest.reference}</p>
                         </div>
 
-                        <div className="flex gap-3 pt-2">
+                        <div className="flex gap-3 pt-1">
                             {selectedRequest.status === 'Pending' ? (
                                 <>
-                                    <button
-                                        onClick={() => { setSelectedRequest(null); handleAction('approve', selectedRequest); }}
-                                        className="flex-1 py-4 bg-black  hover:bg-brand-700 text-primary-foreground rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl shadow-brand-200 transition-all active:scale-[0.98]"
-                                    >
+                                    <Button className="flex-1" onClick={() => { setSelectedRequest(null); handleAction('approve', selectedRequest); }}>
                                         Authorize Transfer
-                                    </button>
-                                    <button
-                                        onClick={() => { setSelectedRequest(null); handleAction('reject', selectedRequest); }}
-                                        className="flex-1 py-4 bg-white ring-1 ring-slate-200 text-slate-600 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-slate-50 transition-all"
-                                    >
+                                    </Button>
+                                    <Button variant="outline" className="flex-1" onClick={() => { setSelectedRequest(null); handleAction('reject', selectedRequest); }}>
                                         Deny Request
-                                    </button>
+                                    </Button>
                                 </>
                             ) : (
-                                <button
-                                    onClick={() => setSelectedRequest(null)}
-                                    className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest"
-                                >
+                                <Button className="w-full" variant="outline" onClick={() => setSelectedRequest(null)}>
                                     Close Intelligence
-                                </button>
+                                </Button>
                             )}
                         </div>
                     </div>
@@ -491,38 +448,37 @@ const WithdrawalRequests = () => {
                 size="sm"
             >
                 {actionModal.request && (
-                    <div className="text-center space-y-6">
+                    <div className="space-y-5 text-center">
                         <div className={cn(
-                            "h-16 w-16 rounded-xl flex items-center justify-center mx-auto",
-                            actionModal.type === 'approve' ? "bg-brand-50 text-brand-600" : "bg-rose-50 text-rose-600"
+                            'mx-auto flex h-14 w-14 items-center justify-center rounded-xl',
+                            actionModal.type === 'approve' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
                         )}>
-                            {actionModal.type === 'approve' ? <CheckCircle className="h-8 w-8" /> : <XCircle className="h-8 w-8" />}
+                            {actionModal.type === 'approve' ? <CheckCircle className="h-7 w-7" /> : <XCircle className="h-7 w-7" />}
                         </div>
                         <div>
-                            <h3 className="text-xl font-black text-slate-900">Are you sure?</h3>
-                            <p className="text-sm font-medium text-slate-500 mt-2 px-6">
-                                You are about to {actionModal.type === 'approve' ? 'approve' : 'reject'} the withdrawal request for <b className="text-slate-900">₹{Math.abs(actionModal.request.amount).toLocaleString()}</b>.
+                            <h3 className="text-lg font-black text-slate-900">Are you sure?</h3>
+                            <p className="mt-2 px-4 text-sm font-medium text-slate-500">
+                                You are about to {actionModal.type === 'approve' ? 'approve' : 'reject'} the withdrawal request for{' '}
+                                <b className="text-slate-900">₹{Math.abs(actionModal.request.amount).toLocaleString()}</b>.
                             </p>
                         </div>
-                        <div className="space-y-3">
-                            <button
+                        <div className="space-y-2.5">
+                            <Button
+                                className="w-full"
+                                variant={actionModal.type === 'approve' ? 'primary' : 'danger'}
                                 onClick={confirmAction}
-                                disabled={loading}
-                                className={cn(
-                                    "w-full py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-2",
-                                    actionModal.type === 'approve' ? "bg-black  hover:bg-brand-700 text-primary-foreground shadow-brand-100" : "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-100"
-                                )}
+                                isLoading={loading}
                             >
-                                {loading && <RotateCw className="h-4 w-4 animate-spin" />}
-                                {loading ? 'PROCESSING...' : `YES, ${actionModal.type.toUpperCase()}`}
-                            </button>
-                            <button
+                                {loading ? 'Processing...' : `Yes, ${actionModal.type?.toUpperCase()}`}
+                            </Button>
+                            <Button
+                                className="w-full"
+                                variant="ghost"
+                                disabled={loading}
                                 onClick={() => setActionModal({ isOpen: false, type: null, request: null })}
-                                disabled={loading}
-                                className="w-full py-4 bg-slate-50 text-slate-400 font-black text-[11px] uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all"
                             >
-                                CANCEL
-                            </button>
+                                Cancel
+                            </Button>
                         </div>
                     </div>
                 )}

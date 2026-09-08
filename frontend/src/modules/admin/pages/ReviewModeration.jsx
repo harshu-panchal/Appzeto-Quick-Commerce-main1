@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import Card from '@shared/components/ui/Card';
 import Badge from '@shared/components/ui/Badge';
+import Button from '@shared/components/ui/Button';
+import PageHeader from '@shared/components/ui/PageHeader';
+import EmptyState from '@shared/components/ui/EmptyState';
 import Pagination from '@shared/components/ui/Pagination';
 import { adminApi } from '../services/adminApi';
 import {
@@ -9,14 +12,11 @@ import {
     HiOutlineShieldCheck,
     HiOutlineExclamationTriangle,
     HiOutlineChatBubbleBottomCenterText,
-    HiOutlineHandThumbUp,
-    HiOutlineMagnifyingGlass,
     HiOutlineBuildingStorefront
 } from 'react-icons/hi2';
 import { useToast } from '@shared/components/ui/Toast';
 import Modal from '@shared/components/ui/Modal';
 import { cn } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
 
 const ReviewModeration = () => {
     const { showToast } = useToast();
@@ -98,7 +98,7 @@ const ReviewModeration = () => {
 
     const submitReply = () => {
         if (!replyText.trim()) return;
-        // Reply logic for reviews is usually public or private. 
+        // Reply logic for reviews is usually public or private.
         // For now we'll just show toast since we don't have review-reply model yet
         showToast(`Reply noted for ${selectedReview.user}`, 'success');
         setIsReplyModalOpen(false);
@@ -106,105 +106,100 @@ const ReviewModeration = () => {
     };
 
     return (
-        <div className="ds-section-spacing animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-1">
-                <div>
-                    <h1 className="ds-h1">Moderation Suite</h1>
-                    <p className="ds-description mt-0.5">Protect community integrity and store reputations.</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <div className="flex bg-slate-100 p-1 rounded-xl">
-                        <button className="px-5 py-2 rounded-lg text-[10px] font-black uppercase bg-white text-slate-900 shadow-sm">ALL REVIEWS</button>
-                        <button className="px-5 py-2 rounded-lg text-[10px] font-black uppercase text-slate-400 hover:text-slate-600">FLAGGED ONLY</button>
+        <div className="space-y-5">
+            <PageHeader
+                title="Moderation Suite"
+                description="Protect community integrity and store reputations."
+                actions={
+                    <div className="flex rounded-xl bg-slate-100 p-1">
+                        <button className="rounded-lg bg-white px-4 py-2 text-[10px] font-black uppercase text-slate-900 shadow-sm">All Reviews</button>
+                        <button className="rounded-lg px-4 py-2 text-[10px] font-black uppercase text-slate-400 hover:text-slate-600">Flagged Only</button>
                     </div>
-                </div>
-            </div>
+                }
+            />
 
-            <div className="grid grid-cols-1 gap-6">
-                {reviews.map((r) => (
-                    <Card key={r.id} className="p-4 border-none shadow-xl ring-1 ring-slate-100 bg-white rounded-xl group overflow-hidden relative">
-                        {/* Decorative background icon */}
-                        <HiOutlineChatBubbleBottomCenterText className="absolute -top-6 -right-6 h-32 w-32 text-slate-50 opacity-[0.03] group-hover:scale-110 transition-transform duration-1000" />
-
-                        <div className="flex flex-col lg:flex-row gap-4 relative z-10">
-                            {/* User Info & Rating */}
-                            <div className="lg:w-64 shrink-0 space-y-4">
-                                <div className="flex items-center gap-4">
-                                    <img
-                                        src="https://cdn-icons-png.flaticon.com/512/149/149071.png"
-                                        alt=""
-                                        className="h-12 w-12 rounded-2xl bg-slate-50 ring-2 ring-white shadow-sm object-cover"
-                                    />
-                                    <div>
-                                        <h4 className="text-sm font-black text-slate-900">{r.user}</h4>
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{r.date}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                    {[...Array(5)].map((_, i) => (
-                                        <HiOutlineStar
-                                            key={i}
-                                            className={cn("h-4 w-4", i < r.rating ? "text-amber-400 fill-amber-400" : "text-slate-200")}
+            {!loading && reviews.length === 0 ? (
+                <EmptyState
+                    icon={<HiOutlineChatBubbleBottomCenterText className="h-6 w-6" />}
+                    title="No reviews to moderate"
+                    description="New customer reviews will appear here for approval."
+                />
+            ) : (
+                <div className="grid grid-cols-1 gap-4">
+                    {reviews.map((r) => (
+                        <Card key={r.id} className="relative overflow-hidden p-5">
+                            <div className="flex flex-col gap-5 lg:flex-row">
+                                {/* User Info & Rating */}
+                                <div className="shrink-0 space-y-3 lg:w-56">
+                                    <div className="flex items-center gap-3">
+                                        <img
+                                            src="https://cdn-icons-png.flaticon.com/512/149/149071.png"
+                                            alt=""
+                                            className="h-11 w-11 rounded-xl border border-slate-100 bg-slate-50 object-cover"
                                         />
-                                    ))}
-                                </div>
-                                <div className="space-y-2">
-                                    <div className="flex items-center gap-2 text-slate-500">
-                                        <HiOutlineBuildingStorefront className="h-4 w-4" />
-                                        <span className="text-[11px] font-bold">{r.store}</span>
+                                        <div>
+                                            <h4 className="text-sm font-black text-slate-900">{r.user}</h4>
+                                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{r.date}</p>
+                                        </div>
                                     </div>
-                                    <p className="text-[10px] font-black text-primary uppercase tracking-tighter">Item: {r.item}</p>
+                                    <div className="flex items-center gap-1">
+                                        {[...Array(5)].map((_, i) => (
+                                            <HiOutlineStar
+                                                key={i}
+                                                className={cn("h-4 w-4", i < r.rating ? "fill-warning text-warning" : "text-slate-200")}
+                                            />
+                                        ))}
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <div className="flex items-center gap-2 text-slate-500">
+                                            <HiOutlineBuildingStorefront className="h-4 w-4" />
+                                            <span className="text-[11px] font-bold">{r.store}</span>
+                                        </div>
+                                        <p className="text-[10px] font-black uppercase tracking-tight text-primary">Item: {r.item}</p>
+                                    </div>
                                 </div>
-                            </div>
 
-                            {/* Comment & Status */}
-                            <div className="flex-1 space-y-4">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    {r.status === 'flagged' && (
-                                        <Badge variant="danger" className="text-[8px] font-black uppercase tracking-widest flex items-center gap-1">
-                                            <HiOutlineExclamationTriangle className="h-3 w-3" />
-                                            FLAGGED BY SYSTEM
-                                        </Badge>
+                                {/* Comment & Status */}
+                                <div className="flex-1 space-y-3">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {r.status === 'flagged' && (
+                                            <Badge variant="danger" className="flex items-center gap-1">
+                                                <HiOutlineExclamationTriangle className="h-3 w-3" />
+                                                Flagged by System
+                                            </Badge>
+                                        )}
+                                        {r.tags.map((tag, i) => (
+                                            <Badge key={i} variant="secondary">{tag}</Badge>
+                                        ))}
+                                    </div>
+                                    <blockquote className="rounded-xl border-l-4 border-slate-200 bg-slate-50 p-4 text-sm font-medium italic leading-relaxed text-slate-700">
+                                        "{r.comment}"
+                                    </blockquote>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex items-center justify-center gap-2.5 lg:w-44 lg:flex-col">
+                                    {r.status !== 'approved' && (
+                                        <Button className="w-full" onClick={() => handleApprove(r.id)}>
+                                            <HiOutlineShieldCheck className="h-4 w-4" />
+                                            Approve
+                                        </Button>
                                     )}
-                                    {r.tags.map((tag, i) => (
-                                        <Badge key={i} variant="secondary" className="text-[8px] font-bold text-slate-400 bg-slate-50 border-none px-2">{tag}</Badge>
-                                    ))}
+                                    <Button variant="danger" className="w-full" onClick={() => handleDelete(r.id)}>
+                                        <HiOutlineTrash className="h-4 w-4" />
+                                        Remove
+                                    </Button>
+                                    <Button variant="outline" className="w-full" onClick={() => handleReplyClick(r)}>
+                                        Reply
+                                    </Button>
                                 </div>
-                                <blockquote className="text-sm font-medium text-slate-700 leading-relaxed bg-slate-50/50 p-5 rounded-2xl italic italic border-l-4 border-slate-100">
-                                    "{r.comment}"
-                                </blockquote>
                             </div>
+                        </Card>
+                    ))}
+                </div>
+            )}
 
-                            {/* Actions */}
-                            <div className="lg:w-48 flex lg:flex-col items-center justify-center gap-3">
-                                {r.status !== 'approved' && (
-                                    <button
-                                        onClick={() => handleApprove(r.id)}
-                                        className="flex-1 w-full flex items-center justify-center gap-2 py-3 bg-brand-500 text-primary-foreground rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-brand-200 hover:bg-black  transition-all active:scale-95"
-                                    >
-                                        <HiOutlineShieldCheck className="h-4 w-4" />
-                                        APPROVE
-                                    </button>
-                                )}
-                                <button
-                                    onClick={() => handleDelete(r.id)}
-                                    className="flex-1 w-full flex items-center justify-center gap-2 py-3 bg-white text-rose-500 ring-1 ring-rose-100 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-50 transition-all active:scale-95"
-                                >
-                                    <HiOutlineTrash className="h-4 w-4" />
-                                    REMOVE
-                                </button>
-                                <button
-                                    onClick={() => handleReplyClick(r)}
-                                    className="flex-1 w-full flex items-center justify-center gap-2 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-slate-800 transition-all active:scale-95"
-                                >
-                                    REPLY
-                                </button>
-                            </div>
-                        </div>
-                    </Card>
-                ))}
-            </div>
-            <div className="mt-6 flex justify-center">
+            <div className="flex justify-center">
                 <Pagination
                     page={page}
                     totalPages={Math.ceil(total / pageSize) || 1}
@@ -226,30 +221,24 @@ const ReviewModeration = () => {
             >
                 <div className="space-y-4">
                     {selectedReview && (
-                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                            <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Review from {selectedReview.user}</p>
-                            <p className="text-xs font-medium text-slate-600 italic">"{selectedReview.comment}"</p>
+                        <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                            <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Review from {selectedReview.user}</p>
+                            <p className="text-xs font-medium italic text-slate-600">"{selectedReview.comment}"</p>
                         </div>
                     )}
                     <textarea
                         value={replyText}
                         onChange={(e) => setReplyText(e.target.value)}
                         placeholder="Write your official response..."
-                        className="w-full bg-slate-100 border-none rounded-2xl p-4 text-sm font-bold min-h-[120px] outline-none ring-1 ring-transparent focus:ring-primary/20"
+                        className="min-h-[120px] w-full rounded-xl border border-slate-200 bg-white p-4 text-sm font-semibold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                     />
                     <div className="flex gap-3">
-                        <button
-                            onClick={() => setIsReplyModalOpen(false)}
-                            className="flex-1 py-4 bg-slate-100 text-slate-400 text-[10px] font-black uppercase rounded-2xl"
-                        >
-                            CANCEL
-                        </button>
-                        <button
-                            onClick={submitReply}
-                            className="flex-1 py-4 bg-primary text-primary-foreground text-[10px] font-black uppercase rounded-2xl shadow-lg shadow-primary/20"
-                        >
-                            PUBLISH REPLY
-                        </button>
+                        <Button variant="outline" className="flex-1" onClick={() => setIsReplyModalOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button className="flex-1" onClick={submitReply}>
+                            Publish Reply
+                        </Button>
                     </div>
                 </div>
             </Modal>

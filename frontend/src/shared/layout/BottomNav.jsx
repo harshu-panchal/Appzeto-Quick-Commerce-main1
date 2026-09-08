@@ -32,15 +32,15 @@ const BottomNav = ({ navItems }) => {
     ];
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 h-16 bg-[#0a0c10] border-t border-white/5 z-[60] md:hidden px-2 flex items-center justify-around shadow-[0_-10px_30px_rgba(0,0,0,0.4)]">
+        <div className="fixed bottom-0 left-0 right-0 h-16 bg-slate-900 border-t border-white/5 z-[60] md:hidden px-2 flex items-center justify-around shadow-[0_-10px_30px_rgba(0,0,0,0.3)]">
             {primaryItems.map((item) => (
                 <NavLink
                     key={item.path}
                     to={item.path}
                     end={item.end}
                     className={({ isActive }) => cn(
-                        "flex flex-col items-center justify-center space-y-1 w-16 transition-all duration-300",
-                        isActive ? "text-primary" : "text-gray-500 hover:text-gray-300"
+                        "flex flex-col items-center justify-center space-y-1 w-16 py-1.5 transition-all duration-300",
+                        isActive ? "text-primary" : "text-slate-500 hover:text-slate-300"
                     )}
                 >
                     <item.icon className="h-5 w-5" />

@@ -33,10 +33,10 @@ const ApplicationPending = () => {
   const isRejected = applicationStatus === "rejected";
 
   return (
-    <div className="min-h-screen bg-slate-950 relative overflow-hidden font-['Outfit']">
+    <div className="min-h-screen bg-slate-950 relative overflow-hidden">
       <div className="absolute inset-0">
-        <div className="absolute top-[-20%] right-[-10%] h-[420px] w-[420px] rounded-full bg-amber-400/10 blur-3xl" />
-        <div className="absolute bottom-[-20%] left-[-10%] h-[420px] w-[420px] rounded-full bg-blue-400/10 blur-3xl" />
+        <div className="absolute top-[-20%] right-[-10%] h-[420px] w-[420px] rounded-full bg-warning/10 blur-3xl" />
+        <div className="absolute bottom-[-20%] left-[-10%] h-[420px] w-[420px] rounded-full bg-info/10 blur-3xl" />
       </div>
 
       <div className="relative mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center px-4 py-10">
@@ -44,7 +44,7 @@ const ApplicationPending = () => {
           initial={{ opacity: 0, y: 20, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.4 }}
-          className="w-full rounded-3xl border border-white/10 bg-white/[0.04] p-6 md:p-10 shadow-2xl backdrop-blur-xl"
+          className="w-full rounded-2xl border border-white/10 bg-white/[0.04] p-6 md:p-10 shadow-2xl backdrop-blur-xl"
         >
           <div className="mb-8 flex items-center justify-between gap-4">
             <div className="inline-flex items-center gap-3 rounded-xl border border-white/15 bg-white/5 px-4 py-2">
@@ -58,8 +58,8 @@ const ApplicationPending = () => {
             <div
               className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-widest ${
                 isRejected
-                  ? "bg-rose-500/20 text-rose-200"
-                  : "bg-amber-400/20 text-amber-100"
+                  ? "bg-danger/20 text-white"
+                  : "bg-warning/20 text-white"
               }`}
             >
               {isRejected ? <ShieldAlert className="h-4 w-4" /> : <Clock3 className="h-4 w-4" />}
@@ -79,15 +79,15 @@ const ApplicationPending = () => {
           </p>
 
           {rejectionReason ? (
-            <div className="mt-6 rounded-2xl border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
+            <div className="mt-6 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 text-sm text-white">
               <span className="font-black uppercase tracking-widest text-[11px]">Reason</span>
               <p className="mt-1 font-medium">{rejectionReason}</p>
             </div>
           ) : null}
 
           {!isRejected ? (
-            <div className="mt-6 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200 flex items-start gap-3">
-              <CheckCircle2 className="h-5 w-5 mt-0.5 shrink-0 text-emerald-400" />
+            <div className="mt-6 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-white flex items-start gap-3">
+              <CheckCircle2 className="h-5 w-5 mt-0.5 shrink-0 text-success" />
               <p className="font-semibold">
                 Approval usually takes less than 24 hours. You can return to login and try again later.
               </p>

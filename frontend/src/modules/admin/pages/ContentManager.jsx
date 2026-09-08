@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Card from '@shared/components/ui/Card';
 import Badge from '@shared/components/ui/Badge';
+import Button from '@shared/components/ui/Button';
 import Modal from '@shared/components/ui/Modal';
+import PageHeader from '@shared/components/ui/PageHeader';
+import EmptyState from '@shared/components/ui/EmptyState';
 import { useToast } from '@shared/components/ui/Toast';
 import {
     HiOutlinePlus,
@@ -12,12 +15,10 @@ import {
     HiOutlineArrowUpCircle,
     HiOutlineArrowDownCircle,
     HiOutlineDevicePhoneMobile,
-    HiOutlineLink,
     HiOutlineSparkles,
     HiOutlineXMark
 } from 'react-icons/hi2';
 import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
 import { adminApi } from '../services/adminApi';
 
 const DISPLAY_TYPES = [
@@ -365,34 +366,30 @@ const ContentManager = () => {
     };
 
     return (
-        <div className="ds-section-spacing animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
-            {/* Header */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                <div>
-                    <h1 className="ds-h1 flex items-center gap-3">
+        <div className="space-y-5">
+            <PageHeader
+                title={
+                    <span className="flex items-center gap-2">
                         Experience Studio
-                        <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                    </h1>
-                    <p className="ds-description">Add and arrange the banners, categories, and products that show in the app.</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={openCreateModal}
-                        className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:scale-105 transition-all"
-                    >
-                        <HiOutlinePlus className="h-5 w-5" />
-                        ADD COMPONENT
-                    </button>
-                </div>
-            </div>
+                        <div className="h-2 w-2 animate-pulse rounded-full bg-primary" />
+                    </span>
+                }
+                description="Add and arrange the banners, categories, and products that show in the app."
+                actions={
+                    <Button onClick={openCreateModal}>
+                        <HiOutlinePlus className="h-4 w-4" />
+                        Add Component
+                    </Button>
+                }
+            />
 
-            <p className="mt-3 text-xs text-slate-500 max-w-2xl">
+            <p className="max-w-2xl text-xs text-slate-500">
                 <strong>Top banners and page categories</strong> are set in &quot;Hero & categories per page&quot; in the sidebar. Use this page to manage the main content below them, like banners, categories, and products.
             </p>
 
             {/* Scope selectors */}
-            <div className="flex flex-wrap gap-4 items-center mt-6">
-                <div className="flex p-1.5 bg-slate-100 rounded-xl">
+            <div className="flex flex-wrap items-center gap-4">
+                <div className="flex rounded-xl bg-slate-100 p-1">
                     {[
                         { id: 'home', label: 'Home Page' },
                         { id: 'header', label: 'Header Category Pages' },
@@ -401,7 +398,7 @@ const ContentManager = () => {
                             key={opt.id}
                             onClick={() => setPageType(opt.id)}
                             className={cn(
-                                "px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all",
+                                "rounded-lg px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all",
                                 pageType === opt.id ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
                             )}
                         >
@@ -411,11 +408,11 @@ const ContentManager = () => {
                 </div>
                 {pageType === 'header' && (
                     <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Header Category</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Header Category</span>
                         <select
                             value={selectedHeaderId}
                             onChange={(e) => setSelectedHeaderId(e.target.value)}
-                            className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"
+                            className="h-9 rounded-md border border-slate-200 bg-white px-3 text-xs font-bold outline-none"
                         >
                             {headerCategories.map((h) => (
                                 <option key={h._id} value={h._id}>{h.name}</option>
@@ -425,111 +422,98 @@ const ContentManager = () => {
                 )}
             </div>
 
-            {/* Canvas Area */}
-            <div className="grid grid-cols-1 gap-4">
-                {/* Visual Editor */}
-                <div className="space-y-6">
-                    {/* Section list */}
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between px-2">
-                            <h3 className="text-xs font-black text-slate-900 uppercase tracking-[0.2em]">
-                                Configured Sections ({sections.length})
-                            </h3>
-                            {isLoading && (
-                                <span className="text-[10px] font-bold text-slate-400">Loading...</span>
-                            )}
-                        </div>
+            {/* Section list */}
+            <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-900">
+                        Configured Sections ({sections.length})
+                    </h3>
+                    {isLoading && (
+                        <span className="text-[10px] font-bold text-slate-400">Loading...</span>
+                    )}
+                </div>
 
-                        {sections.length === 0 && !isLoading && (
-                            <div className="text-center py-16 bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-100">
-                                <HiOutlineSparkles className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-                                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
-                                    No sections configured yet
-                                </p>
-                                <p className="text-xs text-slate-400 mt-1">
-                                    Click &quot;Add Component&quot; to start designing this page.
-                                </p>
-                            </div>
-                        )}
+                {sections.length === 0 && !isLoading && (
+                    <EmptyState
+                        icon={<HiOutlineSparkles className="h-6 w-6" />}
+                        title="No sections configured yet"
+                        description={'Click "Add Component" to start designing this page.'}
+                    />
+                )}
 
-                        <div className="space-y-4">
-                            {sections.map((section, idx) => {
-                                const displayMeta = DISPLAY_TYPES.find(d => d.id === section.displayType);
-                                return (
-                                    <Card key={section._id} className="p-4 border-none shadow-lg ring-1 ring-slate-100 bg-white rounded-xl group">
-                                        <div className="flex items-center gap-4">
-                                            <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">
-                                                {section.displayType === 'banners' && <HiOutlinePhoto className="h-6 w-6" />}
-                                                {section.displayType === 'categories' && <HiOutlineSparkles className="h-6 w-6" />}
-                                                {section.displayType === 'subcategories' && <HiOutlineSparkles className="h-6 w-6" />}
-                                                {section.displayType === 'products' && <HiOutlineDevicePhoneMobile className="h-6 w-6" />}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                                                        #{idx + 1} • {displayMeta?.label || section.displayType}
-                                                    </span>
-                                                    <Badge
-                                                        variant={section.status === 'active' ? 'success' : 'secondary'}
-                                                        className="text-[8px] font-black uppercase"
-                                                    >
-                                                        {section.status}
-                                                    </Badge>
-                                                </div>
-                                                <h4 className="text-sm font-black text-slate-900 mb-1">
-                                                    {section.title || '(No heading)'}
-                                                </h4>
-                                                <p className="text-[11px] text-slate-500">
-                                                    {section.displayType === 'banners' && `${section.config?.banners?.items?.length || 0} banners configured`}
-                                                    {section.displayType === 'categories' && `${section.config?.categories?.categoryIds?.length || 0} categories • ${section.config?.categories?.rows || 1} rows`}
-                                                    {section.displayType === 'subcategories' && `${section.config?.subcategories?.subcategoryIds?.length || 0} subcategories • ${section.config?.subcategories?.rows || 1} rows`}
-                                                    {section.displayType === 'products' && `${section.config?.products?.productIds?.length || 0} products • ${section.config?.products?.rows || 1}x${section.config?.products?.columns || 2}${section.config?.products?.singleRowScrollable ? ' • Single row scroll' : ''}`}
-                                                </p>
-                                            </div>
-                                            <div className="flex flex-col gap-2 items-end">
-                                                <div className="flex items-center gap-1">
-                                                    <button
-                                                        disabled={idx === 0}
-                                                        onClick={() => handleReorder('up', section)}
-                                                        className={cn(
-                                                            "p-1.5 rounded-xl border text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-all",
-                                                            idx === 0 && "opacity-30 cursor-not-allowed"
-                                                        )}
-                                                    >
-                                                        <HiOutlineArrowUpCircle className="h-4 w-4" />
-                                                    </button>
-                                                    <button
-                                                        disabled={idx === sections.length - 1}
-                                                        onClick={() => handleReorder('down', section)}
-                                                        className={cn(
-                                                            "p-1.5 rounded-xl border text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-all",
-                                                            idx === sections.length - 1 && "opacity-30 cursor-not-allowed"
-                                                        )}
-                                                    >
-                                                        <HiOutlineArrowDownCircle className="h-4 w-4" />
-                                                    </button>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <button
-                                                        onClick={() => openEditModal(section)}
-                                                        className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-all"
-                                                    >
-                                                        <HiOutlinePencilSquare className="h-5 w-5" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteSection(section._id)}
-                                                        className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
-                                                    >
-                                                        <HiOutlineTrash className="h-5 w-5" />
-                                                    </button>
-                                                </div>
-                                            </div>
+                <div className="space-y-3">
+                    {sections.map((section, idx) => {
+                        const displayMeta = DISPLAY_TYPES.find(d => d.id === section.displayType);
+                        return (
+                            <Card key={section._id} className="p-4">
+                                <div className="flex flex-col gap-4 md:flex-row md:items-center">
+                                    <div className="flex min-w-0 flex-1 items-start gap-4">
+                                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-400">
+                                            {section.displayType === 'banners' && <HiOutlinePhoto className="h-5 w-5" />}
+                                            {section.displayType === 'categories' && <HiOutlineSparkles className="h-5 w-5" />}
+                                            {section.displayType === 'subcategories' && <HiOutlineSparkles className="h-5 w-5" />}
+                                            {section.displayType === 'products' && <HiOutlineDevicePhoneMobile className="h-5 w-5" />}
                                         </div>
-                                    </Card>
-                                );
-                            })}
-                        </div>
-                    </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="mb-1 flex items-center gap-2">
+                                                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                                                    #{idx + 1} • {displayMeta?.label || section.displayType}
+                                                </span>
+                                                <Badge variant={section.status === 'active' ? 'success' : 'secondary'}>
+                                                    {section.status}
+                                                </Badge>
+                                            </div>
+                                            <h4 className="mb-0.5 text-sm font-black text-slate-900">
+                                                {section.title || '(No heading)'}
+                                            </h4>
+                                            <p className="text-[11px] text-slate-500">
+                                                {section.displayType === 'banners' && `${section.config?.banners?.items?.length || 0} banners configured`}
+                                                {section.displayType === 'categories' && `${section.config?.categories?.categoryIds?.length || 0} categories • ${section.config?.categories?.rows || 1} rows`}
+                                                {section.displayType === 'subcategories' && `${section.config?.subcategories?.subcategoryIds?.length || 0} subcategories • ${section.config?.subcategories?.rows || 1} rows`}
+                                                {section.displayType === 'products' && `${section.config?.products?.productIds?.length || 0} products • ${section.config?.products?.rows || 1}x${section.config?.products?.columns || 2}${section.config?.products?.singleRowScrollable ? ' • Single row scroll' : ''}`}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 self-end md:items-end">
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                disabled={idx === 0}
+                                                onClick={() => handleReorder('up', section)}
+                                                className={cn(
+                                                    "rounded-lg border border-slate-200 p-1.5 text-slate-400 transition-all hover:bg-slate-50 hover:text-slate-700",
+                                                    idx === 0 && "cursor-not-allowed opacity-30"
+                                                )}
+                                            >
+                                                <HiOutlineArrowUpCircle className="h-4 w-4" />
+                                            </button>
+                                            <button
+                                                disabled={idx === sections.length - 1}
+                                                onClick={() => handleReorder('down', section)}
+                                                className={cn(
+                                                    "rounded-lg border border-slate-200 p-1.5 text-slate-400 transition-all hover:bg-slate-50 hover:text-slate-700",
+                                                    idx === sections.length - 1 && "cursor-not-allowed opacity-30"
+                                                )}
+                                            >
+                                                <HiOutlineArrowDownCircle className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                        <button
+                                            onClick={() => openEditModal(section)}
+                                            className="rounded-lg p-2 text-slate-400 transition-all hover:bg-primary/10 hover:text-primary"
+                                        >
+                                            <HiOutlinePencilSquare className="h-4 w-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeleteSection(section._id)}
+                                            className="rounded-lg p-2 text-slate-400 transition-all hover:bg-danger/10 hover:text-danger"
+                                        >
+                                            <HiOutlineTrash className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </Card>
+                        );
+                    })}
                 </div>
             </div>
 
@@ -539,11 +523,11 @@ const ContentManager = () => {
                 onClose={() => setIsModalOpen(false)}
                 title={editingItem ? "Edit Section" : "Create Section"}
             >
-                <div className="space-y-6">
+                <div className="space-y-5">
                     {/* Display type & status */}
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Display Type</label>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Display Type</label>
                             <select
                                 value={formData.displayType}
                                 onChange={(e) => {
@@ -551,19 +535,19 @@ const ContentManager = () => {
                                     setFormData(prev => ({ ...prev, displayType: value }));
                                     setActiveTab(value);
                                 }}
-                                className="w-full p-3 bg-slate-50 rounded-2xl text-xs font-black outline-none"
+                                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                             >
                                 {DISPLAY_TYPES.map(dt => (
                                     <option key={dt.id} value={dt.id}>{dt.label}</option>
                                 ))}
                             </select>
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</label>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Status</label>
                             <select
                                 value={formData.status}
                                 onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-                                className="w-full p-3 bg-slate-50 rounded-2xl text-xs font-black outline-none"
+                                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                             >
                                 <option value="active">Active</option>
                                 <option value="inactive">Inactive</option>
@@ -572,46 +556,46 @@ const ContentManager = () => {
                     </div>
 
                     {/* Heading - required for category/subcategory/product */}
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                            Section Heading {['categories', 'subcategories', 'products'].includes(formData.displayType) && <span className="text-rose-500">*</span>}
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                            Section Heading {['categories', 'subcategories', 'products'].includes(formData.displayType) && <span className="text-danger">*</span>}
                         </label>
                         <input
                             value={formData.title}
                             onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                            className="w-full p-4 bg-slate-50 rounded-2xl text-sm font-bold border-none outline-none ring-1 ring-transparent focus:ring-primary/20 transition-all"
+                            className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-sm font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                             placeholder="E.g. Grocery Essentials"
                         />
                     </div>
 
                     {/* Type-specific config */}
                     {formData.displayType === 'banners' && (
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                             <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                     Banner Items
                                 </span>
                                 <button
                                     type="button"
                                     onClick={addBannerItem}
-                                    className="flex items-center gap-1 text-[10px] font-black text-primary"
+                                    className="flex items-center gap-1 text-[10px] font-bold text-primary"
                                 >
                                     <HiOutlinePlus className="h-3 w-3" />
                                     Add banner
                                 </button>
                             </div>
-                            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                            <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
                                 {formData.bannerItems.map((item, idx) => (
-                                    <Card key={idx} className="p-3 bg-white border-slate-100">
+                                    <Card key={idx} className="p-3">
                                         <div className="flex items-start gap-3">
                                             <div className="flex-1 space-y-2">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-16 h-16 rounded-xl bg-slate-50 border border-slate-200 overflow-hidden flex items-center justify-center">
+                                                    <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
                                                         {item.imageUrl ? (
                                                             <img
                                                                 src={item.imageUrl}
                                                                 alt={item.title || `Banner ${idx + 1}`}
-                                                                className="w-full h-full object-cover"
+                                                                className="h-full w-full object-cover"
                                                             />
                                                         ) : (
                                                             <HiOutlinePhoto className="h-6 w-6 text-slate-300" />
@@ -634,7 +618,7 @@ const ContentManager = () => {
                                                             onClick={() =>
                                                                 bannerFileInputsRef.current[idx]?.click()
                                                             }
-                                                            className="inline-flex items-center px-3 py-1.5 rounded-lg text-[11px] font-bold bg-slate-900 text-white hover:bg-slate-800 transition-colors"
+                                                            className="inline-flex items-center rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-slate-800"
                                                         >
                                                             {item.imageUrl ? 'Change image' : 'Choose image file'}
                                                         </button>
@@ -650,20 +634,20 @@ const ContentManager = () => {
                                                 <input
                                                     value={item.title || ''}
                                                     onChange={(e) => updateBannerItem(idx, { title: e.target.value })}
-                                                    className="w-full p-2.5 bg-slate-50 rounded-xl text-xs font-bold border-none outline-none"
+                                                    className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                                                     placeholder="Banner title (optional)"
                                                 />
                                                 <input
                                                     value={item.subtitle || ''}
                                                     onChange={(e) => updateBannerItem(idx, { subtitle: e.target.value })}
-                                                    className="w-full p-2.5 bg-slate-50 rounded-xl text-xs font-bold border-none outline-none"
+                                                    className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                                                     placeholder="Subtitle (optional)"
                                                 />
                                                 <div className="grid grid-cols-2 gap-2">
                                                     <select
                                                         value={item.linkType || 'none'}
                                                         onChange={(e) => updateBannerItem(idx, { linkType: e.target.value })}
-                                                        className="w-full p-2.5 bg-slate-50 rounded-xl text-xs font-black outline-none"
+                                                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs font-bold outline-none"
                                                     >
                                                         <option value="none">No link</option>
                                                         <option value="header">Header</option>
@@ -675,7 +659,7 @@ const ContentManager = () => {
                                                     <input
                                                         value={item.linkValue || ''}
                                                         onChange={(e) => updateBannerItem(idx, { linkValue: e.target.value })}
-                                                        className="w-full p-2.5 bg-slate-50 rounded-xl text-xs font-bold border-none outline-none"
+                                                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                                                         placeholder={item.linkType === 'url' ? "https://..." : "Slug / ID"}
                                                     />
                                                 </div>
@@ -684,7 +668,7 @@ const ContentManager = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => removeBannerItem(idx)}
-                                                    className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                                                    className="rounded-lg p-2 text-slate-300 transition-all hover:bg-danger/10 hover:text-danger"
                                                 >
                                                     <HiOutlineXMark className="h-4 w-4" />
                                                 </button>
@@ -697,10 +681,10 @@ const ContentManager = () => {
                     )}
 
                     {formData.displayType === 'categories' && (
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                         Categories to show
                                     </label>
                                     <input
@@ -708,11 +692,11 @@ const ContentManager = () => {
                                         min={1}
                                         value={formData.maxCategories ?? ''}
                                         onChange={(e) => setFormData(prev => ({ ...prev, maxCategories: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                        className="w-full p-3 bg-slate-50 rounded-2xl text-xs font-bold border-none outline-none"
+                                        className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                         Rows (4 columns on mobile)
                                     </label>
                                     <input
@@ -720,12 +704,12 @@ const ContentManager = () => {
                                         min={1}
                                         value={formData.categoryRows ?? ''}
                                         onChange={(e) => setFormData(prev => ({ ...prev, categoryRows: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                        className="w-full p-3 bg-slate-50 rounded-2xl text-xs font-bold border-none outline-none"
+                                        className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                                     />
                                 </div>
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                     Choose categories to show
                                 </label>
                                 <div className="flex flex-wrap gap-2">
@@ -744,10 +728,10 @@ const ContentManager = () => {
                                                     }))
                                                 }
                                                 className={cn(
-                                                    "px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all",
+                                                    "rounded-full border px-3 py-1.5 text-[11px] font-bold transition-all",
                                                     isSelected
-                                                        ? "bg-primary text-primary-foreground border-primary"
-                                                        : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-white"
+                                                        ? "border-primary bg-primary text-white"
+                                                        : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-white"
                                                 )}
                                             >
                                                 {c.name}
@@ -763,9 +747,9 @@ const ContentManager = () => {
                     )}
 
                     {formData.displayType === 'subcategories' && (
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <div className="space-y-3">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                     Parent categories
                                 </label>
                                 <div className="flex flex-wrap gap-2">
@@ -799,10 +783,10 @@ const ContentManager = () => {
                                                     })
                                                 }
                                                 className={cn(
-                                                    "px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all",
+                                                    "rounded-full border px-3 py-1.5 text-[11px] font-bold transition-all",
                                                     isSelected
-                                                        ? "bg-primary text-primary-foreground border-primary"
-                                                        : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-white"
+                                                        ? "border-primary bg-primary text-white"
+                                                        : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-white"
                                                 )}
                                             >
                                                 {c.name}
@@ -811,8 +795,8 @@ const ContentManager = () => {
                                     })}
                                 </div>
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                     Subcategories
                                 </label>
                                 <div className="flex flex-wrap gap-2">
@@ -834,10 +818,10 @@ const ContentManager = () => {
                                                     }))
                                                 }
                                                 className={cn(
-                                                    "px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all",
+                                                    "rounded-full border px-3 py-1.5 text-[11px] font-bold transition-all",
                                                     isSelected
-                                                        ? "bg-primary text-primary-foreground border-primary"
-                                                        : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-white"
+                                                        ? "border-primary bg-primary text-white"
+                                                        : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-white"
                                                 )}
                                             >
                                                 {s.name}
@@ -849,8 +833,8 @@ const ContentManager = () => {
                                     Displayed in 4-column grids per row.
                                 </p>
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                     Rows
                                 </label>
                                 <input
@@ -858,17 +842,17 @@ const ContentManager = () => {
                                     min={1}
                                     value={formData.subCategoryRows ?? ''}
                                     onChange={(e) => setFormData(prev => ({ ...prev, subCategoryRows: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                    className="w-full p-3 bg-slate-50 rounded-2xl text-xs font-bold border-none outline-none"
+                                    className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                                 />
                             </div>
                         </div>
                     )}
 
                     {formData.displayType === 'products' && (
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                         Rows
                                     </label>
                                     <input
@@ -877,11 +861,11 @@ const ContentManager = () => {
                                         disabled={formData.singleRowScrollable}
                                         value={formData.productRows ?? ''}
                                         onChange={(e) => setFormData(prev => ({ ...prev, productRows: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                        className="w-full p-3 bg-slate-50 rounded-2xl text-xs font-bold border-none outline-none"
+                                        className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                         Columns
                                     </label>
                                     <input
@@ -889,7 +873,7 @@ const ContentManager = () => {
                                         min={1}
                                         value={formData.productColumns ?? ''}
                                         onChange={(e) => setFormData(prev => ({ ...prev, productColumns: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                        className="w-full p-3 bg-slate-50 rounded-2xl text-xs font-bold border-none outline-none"
+                                        className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                                     />
                                 </div>
                             </div>
@@ -904,8 +888,8 @@ const ContentManager = () => {
                                     Show products in a single horizontally scrollable row
                                 </label>
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                     Filter by categories / subcategories (optional)
                                 </label>
                                 <div className="grid grid-cols-2 gap-3">
@@ -940,10 +924,10 @@ const ContentManager = () => {
                                                         })
                                                     }
                                                     className={cn(
-                                                        "px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all",
+                                                        "rounded-full border px-3 py-1.5 text-[11px] font-bold transition-all",
                                                         isSelected
-                                                            ? "bg-primary text-primary-foreground border-primary"
-                                                            : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-white"
+                                                            ? "border-primary bg-primary text-white"
+                                                            : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-white"
                                                     )}
                                                 >
                                                     {c.name}
@@ -970,10 +954,10 @@ const ContentManager = () => {
                                                             }))
                                                         }
                                                         className={cn(
-                                                            "px-3 py-1.5 rounded-full text-[11px] font-bold border transition-all",
+                                                            "rounded-full border px-3 py-1.5 text-[11px] font-bold transition-all",
                                                             isSelected
-                                                                ? "bg-primary text-primary-foreground border-primary"
-                                                                : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-white"
+                                                                ? "border-primary bg-primary text-white"
+                                                                : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-white"
                                                         )}
                                                     >
                                                         {s.name}
@@ -988,12 +972,9 @@ const ContentManager = () => {
                             </div>
                         </div>
                     )}
-                    <button
-                        onClick={handleSaveSection}
-                        className="w-full py-4 bg-primary text-primary-foreground rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
-                    >
-                        {editingItem ? 'SAVE CHANGES' : 'PUBLISH SECTION'}
-                    </button>
+                    <Button className="w-full" onClick={handleSaveSection}>
+                        {editingItem ? 'Save Changes' : 'Publish Section'}
+                    </Button>
                 </div>
             </Modal>
         </div>

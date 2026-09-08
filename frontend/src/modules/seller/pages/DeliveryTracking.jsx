@@ -1,24 +1,23 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Card from "@shared/components/ui/Card";
 import Badge from "@shared/components/ui/Badge";
+import PageHeader from "@shared/components/ui/PageHeader";
+import StatCard from "@shared/components/ui/StatCard";
+import EmptyState from "@shared/components/ui/EmptyState";
+import { SkeletonStatCard, SkeletonCard } from "@shared/components/ui/Skeleton";
 import {
   HiOutlineMagnifyingGlass,
   HiOutlineTruck,
   HiOutlinePhone,
   HiOutlineMapPin,
-  HiOutlineClock,
   HiOutlineCheckCircle,
   HiOutlineUser,
-  HiOutlineInformationCircle,
 } from "react-icons/hi2";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { BlurFade } from "@/components/ui/blur-fade";
-import { MagicCard } from "@/components/ui/magic-card";
 
 import { sellerApi } from "../services/sellerApi";
 import { useToast } from "@shared/components/ui/Toast";
-import { Loader2 } from "lucide-react";
 import Pagination from "@shared/components/ui/Pagination";
 
 const DeliveryTracking = () => {
@@ -148,22 +147,22 @@ const DeliveryTracking = () => {
         label: "On the Way",
         value: deliveries.filter((d) => d.status === "On the Way").length,
         icon: HiOutlineTruck,
-        color: "text-brand-600",
-        bg: "bg-brand-50",
+        color: "text-primary",
+        bg: "bg-primary/10",
       },
       {
         label: "At Store",
         value: deliveries.filter((d) => d.status === "Picked Up").length,
         icon: HiOutlineMapPin,
-        color: "text-amber-600",
-        bg: "bg-amber-50",
+        color: "text-warning",
+        bg: "bg-warning/10",
       },
       {
         label: "Completed Today",
         value: deliveries.filter((d) => d.status === "Delivered").length,
         icon: HiOutlineCheckCircle,
-        color: "text-brand-600",
-        bg: "bg-brand-50",
+        color: "text-success",
+        bg: "bg-success/10",
       },
     ],
     [deliveries],
@@ -183,237 +182,190 @@ const DeliveryTracking = () => {
   };
 
   return (
-    <div className="space-y-6 pb-16">
-      <BlurFade delay={0.1}>
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-              Delivery Tracking
-              <Badge
-                variant="primary"
-                className="text-[9px] px-1.5 py-0 font-bold tracking-wider uppercase bg-brand-100 text-brand-700">
-                Live Fleet
-              </Badge>
-            </h1>
-            <p className="text-slate-600 text-sm mt-0.5 font-medium">
-              Monitor active deliveries and assigned partners.
-            </p>
-          </div>
-        </div>
-      </BlurFade>
+    <div className="space-y-5">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
+            Delivery Tracking
+            <Badge variant="primary">Live Fleet</Badge>
+          </span>
+        }
+        description="Monitor active deliveries and assigned partners."
+      />
 
-      {/* Stats Grid */}
       {loading ? (
-        <div className="min-h-[400px] flex flex-col items-center justify-center bg-white rounded-3xl border border-slate-100 shadow-sm">
-          <Loader2 className="h-10 w-10 text-primary animate-spin" />
-          <p className="text-slate-600 font-bold mt-4 uppercase tracking-widest text-xs">Tracking Fleet...</p>
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => <SkeletonStatCard key={i} />)}
+          </div>
+          <SkeletonCard lines={6} />
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {stats.map((stat, i) => (
-              <BlurFade key={i} delay={0.1 + i * 0.05}>
-                <MagicCard
-                  className="border-none shadow-sm ring-1 ring-slate-100 p-0 overflow-hidden group bg-white"
-                  gradientColor={
-                    stat.color === "text-brand-600"
-                      ? "#e0f2fe"
-                      : stat.color === "text-amber-600"
-                        ? "#fef3c7"
-                        : "#cffafe"
-                  }>
-                  <div className="flex items-center gap-4 p-5 relative z-10">
-                    <div
-                      className={cn(
-                        "h-10 w-10 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 duration-500 shadow-sm",
-                        stat.bg,
-                        stat.color,
-                      )}>
-                      <stat.icon className="h-5 w-5" />
-                    </div>
-                    <div className="flex flex-col">
-                      <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest">
-                        {stat.label}
-                      </p>
-                      <h4 className="text-xl font-black text-slate-900 tracking-tight leading-none mt-0.5">
-                        {stat.value}
-                      </h4>
-                    </div>
-                  </div>
-                </MagicCard>
-              </BlurFade>
+              <StatCard key={i} label={stat.label} value={stat.value} icon={stat.icon} color={stat.color} bg={stat.bg} />
             ))}
           </div>
 
-          <BlurFade delay={0.3}>
-            <Card className="border-none shadow-xl ring-1 ring-slate-100 overflow-hidden rounded-lg bg-white">
-              {/* Tabs & Search */}
-              <div className="border-b border-slate-100 bg-slate-50/30">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between px-4">
-                  <div className="flex items-center">
-                    {tabs.map((tab) => (
-                      <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={cn(
-                          "relative py-3.5 px-5 text-[9px] font-black uppercase tracking-widest transition-all duration-300",
-                          activeTab === tab
-                            ? "text-primary bg-white/50"
-                            : "text-slate-600 hover:text-slate-700",
-                        )}>
-                        {tab}
-                        {activeTab === tab && (
-                          <motion.div
-                            layoutId="tab-underline-tracking"
-                            className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t-full mx-4"
-                          />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="py-2 lg:py-0 w-full lg:w-64">
-                    <div className="relative group">
-                      <HiOutlineMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-primary transition-all" />
-                      <input
-                        type="text"
-                        placeholder="Search ID or Partner..."
-                        className="w-full pl-9 pr-3 py-1.5 bg-slate-100/50 border-none rounded-lg text-xs font-bold text-slate-700 placeholder:text-slate-400 focus:ring-1 focus:ring-primary/10 transition-all outline-none"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      />
-                    </div>
+          <Card className="overflow-hidden p-0">
+            {/* Tabs & Search */}
+            <div className="border-b border-slate-100 bg-slate-50/30">
+              <div className="flex flex-col justify-between px-3 md:flex-row md:items-center">
+                <div className="flex items-center">
+                  {tabs.map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className={cn(
+                        "relative px-4 py-3 text-[10px] font-bold uppercase tracking-widest transition-all",
+                        activeTab === tab
+                          ? "text-primary"
+                          : "text-slate-500 hover:text-slate-700",
+                      )}>
+                      {tab}
+                      {activeTab === tab && (
+                        <motion.div
+                          layoutId="tab-underline-tracking"
+                          className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-primary"
+                        />
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <div className="w-full py-2 lg:w-64 lg:py-0">
+                  <div className="relative">
+                    <HiOutlineMagnifyingGlass className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search ID or Partner..."
+                      className="h-8 w-full rounded-md border border-slate-200 bg-white pl-8 pr-3 text-xs font-semibold text-slate-700 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Delivery List */}
-              <div className="p-4 sm:p-6 space-y-4">
-                <AnimatePresence mode="popLayout">
-                  {paginatedDeliveries.map((dlv, idx) => (
-                    <motion.div
-                      key={dlv.id}
-                      initial={{ opacity: 0, y: 15 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.98 }}
-                      transition={{ delay: idx * 0.04 }}
-                      className="group relative bg-white rounded-lg border border-slate-100 p-1.5 hover:shadow-xl hover:shadow-primary/5 hover:border-primary/20 transition-all duration-300 min-w-0">
-                      <div className="flex flex-col lg:flex-row items-stretch gap-1">
-                        {/* Partner Info Section */}
-                        <div className="lg:w-48 p-2 bg-slate-50/50 rounded-lg border border-transparent group-hover:bg-primary/[0.02] group-hover:border-primary/5 transition-all min-w-0">
-                          <div className="flex items-center gap-2.5">
-                            <div className="relative shrink-0">
-                              <div className="h-10 w-10 rounded-md overflow-hidden ring-2 ring-white shadow-sm">
-                                <img
-                                  src={dlv.deliveryBoy.image}
-                                  alt={dlv.deliveryBoy.name}
-                                  className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-700"
-                                />
-                              </div>
-                              <div className="absolute -bottom-1 -right-1 h-3.5 w-3.5 bg-brand-500 rounded-sm border-[1px] border-white flex items-center justify-center text-white text-[7px] font-black shadow-sm">
-                                {dlv.deliveryBoy.rating}
-                              </div>
+            {/* Delivery List */}
+            <div className="space-y-3 p-4">
+              <AnimatePresence mode="popLayout">
+                {paginatedDeliveries.map((dlv, idx) => (
+                  <motion.div
+                    key={dlv.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    transition={{ delay: idx * 0.03 }}
+                    className="group relative min-w-0 rounded-xl border border-slate-100 bg-white p-1.5 transition-all hover:border-primary/20 hover:shadow-sm">
+                    <div className="flex flex-col items-stretch gap-1 md:flex-row">
+                      {/* Partner Info Section */}
+                      <div className="min-w-0 rounded-lg border border-transparent bg-slate-50/50 p-2.5 md:w-48">
+                        <div className="flex items-center gap-2.5">
+                          <div className="relative shrink-0">
+                            <div className="h-10 w-10 overflow-hidden rounded-lg ring-2 ring-white">
+                              <img
+                                src={dlv.deliveryBoy.image}
+                                alt={dlv.deliveryBoy.name}
+                                className="h-full w-full object-cover"
+                              />
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[8px] font-black text-primary uppercase tracking-[0.1em] mb-0.5">
-                                Partner
-                              </p>
-                              <h3 className="text-xs font-black text-slate-900 leading-none truncate">
-                                {dlv.deliveryBoy.name}
-                              </h3>
-                              <a
-                                href={`tel:${dlv.deliveryBoy.phone}`}
-                                className="inline-flex items-center gap-1 mt-1 text-[9px] font-bold text-slate-500 hover:text-primary transition-colors"
-                              >
-                                <HiOutlinePhone className="h-2.5 w-2.5 shrink-0" />
-                                <span className="truncate">{dlv.deliveryBoy.phone}</span>
-                              </a>
+                            <div className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-sm border border-white bg-success text-[7px] font-black text-white">
+                              {dlv.deliveryBoy.rating}
                             </div>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="mb-0.5 text-[8px] font-bold uppercase tracking-widest text-primary">
+                              Partner
+                            </p>
+                            <h3 className="truncate text-xs font-black leading-none text-slate-900">
+                              {dlv.deliveryBoy.name}
+                            </h3>
+                            <a
+                              href={`tel:${dlv.deliveryBoy.phone}`}
+                              className="mt-1 inline-flex items-center gap-1 text-[9px] font-bold text-slate-500 transition-colors hover:text-primary"
+                            >
+                              <HiOutlinePhone className="h-2.5 w-2.5 shrink-0" />
+                              <span className="truncate">{dlv.deliveryBoy.phone}</span>
+                            </a>
                           </div>
                         </div>
+                      </div>
 
-                        {/* Order Info Section */}
-                        <div className="flex-1 p-2 flex flex-col justify-between min-w-0">
-                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1 mb-2">
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                                <span className="text-[10px] font-black text-slate-900 tracking-tight">
-                                  #{dlv.orderId}
-                                </span>
-                                <Badge
-                                  variant={getStatusVariant(dlv.status)}
-                                  className="text-[7px] font-black px-1.5 py-0 rounded-full uppercase tracking-widest shrink-0"
-                                >
-                                  {dlv.status}
-                                </Badge>
-                              </div>
-                              <h4 className="text-[10px] font-bold text-slate-500 flex items-center gap-1 flex-wrap">
-                                <HiOutlineUser className="h-3 w-3 text-slate-400 shrink-0" />
-                                <span className="text-slate-900 capitalize font-black">{dlv.customerName}</span>
-                              </h4>
+                      {/* Order Info Section */}
+                      <div className="flex min-w-0 flex-1 flex-col justify-between p-2.5">
+                        <div className="mb-2 flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <div className="mb-0.5 flex flex-wrap items-center gap-2">
+                              <span className="text-[11px] font-black tracking-tight text-slate-900">
+                                #{dlv.orderId}
+                              </span>
+                              <Badge variant={getStatusVariant(dlv.status)}>
+                                {dlv.status}
+                              </Badge>
                             </div>
-                            <div className="sm:text-right shrink-0">
-                              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">
-                                Timing
-                              </p>
-                              <p className="text-[10px] font-black text-primary tracking-tight mt-0.5">
-                                {dlv.startTime || "—"}
-                              </p>
-                            </div>
+                            <h4 className="flex flex-wrap items-center gap-1 text-[10px] font-bold text-slate-500">
+                              <HiOutlineUser className="h-3 w-3 shrink-0 text-slate-400" />
+                              <span className="font-black capitalize text-slate-900">{dlv.customerName}</span>
+                            </h4>
                           </div>
-
-                          <div className="bg-slate-50/30 px-3 py-1.5 rounded-md border border-slate-100/30 min-w-0">
-                            <p className="text-[10px] font-bold text-slate-600 leading-tight truncate">
-                              <HiOutlineMapPin className="inline h-2.5 w-2.5 text-primary mr-1 -mt-0.5" />
-                              {dlv.address}
+                          <div className="shrink-0 sm:text-right">
+                            <p className="text-[8px] font-bold uppercase leading-none tracking-widest text-slate-400">
+                              Timing
+                            </p>
+                            <p className="mt-0.5 text-[10px] font-black tracking-tight text-primary">
+                              {dlv.startTime || "—"}
                             </p>
                           </div>
                         </div>
 
-                        {/* Action Button Section */}
-                        <div className="lg:w-16 flex items-center justify-center p-2 sm:p-3 shrink-0">
-                          <button className="h-10 w-10 lg:h-full lg:w-full bg-slate-900 group-hover:bg-primary rounded-lg lg:rounded-r-lg lg:rounded-l-none flex items-center justify-center text-white transition-all duration-500 shadow-xl shadow-slate-900/10 hover:shadow-primary/30">
-                            <HiOutlineTruck className="h-4 w-4 group-hover:scale-125 transition-transform" />
-                          </button>
+                        <div className="min-w-0 rounded-md border border-slate-100 bg-slate-50/50 px-3 py-1.5">
+                          <p className="truncate text-[10px] font-bold leading-tight text-slate-600">
+                            <HiOutlineMapPin className="-mt-0.5 mr-1 inline h-2.5 w-2.5 text-primary" />
+                            {dlv.address}
+                          </p>
                         </div>
                       </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
 
-                {filteredDeliveries.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-20 bg-slate-50/50 rounded-lg border border-dashed border-slate-200">
-                    <div className="h-20 w-20 bg-white rounded-lg flex items-center justify-center shadow-sm mb-4">
-                      <HiOutlineTruck className="h-10 w-10 text-slate-200" />
+                      {/* Action Button Section */}
+                      <div className="flex shrink-0 items-center justify-center p-2 md:w-14">
+                        <button className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-white transition-all group-hover:bg-primary lg:h-full lg:w-full">
+                          <HiOutlineTruck className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
-                    <h3 className="text-base font-black text-slate-900">
-                      No active tracking found
-                    </h3>
-                    <p className="text-sm text-slate-600 font-bold uppercase tracking-widest mt-2">
-                      Adjust filters or search terms
-                    </p>
-                  </div>
-                )}
-              </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
 
-              {/* Pagination */}
-              {filteredDeliveries.length > 0 && (
-                <div className="px-4 sm:px-6 pb-4">
-                  <Pagination
-                    page={page}
-                    totalPages={Math.max(1, Math.ceil(filteredDeliveries.length / pageSize))}
-                    total={filteredDeliveries.length}
-                    pageSize={pageSize}
-                    onPageChange={(newPage) => setPage(newPage)}
-                    onPageSizeChange={(newSize) => {
-                      setPageSize(newSize);
-                      setPage(1);
-                    }}
-                    loading={loading}
-                  />
-                </div>
+              {filteredDeliveries.length === 0 && (
+                <EmptyState
+                  icon={<HiOutlineTruck className="h-6 w-6" />}
+                  title="No active tracking found"
+                  description="Adjust filters or search terms."
+                />
               )}
-            </Card>
-          </BlurFade>
+            </div>
+
+            {/* Pagination */}
+            {filteredDeliveries.length > 0 && (
+              <div className="px-4 pb-4">
+                <Pagination
+                  page={page}
+                  totalPages={Math.max(1, Math.ceil(filteredDeliveries.length / pageSize))}
+                  total={filteredDeliveries.length}
+                  pageSize={pageSize}
+                  onPageChange={(newPage) => setPage(newPage)}
+                  onPageSizeChange={(newSize) => {
+                    setPageSize(newSize);
+                    setPage(1);
+                  }}
+                  loading={loading}
+                />
+              </div>
+            )}
+          </Card>
         </>
       )}
     </div>
@@ -421,4 +373,3 @@ const DeliveryTracking = () => {
 };
 
 export default DeliveryTracking;
-

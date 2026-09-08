@@ -27,17 +27,17 @@ const FormField = ({
             {label && (
                 <label
                     htmlFor={htmlFor}
-                    className="text-sm font-medium text-gray-700"
+                    className="text-sm font-medium text-slate-700"
                 >
                     {label}
-                    {required && <span className="text-red-500 ml-0.5">*</span>}
+                    {required && <span className="text-danger ml-0.5">*</span>}
                 </label>
             )}
             {children}
             {error ? (
-                <p className="text-xs text-red-600">{error}</p>
+                <p className="text-xs text-danger">{error}</p>
             ) : helperText ? (
-                <p className="text-xs text-gray-500">{helperText}</p>
+                <p className="text-xs text-slate-500">{helperText}</p>
             ) : null}
         </div>
     );

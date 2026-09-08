@@ -21,8 +21,8 @@ const Modal = ({ isOpen, onClose, title, children, footer, size = 'md' }) => {
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className={cn("overflow-hidden p-0", sizes[size])}>
-                <DialogHeader className="px-6 pt-3 pb-2 border-b border-gray-100/50 bg-gray-50/10">
-                    <DialogTitle className="text-2xl font-semibold text-gray-900">{title}</DialogTitle>
+                <DialogHeader className="px-6 pt-3 pb-2 border-b border-slate-100">
+                    <DialogTitle className="text-lg font-bold text-slate-900 tracking-tight">{title}</DialogTitle>
                     <DialogDescription className="sr-only">Modal content</DialogDescription>
                 </DialogHeader>
 
@@ -36,7 +36,7 @@ const Modal = ({ isOpen, onClose, title, children, footer, size = 'md' }) => {
                 </div>
 
                 {footer && (
-                    <DialogFooter className="px-6 py-4 bg-gray-50/30 border-t border-gray-100/50 sm:justify-end gap-3">
+                    <DialogFooter className="px-6 py-4 bg-slate-50 border-t border-slate-100 sm:justify-end gap-3">
                         {footer}
                     </DialogFooter>
                 )}

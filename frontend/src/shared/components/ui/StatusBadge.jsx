@@ -17,34 +17,34 @@ import Badge from './Badge';
  */
 
 const ORDER_STATUS_VARIANT = {
-    pending: 'yellow',
-    confirmed: 'blue',
-    packed: 'blue',
-    out_for_delivery: 'blue',
-    delivered: 'green',
-    cancelled: 'red',
-    returned: 'red',
-    return_requested: 'yellow',
-    return_approved: 'blue',
-    return_rejected: 'red',
-    return_pickup_assigned: 'blue',
-    return_completed: 'green',
+    pending: 'warning',
+    confirmed: 'info',
+    packed: 'info',
+    out_for_delivery: 'info',
+    delivered: 'success',
+    cancelled: 'danger',
+    returned: 'danger',
+    return_requested: 'warning',
+    return_approved: 'info',
+    return_rejected: 'danger',
+    return_pickup_assigned: 'info',
+    return_completed: 'success',
 };
 
 const PAYMENT_STATUS_VARIANT = {
-    PAID: 'green',
-    CAPTURED: 'green',
-    PENDING: 'yellow',
-    CREATED: 'gray',
-    FAILED: 'red',
-    REFUNDED: 'gray',
+    PAID: 'success',
+    CAPTURED: 'success',
+    PENDING: 'warning',
+    CREATED: 'secondary',
+    FAILED: 'danger',
+    REFUNDED: 'secondary',
 };
 
 const PAYOUT_STATUS_VARIANT = {
-    pending: 'yellow',
-    on_hold: 'yellow',
-    released: 'green',
-    failed: 'red',
+    pending: 'warning',
+    on_hold: 'warning',
+    released: 'success',
+    failed: 'danger',
 };
 
 function pickVariant(status, kind) {

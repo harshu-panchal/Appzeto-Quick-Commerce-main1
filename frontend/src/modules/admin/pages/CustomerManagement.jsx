@@ -1,8 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import Card from '@shared/components/ui/Card';
 import Badge from '@shared/components/ui/Badge';
+import Button from '@shared/components/ui/Button';
 import PageHeader from '@shared/components/ui/PageHeader';
 import StatCard from '@shared/components/ui/StatCard';
+import FilterBar from '@shared/components/ui/FilterBar';
+import DataTable from '@shared/components/ui/DataTable';
+import EmptyState from '@shared/components/ui/EmptyState';
+import { SkeletonStatCard, SkeletonCard } from '@shared/components/ui/Skeleton';
+import Pagination from '@shared/components/ui/Pagination';
 import {
     Users,
     Search,
@@ -14,11 +19,8 @@ import {
     UserPlus,
     RotateCw,
     Activity,
-    Loader2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { cn } from '@/lib/utils';
-import Pagination from '@shared/components/ui/Pagination';
 import { adminApi } from '../services/adminApi';
 import { toast } from 'sonner';
 
@@ -115,191 +117,149 @@ const CustomerManagement = () => {
         return `${diffInDays}d ago`;
     };
 
+    const columns = [
+        {
+            header: 'Customer',
+            key: 'customer',
+            cell: (cust) => (
+                <div className="flex items-center gap-3">
+                    <img
+                        src="https://cdn-icons-png.flaticon.com/512/149/149071.png"
+                        alt=""
+                        className="h-10 w-10 rounded-lg border border-slate-100 bg-slate-50 object-cover"
+                    />
+                    <div>
+                        <p
+                            onClick={() => navigate(`/admin/customers/${cust.id}`)}
+                            className="cursor-pointer text-sm font-bold text-slate-900 transition-colors hover:text-primary"
+                        >
+                            {cust.name}
+                        </p>
+                        <p className="text-xs text-slate-500">{cust.email || 'No email'}</p>
+                        <div className="mt-0.5 flex items-center gap-1.5">
+                            <Phone className="h-3 w-3 text-slate-300" />
+                            <span className="text-[10px] text-slate-400">{cust.phone}</span>
+                        </div>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            header: 'Activity',
+            key: 'activity',
+            cell: (cust) => (
+                <div>
+                    <div className="flex items-center gap-1.5 text-sm font-semibold text-slate-700">
+                        <ShoppingBag className="h-3.5 w-3.5 text-primary" />
+                        {cust.totalOrders} Orders
+                    </div>
+                    <p className="mt-0.5 text-xs text-slate-400">Last: {getTimeAgo(cust.lastOrderDate)}</p>
+                </div>
+            ),
+        },
+        {
+            header: 'Total Spend',
+            key: 'spend',
+            cell: (cust) => <span className="text-sm font-black text-slate-900">₹{(cust.totalSpent || 0).toLocaleString()}</span>,
+        },
+        {
+            header: 'Status',
+            key: 'status',
+            cell: (cust) => <Badge variant={cust.status === 'active' ? 'success' : 'danger'}>{cust.status}</Badge>,
+        },
+        {
+            header: 'Actions',
+            key: 'actions',
+            align: 'right',
+            cell: (cust) => (
+                <div className="flex items-center justify-end gap-1.5">
+                    <button
+                        onClick={() => navigate(`/admin/customers/${cust.id}`)}
+                        className="rounded-lg bg-primary/10 p-2 text-primary transition-all hover:bg-primary hover:text-white"
+                    >
+                        <Eye className="h-4 w-4" />
+                    </button>
+                    <button className="rounded-lg bg-slate-50 p-2 text-slate-400 transition-all hover:bg-slate-900 hover:text-white">
+                        <MoreVertical className="h-4 w-4" />
+                    </button>
+                </div>
+            ),
+        },
+    ];
+
     return (
-        <div className="ds-section-spacing">
+        <div className="space-y-5">
             <PageHeader
                 title="Customers"
-                description="Manage and track all customer accounts"
+                description="Manage and track all customer accounts."
                 badge={
-                    <div className="ds-stat-card-icon bg-brand-50">
-                        <Users className="ds-icon-lg text-brand-600" />
+                    <div className="rounded-lg bg-primary/10 p-1.5">
+                        <Users className="h-4 w-4 text-primary" />
                     </div>
                 }
                 actions={
                     <>
-                        <button
-                            onClick={handleExport}
-                            disabled={isExporting}
-                            className="ds-btn ds-btn-md bg-white ring-1 ring-gray-200 text-gray-700 hover:bg-gray-50"
-                        >
-                            {isExporting ? <RotateCw className="ds-icon-sm animate-spin" /> : <Download className="ds-icon-sm" />}
-                            {isExporting ? 'EXPORTING...' : 'EXPORT'}
-                        </button>
-                        <button className="ds-btn ds-btn-md bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-                            <UserPlus className="ds-icon-sm" />
-                            NEW CUSTOMER
-                        </button>
+                        <Button variant="outline" onClick={handleExport} isLoading={isExporting}>
+                            {!isExporting && <Download className="h-4 w-4" />}
+                            {isExporting ? 'Exporting...' : 'Export'}
+                        </Button>
+                        <Button>
+                            <UserPlus className="h-4 w-4" />
+                            New Customer
+                        </Button>
                     </>
                 }
             />
 
-            {/* Quick Stats Grid */}
-            <div className="ds-grid-cards-3">
-                <StatCard
-                    label="Total Customers"
-                    value={stats.total}
-                    icon={Users}
-                    color="text-brand-600"
-                    bg="bg-brand-50"
-                />
-                <StatCard
-                    label="Active Users"
-                    value={stats.active}
-                    icon={Activity}
-                    color="text-brand-600"
-                    bg="bg-brand-50"
-                />
-                <StatCard
-                    label="New Today"
-                    value={stats.newToday}
-                    icon={UserPlus}
-                    color="text-brand-600"
-                    bg="bg-brand-50"
-                />
-            </div>
-
-            {/* Filter & Search Bar */}
-            <Card className="ds-card-compact">
-                <div className="flex flex-col lg:flex-row gap-3">
-                    <div className="flex-1 relative group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 ds-icon-sm text-gray-400 group-focus-within:text-primary transition-colors" />
-                        <input
-                            type="text"
-                            placeholder="Search by name, email or phone..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="ds-input pl-9"
-                        />
+            {loading && customers.length === 0 ? (
+                <div className="space-y-5">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        {Array.from({ length: 3 }).map((_, i) => <SkeletonStatCard key={i} />)}
                     </div>
-
-                    <div className="flex items-center gap-2">
-                        <div className="flex bg-gray-100 p-0.5 rounded-lg">
-                            {['all', 'active', 'inactive'].map((status) => (
-                                <button
-                                    key={status}
-                                    onClick={() => setFilterStatus(status)}
-                                    className={cn(
-                                        "px-3 py-1.5 rounded-md ds-caption transition-all",
-                                        filterStatus === status ? "bg-white text-primary shadow-sm" : "text-gray-400 hover:text-gray-600"
-                                    )}
-                                >
-                                    {status}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                    <SkeletonCard lines={6} />
                 </div>
-            </Card>
-
-            {/* Customer List Table */}
-            <Card className="overflow-hidden relative min-h-[400px]">
-                {loading && (
-                    <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] z-10 flex items-center justify-center">
-                        <div className="flex flex-col items-center gap-2">
-                            <Loader2 className="h-8 w-8 text-primary animate-spin" />
-                            <p className="ds-caption text-gray-500 font-medium">Loading Customers...</p>
-                        </div>
+            ) : (
+                <>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <StatCard label="Total Customers" value={stats.total} icon={Users} color="text-primary" bg="bg-primary/10" />
+                        <StatCard label="Active Users" value={stats.active} icon={Activity} color="text-success" bg="bg-success/10" />
+                        <StatCard label="New Today" value={stats.newToday} icon={UserPlus} color="text-info" bg="bg-info/10" />
                     </div>
-                )}
 
-                <div className="overflow-x-auto">
-                    <table className="ds-table">
-                        <thead className="ds-table-header">
-                            <tr>
-                                <th className="ds-table-header-cell">Customer</th>
-                                <th className="ds-table-header-cell">Activity</th>
-                                <th className="ds-table-header-cell">Total Spend</th>
-                                <th className="ds-table-header-cell">Status</th>
-                                <th className="ds-table-header-cell text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {!loading && filteredCustomers.length === 0 ? (
-                                <tr>
-                                    <td colSpan="5" className="px-6 py-20 text-center">
-                                        <div className="flex flex-col items-center gap-3">
-                                            <div className="p-4 bg-gray-50 rounded-full">
-                                                <Users className="h-8 w-8 text-gray-300" />
-                                            </div>
-                                            <p className="ds-h4 text-gray-400">No customers found</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredCustomers.map((cust) => (
-                                    <tr key={cust.id} className="ds-table-row">
-                                        <td className="ds-table-cell">
-                                            <div className="flex items-center gap-3">
-                                                <img
-                                                    src="https://cdn-icons-png.flaticon.com/512/149/149071.png"
-                                                    alt=""
-                                                    className="h-10 w-10 rounded-lg bg-gray-100 ring-2 ring-white shadow-sm object-cover"
-                                                />
-                                                <div>
-                                                    <p
-                                                        onClick={() => navigate(`/admin/customers/${cust.id}`)}
-                                                        className="ds-h4 hover:text-primary cursor-pointer transition-colors"
-                                                    >
-                                                        {cust.name}
-                                                    </p>
-                                                    <p className="ds-body-sm text-gray-500">{cust.email || 'No email'}</p>
-                                                    <div className="flex items-center gap-1.5 mt-0.5">
-                                                        <Phone className="ds-icon-sm text-gray-300" />
-                                                        <span className="text-[9px] text-gray-400">{cust.phone}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="ds-table-cell">
-                                            <div>
-                                                <div className="flex items-center gap-1.5 ds-body font-semibold">
-                                                    <ShoppingBag className="ds-icon-sm text-primary" />
-                                                    {cust.totalOrders} Orders
-                                                </div>
-                                                <p className="ds-body-sm text-gray-400 mt-0.5">Last: {getTimeAgo(cust.lastOrderDate)}</p>
-                                            </div>
-                                        </td>
-                                        <td className="ds-table-cell ds-h4">
-                                            ₹{(cust.totalSpent || 0).toLocaleString()}
-                                        </td>
-                                        <td className="ds-table-cell">
-                                            <Badge
-                                                variant={cust.status === 'active' ? 'success' : 'error'}
-                                                className="ds-badge"
-                                            >
-                                                {cust.status}
-                                            </Badge>
-                                        </td>
-                                        <td className="ds-table-cell text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button
-                                                    onClick={() => navigate(`/admin/customers/${cust.id}`)}
-                                                    className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all"
-                                                >
-                                                    <Eye className="ds-icon-sm" />
-                                                </button>
-                                                <button className="p-2 bg-gray-50 text-gray-400 rounded-lg hover:bg-gray-900 hover:text-white transition-all">
-                                                    <MoreVertical className="ds-icon-sm" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-                <div className="px-6 py-3 border-t border-gray-100">
+                    <FilterBar
+                        left={
+                            <div className="relative w-full sm:w-96">
+                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search by name, email or phone..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="h-9 w-full rounded-md border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                />
+                            </div>
+                        }
+                        pills={['all', 'active', 'inactive'].map((status) => ({
+                            label: status,
+                            active: filterStatus === status,
+                            onClick: () => setFilterStatus(status),
+                        }))}
+                    />
+
+                    <DataTable
+                        columns={columns}
+                        data={filteredCustomers}
+                        rowKey={(c) => c.id}
+                        loading={loading && customers.length > 0}
+                        emptyState={
+                            <EmptyState
+                                icon={<Users className="h-6 w-6" />}
+                                title="No customers found"
+                                description="No customers match your current search criteria."
+                            />
+                        }
+                    />
+
                     <Pagination
                         page={page}
                         totalPages={Math.ceil(total / pageSize) || 1}
@@ -312,8 +272,8 @@ const CustomerManagement = () => {
                         }}
                         loading={loading}
                     />
-                </div>
-            </Card>
+                </>
+            )}
         </div>
     );
 };

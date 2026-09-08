@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Card from "@shared/components/ui/Card";
 import Badge from "@shared/components/ui/Badge";
+import Button from "@shared/components/ui/Button";
 import Modal from "@shared/components/ui/Modal";
+import PageHeader from "@shared/components/ui/PageHeader";
+import EmptyState from "@shared/components/ui/EmptyState";
 import { useToast } from "@shared/components/ui/Toast";
 import {
   HiOutlinePlus,
@@ -198,37 +201,26 @@ const ShopByStoreManagement = () => {
   };
 
   return (
-    <div className="ds-section-spacing animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-1 mb-6">
-        <div>
-          <h1 className="ds-h1 flex items-center gap-3">
+    <div className="space-y-5">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
             Shop by Store
-            <Badge
-              variant="primary"
-              className="text-[10px] font-black uppercase tracking-widest"
-            >
-              Curated Storefronts
-            </Badge>
-          </h1>
-          <p className="ds-description mt-1">
-            Create themed stores like &quot;Summer Coolers&quot; or
-            &quot;Breakfast Essentials&quot;. Pick categories and hero
-            products, choose banner colour and imagery – these power the
-            customer &quot;Shop by Store&quot; page.
-          </p>
-        </div>
-        <button
-          onClick={openCreateModal}
-          className="flex items-center gap-2 px-6 py-3.5 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] active:scale-95 transition-all"
-        >
-          <HiOutlinePlus className="h-5 w-5" />
-          New Store
-        </button>
-      </div>
+            <Badge variant="primary">Curated Storefronts</Badge>
+          </span>
+        }
+        description={'Create themed stores like "Summer Coolers" or "Breakfast Essentials". Pick categories and hero products, choose banner colour and imagery — these power the customer "Shop by Store" page.'}
+        actions={
+          <Button onClick={openCreateModal}>
+            <HiOutlinePlus className="h-4 w-4" />
+            New Store
+          </Button>
+        }
+      />
 
-      <Card className="border-none shadow-xl ring-1 ring-slate-100 bg-white rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-slate-50 flex items-center justify-between">
-          <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+      <Card className="overflow-hidden p-0">
+        <div className="flex items-center justify-between border-b border-slate-100 p-4">
+          <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
             Stores ({stores.length})
           </h2>
           {isLoading && (
@@ -255,11 +247,11 @@ const ShopByStoreManagement = () => {
             return (
               <div
                 key={store._id}
-                className="px-4 py-4 flex flex-col md:flex-row md:items-center gap-4 hover:bg-slate-50/40 transition-colors"
+                className="flex flex-col gap-4 px-4 py-4 transition-colors hover:bg-slate-50/40 md:flex-row md:items-center"
               >
                 <div className="flex items-center gap-3 md:min-w-[200px]">
                   <div
-                    className="h-14 w-14 rounded-2xl flex-shrink-0 bg-cover bg-center ring-2 ring-slate-100"
+                    className="h-12 w-12 flex-shrink-0 rounded-xl border border-slate-100 bg-cover bg-center"
                     style={{
                       backgroundColor: store.backgroundColor || "#FCD34D",
                       backgroundImage: sideOpt?.imageUrl
@@ -277,33 +269,30 @@ const ShopByStoreManagement = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 ml-auto">
+                <div className="ml-auto flex items-center gap-2">
                   <button
                     onClick={() => openEditModal(store)}
-                    className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl"
+                    className="rounded-lg p-2 text-slate-400 transition-all hover:bg-primary/10 hover:text-primary"
                   >
-                    <HiOutlinePencilSquare className="h-5 w-5" />
+                    <HiOutlinePencilSquare className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(store._id)}
-                    className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl"
+                    className="rounded-lg p-2 text-slate-400 transition-all hover:bg-danger/10 hover:text-danger"
                   >
-                    <HiOutlineTrash className="h-5 w-5" />
+                    <HiOutlineTrash className="h-4 w-4" />
                   </button>
                 </div>
               </div>
             );
           })}
           {stores.length === 0 && !isLoading && (
-            <div className="p-16 text-center">
-              <HiOutlinePhoto className="h-12 w-12 text-slate-200 mx-auto mb-3" />
-              <h3 className="text-lg font-black text-slate-900">
-                No stores created yet
-              </h3>
-              <p className="text-sm font-bold text-slate-400 mt-2">
-                Click &quot;New Store&quot; to design your first curated
-                storefront.
-              </p>
+            <div className="p-4">
+              <EmptyState
+                icon={<HiOutlinePhoto className="h-6 w-6" />}
+                title="No stores created yet"
+                description={'Click "New Store" to design your first curated storefront.'}
+              />
             </div>
           )}
         </div>
@@ -314,9 +303,9 @@ const ShopByStoreManagement = () => {
         onClose={() => setIsModalOpen(false)}
         title={editingStore ? "Edit Store" : "New Store"}
       >
-        <form onSubmit={handleSave} className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+        <form onSubmit={handleSave} className="space-y-5">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
               Store name
             </label>
             <input
@@ -325,15 +314,15 @@ const ShopByStoreManagement = () => {
                 setFormData((prev) => ({ ...prev, title: e.target.value }))
               }
               placeholder='E.g. "Summer Coolers"'
-              className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-bold outline-none ring-1 ring-transparent focus:ring-primary/20"
+              className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
               Categories inside this store
             </label>
-            <div className="flex flex-wrap gap-1.5 border border-slate-100 rounded-xl p-3 bg-slate-50/50 max-h-32 overflow-y-auto">
+            <div className="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto rounded-xl border border-slate-100 bg-slate-50/50 p-3">
               {categories.map((c) => {
                 const selected = formData.categoryIds.includes(c._id);
                 return (
@@ -350,10 +339,10 @@ const ShopByStoreManagement = () => {
                       }))
                     }
                     className={cn(
-                      "px-2.5 py-1.5 rounded-full text-[11px] font-bold border transition-all",
+                      "rounded-full border px-2.5 py-1.5 text-[11px] font-bold transition-all",
                       selected
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                        ? "border-primary bg-primary text-white"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                     )}
                   >
                     {c.name}
@@ -364,11 +353,11 @@ const ShopByStoreManagement = () => {
           </div>
 
           {formData.categoryIds.length > 0 && (
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                 Featured products (optional)
               </label>
-              <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pr-1 border border-slate-100 rounded-xl p-3 bg-slate-50/50">
+              <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto rounded-xl border border-slate-100 bg-slate-50/50 p-3 pr-1">
                 {productsFiltered.length === 0 ? (
                   <span className="text-[11px] text-slate-400">
                     No products match. Add categories first.
@@ -389,10 +378,10 @@ const ShopByStoreManagement = () => {
                           }))
                         }
                         className={cn(
-                          "px-2.5 py-1.5 rounded-full text-[11px] font-bold border transition-all",
+                          "rounded-full border px-2.5 py-1.5 text-[11px] font-bold transition-all",
                           selected
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                            ? "border-primary bg-primary text-white"
+                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                         )}
                       >
                         {p.name}
@@ -404,8 +393,8 @@ const ShopByStoreManagement = () => {
             </div>
           )}
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
               Banner colour
             </label>
             <div className="flex flex-wrap gap-2">
@@ -420,15 +409,15 @@ const ShopByStoreManagement = () => {
                     }))
                   }
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-2 rounded-2xl text-[11px] font-bold border-2 transition-all",
+                    "flex items-center gap-1.5 rounded-xl border-2 px-3 py-2 text-[11px] font-bold transition-all",
                     formData.backgroundColor === opt.value
-                      ? "border-slate-900 ring-2 ring-offset-2 ring-slate-400"
+                      ? "border-primary ring-2 ring-primary/20 ring-offset-2"
                       : "border-slate-200 hover:border-slate-300"
                   )}
                   title={opt.label}
                 >
                   <span
-                    className="w-5 h-5 rounded-full border border-slate-200"
+                    className="h-5 w-5 rounded-full border border-slate-200"
                     style={{ backgroundColor: opt.value }}
                   />
                   {opt.label}
@@ -437,8 +426,8 @@ const ShopByStoreManagement = () => {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
               Hero image
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -453,7 +442,7 @@ const ShopByStoreManagement = () => {
                     }))
                   }
                   className={cn(
-                    "rounded-xl overflow-hidden border-2 transition-all aspect-square bg-slate-100",
+                    "aspect-square overflow-hidden rounded-xl border-2 bg-slate-100 transition-all",
                     formData.sideImageKey === opt.key
                       ? "border-primary ring-2 ring-primary/30"
                       : "border-slate-200 hover:border-slate-300"
@@ -462,9 +451,9 @@ const ShopByStoreManagement = () => {
                   <img
                     src={opt.imageUrl}
                     alt={opt.label}
-                    className="w-full h-full object-cover"
+                    className="h-full w-full object-cover"
                   />
-                  <span className="block text-[10px] font-bold text-slate-600 p-1 truncate">
+                  <span className="block truncate p-1 text-[10px] font-bold text-slate-600">
                     {opt.label}
                   </span>
                 </button>
@@ -473,8 +462,8 @@ const ShopByStoreManagement = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                 Display order
               </label>
               <input
@@ -484,11 +473,11 @@ const ShopByStoreManagement = () => {
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, order: e.target.value }))
                 }
-                className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-bold outline-none"
+                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                 Status
               </label>
               <select
@@ -496,7 +485,7 @@ const ShopByStoreManagement = () => {
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, status: e.target.value }))
                 }
-                className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-bold outline-none"
+                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
@@ -504,20 +493,13 @@ const ShopByStoreManagement = () => {
             </div>
           </div>
 
-          <div className="flex gap-4 pt-4">
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(false)}
-              className="flex-1 py-4 bg-slate-100 text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest"
-            >
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={() => setIsModalOpen(false)}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 py-4 bg-primary text-primary-foreground rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20"
-            >
+            </Button>
+            <Button type="submit" className="flex-1">
               {editingStore ? "Save changes" : "Create store"}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>
@@ -526,4 +508,3 @@ const ShopByStoreManagement = () => {
 };
 
 export default ShopByStoreManagement;
-

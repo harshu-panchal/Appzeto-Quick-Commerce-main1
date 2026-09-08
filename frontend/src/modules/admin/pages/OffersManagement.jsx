@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Card from '@shared/components/ui/Card';
 import Badge from '@shared/components/ui/Badge';
+import Button from '@shared/components/ui/Button';
 import Modal from '@shared/components/ui/Modal';
+import PageHeader from '@shared/components/ui/PageHeader';
+import EmptyState from '@shared/components/ui/EmptyState';
 import { useToast } from '@shared/components/ui/Toast';
 import {
     HiOutlinePlus,
@@ -17,9 +20,9 @@ import { cn } from '@/lib/utils';
 import { adminApi } from '../services/adminApi';
 
 const STYLE_OPTIONS = [
-    { id: 'blue', label: 'Blue', className: 'bg-black ' },
-    { id: 'green', label: 'Green', className: 'bg-primary' },
-    { id: 'orange', label: 'Orange', className: 'bg-orange-500' },
+    { id: 'blue', label: 'Blue', className: 'bg-primary' },
+    { id: 'green', label: 'Green', className: 'bg-success' },
+    { id: 'orange', label: 'Orange', className: 'bg-warning' },
 ];
 
 const ICON_OPTIONS = [
@@ -216,31 +219,26 @@ const OffersManagement = () => {
     }, [products]);
 
     return (
-        <div className="ds-section-spacing animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-1 mb-6">
-                <div>
-                    <h1 className="ds-h1 flex items-center gap-3">
+        <div className="space-y-5">
+            <PageHeader
+                title={
+                    <span className="flex items-center gap-2">
                         Offers Manager
-                        <Badge variant="primary" className="text-[10px] font-black uppercase tracking-widest">
-                            Beta
-                        </Badge>
-                    </h1>
-                    <p className="ds-description mt-1">
-                        Create offer cards, attach products & categories, and control the order they appear.
-                    </p>
-                </div>
-                <button
-                    onClick={openCreateModal}
-                    className="flex items-center gap-2 px-6 py-3.5 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] active:scale-95 transition-all"
-                >
-                    <HiOutlinePlus className="h-5 w-5" />
-                    NEW OFFER
-                </button>
-            </div>
+                        <Badge variant="primary">Beta</Badge>
+                    </span>
+                }
+                description="Create offer cards, attach products & categories, and control the order they appear."
+                actions={
+                    <Button onClick={openCreateModal}>
+                        <HiOutlinePlus className="h-4 w-4" />
+                        New Offer
+                    </Button>
+                }
+            />
 
-            <Card className="border-none shadow-xl ring-1 ring-slate-100 bg-white rounded-xl overflow-hidden">
-                <div className="p-4 border-b border-slate-50 flex items-center justify-between">
-                    <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            <Card className="overflow-hidden p-0">
+                <div className="flex items-center justify-between border-b border-slate-100 p-4">
+                    <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                         Active Offers ({offers.length})
                     </h2>
                     {isLoading && (
@@ -257,42 +255,42 @@ const OffersManagement = () => {
                         return (
                             <div
                                 key={offer._id}
-                                className="px-4 py-4 flex flex-col md:flex-row md:items-center gap-4 hover:bg-slate-50/40 transition-colors"
+                                className="flex flex-col gap-4 px-4 py-4 transition-colors hover:bg-slate-50/40 md:flex-row md:items-center"
                             >
                                 <div className="flex items-center gap-3 md:w-[260px]">
                                     <div className={cn(
-                                        "h-12 w-12 rounded-2xl flex items-center justify-center text-white",
+                                        "flex h-11 w-11 items-center justify-center rounded-xl text-white",
                                         styleMeta.className
                                     )}>
-                                        <IconComp className="h-6 w-6" />
+                                        <IconComp className="h-5 w-5" />
                                     </div>
                                     <div>
                                         <p className="text-xs font-black text-slate-900">
                                             #{idx + 1} • {offer.title}
                                         </p>
                                         {offer.code && (
-                                            <p className="text-[10px] font-mono font-bold text-slate-500 mt-0.5">
-                                                CODE: {offer.code}
+                                            <p className="mt-0.5 font-mono text-[10px] font-bold text-slate-500">
+                                                Code: {offer.code}
                                             </p>
                                         )}
                                         {offer.appliesOnOrderNumber && (
-                                            <p className="text-[10px] font-bold text-brand-600 mt-0.5">
+                                            <p className="mt-0.5 text-[10px] font-bold text-primary">
                                                 On order #{offer.appliesOnOrderNumber}
                                             </p>
                                         )}
                                     </div>
                                 </div>
 
-                                <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px]">
+                                <div className="grid flex-1 grid-cols-1 gap-3 text-[11px] md:grid-cols-3">
                                     <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                        <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                             Categories
                                         </p>
                                         <div className="flex flex-wrap gap-1.5">
                                             {(offer.categoryIds || []).map(id => (
                                                 <span
                                                     key={id}
-                                                    className="px-2 py-1 rounded-full bg-slate-100 text-[10px] font-bold text-slate-700"
+                                                    className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-700"
                                                 >
                                                     {categoryMap[id]?.name || 'Unknown'}
                                                 </span>
@@ -303,14 +301,14 @@ const OffersManagement = () => {
                                         </div>
                                     </div>
                                     <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                        <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                             Products
                                         </p>
                                         <div className="flex flex-wrap gap-1.5">
                                             {(offer.productIds || []).slice(0, 3).map(id => (
                                                 <span
                                                     key={id}
-                                                    className="px-2 py-1 rounded-full bg-slate-100 text-[10px] font-bold text-slate-700"
+                                                    className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-700"
                                                 >
                                                     {productMap[id]?.name || 'Product'}
                                                 </span>
@@ -326,31 +324,28 @@ const OffersManagement = () => {
                                         </div>
                                     </div>
                                     <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                                        <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                             Meta
                                         </p>
                                         <div className="flex items-center gap-3">
                                             <span className="text-[10px] font-bold text-slate-500">
                                                 Order: {offer.order ?? idx}
                                             </span>
-                                            <Badge
-                                                variant={offer.status === 'active' ? 'success' : 'secondary'}
-                                                className="text-[9px] font-black uppercase"
-                                            >
+                                            <Badge variant={offer.status === 'active' ? 'success' : 'secondary'}>
                                                 {offer.status}
                                             </Badge>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-2 self-start md:self-stretch md:flex-col md:justify-between">
+                                <div className="flex items-center gap-2 self-start md:flex-col md:justify-between md:self-stretch">
                                     <div className="flex items-center gap-1">
                                         <button
                                             disabled={idx === 0}
                                             onClick={() => handleReorder('up', offer)}
                                             className={cn(
-                                                "p-1.5 rounded-xl border text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-all",
-                                                idx === 0 && "opacity-30 cursor-not-allowed"
+                                                "rounded-lg border border-slate-200 p-1.5 text-slate-400 transition-all hover:bg-slate-50 hover:text-slate-700",
+                                                idx === 0 && "cursor-not-allowed opacity-30"
                                             )}
                                         >
                                             <HiOutlineArrowUpCircle className="h-4 w-4" />
@@ -359,8 +354,8 @@ const OffersManagement = () => {
                                             disabled={idx === offers.length - 1}
                                             onClick={() => handleReorder('down', offer)}
                                             className={cn(
-                                                "p-1.5 rounded-xl border text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-all",
-                                                idx === offers.length - 1 && "opacity-30 cursor-not-allowed"
+                                                "rounded-lg border border-slate-200 p-1.5 text-slate-400 transition-all hover:bg-slate-50 hover:text-slate-700",
+                                                idx === offers.length - 1 && "cursor-not-allowed opacity-30"
                                             )}
                                         >
                                             <HiOutlineArrowDownCircle className="h-4 w-4" />
@@ -369,15 +364,15 @@ const OffersManagement = () => {
                                     <div className="flex items-center gap-1">
                                         <button
                                             onClick={() => openEditModal(offer)}
-                                            className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-all"
+                                            className="rounded-lg p-2 text-slate-400 transition-all hover:bg-primary/10 hover:text-primary"
                                         >
-                                            <HiOutlinePencilSquare className="h-5 w-5" />
+                                            <HiOutlinePencilSquare className="h-4 w-4" />
                                         </button>
                                         <button
                                             onClick={() => handleDelete(offer._id)}
-                                            className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                                            className="rounded-lg p-2 text-slate-400 transition-all hover:bg-danger/10 hover:text-danger"
                                         >
-                                            <HiOutlineTrash className="h-5 w-5" />
+                                            <HiOutlineTrash className="h-4 w-4" />
                                         </button>
                                     </div>
                                 </div>
@@ -386,14 +381,12 @@ const OffersManagement = () => {
                     })}
 
                     {offers.length === 0 && !isLoading && (
-                        <div className="p-16 text-center">
-                            <div className="h-16 w-16 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-4">
-                                <HiOutlineSparkles className="h-8 w-8 text-slate-200" />
-                            </div>
-                            <h3 className="text-lg font-black text-slate-900">No offers configured yet</h3>
-                            <p className="text-sm font-bold text-slate-400 mt-2">
-                                Click &quot;New Offer&quot; to create your first offer card.
-                            </p>
+                        <div className="p-4">
+                            <EmptyState
+                                icon={<HiOutlineSparkles className="h-6 w-6" />}
+                                title="No offers configured yet"
+                                description={'Click "New Offer" to create your first offer card.'}
+                            />
                         </div>
                     )}
                 </div>
@@ -404,20 +397,20 @@ const OffersManagement = () => {
                 onClose={() => setIsModalOpen(false)}
                 title={editingOffer ? "Edit Offer" : "Create Offer"}
             >
-                <form onSubmit={handleSave} className="space-y-6">
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                <form onSubmit={handleSave} className="space-y-5">
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                             Offer Title
                         </label>
                         <input
                             value={formData.title}
                             onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                             placeholder="E.g. 60% OFF on first order"
-                            className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-bold outline-none ring-1 ring-transparent focus:ring-primary/20"
+                            className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                         />
                     </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                             Description
                         </label>
                         <textarea
@@ -425,24 +418,24 @@ const OffersManagement = () => {
                             value={formData.description}
                             onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                             placeholder="Short copy to explain this offer"
-                            className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-bold outline-none resize-none"
+                            className="w-full resize-none rounded-md border border-slate-200 bg-white px-3.5 py-3 text-xs font-medium outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                         />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                 Offer Code
                             </label>
                             <input
                                 value={formData.code}
                                 onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
                                 placeholder="WELCOME60"
-                                className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-mono font-black uppercase tracking-widest outline-none"
+                                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-mono font-black uppercase tracking-widest outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                             />
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                 Applies on order #
                             </label>
                             <input
@@ -450,14 +443,14 @@ const OffersManagement = () => {
                                 min={1}
                                 value={formData.appliesOnOrderNumber}
                                 onChange={(e) => setFormData(prev => ({ ...prev, appliesOnOrderNumber: e.target.value }))}
-                                className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-bold outline-none"
+                                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                             />
                         </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                 Style
                             </label>
                             <div className="flex gap-2">
@@ -467,9 +460,9 @@ const OffersManagement = () => {
                                         type="button"
                                         onClick={() => setFormData(prev => ({ ...prev, style: opt.id }))}
                                         className={cn(
-                                            "flex-1 px-3 py-2 rounded-2xl text-[11px] font-bold border flex items-center justify-center gap-1",
+                                            "flex flex-1 items-center justify-center gap-1 rounded-lg border px-3 py-2 text-[11px] font-bold",
                                             formData.style === opt.id
-                                                ? "border-slate-900 bg-slate-900 text-white"
+                                                ? "border-primary bg-primary text-white"
                                                 : "border-slate-200 bg-slate-50 text-slate-600"
                                         )}
                                     >
@@ -479,8 +472,8 @@ const OffersManagement = () => {
                                 ))}
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                 Icon
                             </label>
                             <div className="flex gap-2">
@@ -492,9 +485,9 @@ const OffersManagement = () => {
                                             type="button"
                                             onClick={() => setFormData(prev => ({ ...prev, icon: opt.id }))}
                                             className={cn(
-                                                "flex-1 px-3 py-2 rounded-2xl text-[11px] font-bold border flex items-center justify-center gap-1",
+                                                "flex flex-1 items-center justify-center gap-1 rounded-lg border px-3 py-2 text-[11px] font-bold",
                                                 formData.icon === opt.id
-                                                    ? "border-slate-900 bg-slate-900 text-white"
+                                                    ? "border-primary bg-primary text-white"
                                                     : "border-slate-200 bg-slate-50 text-slate-600"
                                             )}
                                         >
@@ -508,11 +501,11 @@ const OffersManagement = () => {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                 Attach Categories (optional)
                             </label>
-                            <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pr-1">
+                            <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto pr-1">
                                 {categories.map(c => {
                                     const isSelected = formData.categoryIds.includes(c._id);
                                     return (
@@ -528,10 +521,10 @@ const OffersManagement = () => {
                                                 }))
                                             }
                                             className={cn(
-                                                "px-2.5 py-1.5 rounded-full text-[11px] font-bold border transition-all",
+                                                "rounded-full border px-2.5 py-1.5 text-[11px] font-bold transition-all",
                                                 isSelected
-                                                    ? "bg-primary text-primary-foreground border-primary"
-                                                    : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-white"
+                                                    ? "border-primary bg-primary text-white"
+                                                    : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-white"
                                             )}
                                         >
                                             {c.name}
@@ -540,11 +533,11 @@ const OffersManagement = () => {
                                 })}
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                 Attach Products (optional)
                             </label>
-                            <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pr-1">
+                            <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto pr-1">
                                 {products.map(p => {
                                     const isSelected = formData.productIds.includes(p._id);
                                     return (
@@ -560,10 +553,10 @@ const OffersManagement = () => {
                                                 }))
                                             }
                                             className={cn(
-                                                "px-2.5 py-1.5 rounded-full text-[11px] font-bold border transition-all",
+                                                "rounded-full border px-2.5 py-1.5 text-[11px] font-bold transition-all",
                                                 isSelected
-                                                    ? "bg-brand-500 text-primary-foreground border-brand-500"
-                                                    : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-white"
+                                                    ? "border-primary bg-primary text-white"
+                                                    : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-white"
                                             )}
                                         >
                                             {p.name}
@@ -575,8 +568,8 @@ const OffersManagement = () => {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                 Display Order
                             </label>
                             <input
@@ -584,17 +577,17 @@ const OffersManagement = () => {
                                 min={0}
                                 value={formData.order}
                                 onChange={(e) => setFormData(prev => ({ ...prev, order: e.target.value }))}
-                                className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-bold outline-none"
+                                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                             />
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                                 Status
                             </label>
                             <select
                                 value={formData.status}
                                 onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-                                className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-bold outline-none"
+                                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                             >
                                 <option value="active">Active</option>
                                 <option value="inactive">Inactive</option>
@@ -602,20 +595,13 @@ const OffersManagement = () => {
                         </div>
                     </div>
 
-                    <div className="flex gap-4 pt-4">
-                        <button
-                            type="button"
-                            onClick={() => setIsModalOpen(false)}
-                            className="flex-1 py-4 bg-slate-100 text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest"
-                        >
-                            CANCEL
-                        </button>
-                        <button
-                            type="submit"
-                            className="flex-1 py-4 bg-primary text-primary-foreground rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20"
-                        >
-                            {editingOffer ? 'SAVE CHANGES' : 'CREATE OFFER'}
-                        </button>
+                    <div className="flex gap-3 pt-2">
+                        <Button type="button" variant="outline" className="flex-1" onClick={() => setIsModalOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" className="flex-1">
+                            {editingOffer ? 'Save Changes' : 'Create Offer'}
+                        </Button>
                     </div>
                 </form>
             </Modal>
@@ -624,5 +610,3 @@ const OffersManagement = () => {
 };
 
 export default OffersManagement;
-
-

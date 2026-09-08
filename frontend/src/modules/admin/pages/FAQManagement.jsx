@@ -1,14 +1,15 @@
 // Ultimate FAQ Management System - Functional Version
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Card from '@shared/components/ui/Card';
 import Badge from '@shared/components/ui/Badge';
+import Button from '@shared/components/ui/Button';
 import Modal from '@shared/components/ui/Modal';
+import PageHeader from '@shared/components/ui/PageHeader';
+import StatCard from '@shared/components/ui/StatCard';
 import {
     HelpCircle,
     Plus,
     Search,
-    Filter,
-    MoreVertical,
     Edit3,
     Trash2,
     Eye,
@@ -18,20 +19,16 @@ import {
     MessageSquare,
     Layers,
     TrendingUp,
-    Settings,
     ArrowUpRight,
     GripVertical,
     Save,
-    X,
     CheckCircle2,
-    AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@shared/components/ui/Toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import Pagination from '@shared/components/ui/Pagination';
 import { adminApi } from '../services/adminApi';
-import { useEffect } from 'react';
 
 const FAQManagement = () => {
     const { showToast } = useToast();
@@ -78,8 +75,8 @@ const FAQManagement = () => {
     const fetchFaqs = async (requestedPage = 1) => {
         setIsLoading(true);
         try {
-            const params = { 
-                page: requestedPage, 
+            const params = {
+                page: requestedPage,
                 limit: pageSize,
                 search: searchTerm.trim() || undefined,
                 category: activeCategory !== 'All' ? activeCategory : undefined
@@ -195,91 +192,71 @@ const FAQManagement = () => {
     };
 
     return (
-        <div className="ds-section-spacing animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
-            {/* Header Section */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-1">
-                <div>
-                    <h1 className="ds-h1 flex items-center gap-3">
+        <div className="space-y-5">
+            <PageHeader
+                title={
+                    <span className="flex items-center gap-2">
                         FAQ Management
-                        <div className="p-2 bg-pink-100 rounded-xl">
-                            <HelpCircle className="h-5 w-5 text-pink-600" />
+                        <div className="rounded-lg bg-primary/10 p-1.5">
+                            <HelpCircle className="h-4 w-4 text-primary" />
                         </div>
-                    </h1>
-                    <p className="ds-description mt-1">Manage categories and help customers with common questions.</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => setIsCategoryModalOpen(true)}
-                        className="flex items-center gap-2 px-5 py-3 bg-white ring-1 ring-slate-200 text-slate-700 rounded-2xl text-xs font-bold hover:bg-slate-50 transition-all shadow-sm"
-                    >
-                        <Layers className="h-4 w-4 text-brand-500" />
-                        CATEGORIES
-                    </button>
-                    <button
-                        onClick={() => setIsAddModalOpen(true)}
-                        className="flex items-center gap-2 px-5 py-3 bg-pink-600 text-white rounded-2xl text-xs font-bold hover:bg-pink-700 transition-all shadow-lg active:scale-95 shadow-pink-200"
-                    >
-                        <Plus className="h-4 w-4" />
-                        ADD FAQ
-                    </button>
-                </div>
+                    </span>
+                }
+                description="Manage categories and help customers with common questions."
+                actions={
+                    <>
+                        <Button variant="outline" onClick={() => setIsCategoryModalOpen(true)}>
+                            <Layers className="h-4 w-4" />
+                            Categories
+                        </Button>
+                        <Button onClick={() => setIsAddModalOpen(true)}>
+                            <Plus className="h-4 w-4" />
+                            Add FAQ
+                        </Button>
+                    </>
+                }
+            />
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <StatCard label="Total FAQs" value={faqs.length} icon={MessageSquare} color="text-primary" bg="bg-primary/10" />
+                <StatCard label="Total Views" value={faqs.reduce((acc, f) => acc + f.views, 0).toLocaleString()} icon={TrendingUp} color="text-info" bg="bg-info/10" />
+                <StatCard label="Published" value={faqs.filter(f => f.status === 'published').length} icon={CheckCircle2} color="text-success" bg="bg-success/10" />
+                <StatCard label="Drafts" value={faqs.filter(f => f.status === 'draft').length} icon={Edit3} color="text-warning" bg="bg-warning/10" />
             </div>
 
-            {/* Quick Intelligence Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {[
-                    { label: 'Total FAQs', value: faqs.length, icon: MessageSquare, bg: 'bg-pink-50', iconColor: 'text-pink-600' },
-                    { label: 'Total Views', value: faqs.reduce((acc, f) => acc + f.views, 0).toLocaleString(), icon: TrendingUp, bg: 'bg-brand-50', iconColor: 'text-brand-600' },
-                    { label: 'Published', value: faqs.filter(f => f.status === 'published').length, icon: CheckCircle2, bg: 'bg-brand-50', iconColor: 'text-brand-600' },
-                    { label: 'Drafts', value: faqs.filter(f => f.status === 'draft').length, icon: Edit3, bg: 'bg-amber-50', iconColor: 'text-amber-600' },
-                ].map((stat, i) => (
-                    <Card key={i} className="p-5 border-none shadow-sm ring-1 ring-slate-100 bg-white group hover:ring-pink-200 transition-all overflow-hidden relative text-left">
-                        <div className="relative z-10 flex items-center gap-4">
-                            <div className={cn("p-3 rounded-2xl h-12 w-12 flex items-center justify-center", stat.bg)}>
-                                <stat.icon className={cn("h-6 w-6", stat.iconColor)} />
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
-                                <h3 className="text-2xl font-black text-slate-900">{stat.value}</h3>
-                            </div>
-                        </div>
-                    </Card>
-                ))}
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
                 {/* Left Sidebar: Categories */}
-                <div className="lg:col-span-1 space-y-4">
-                    <Card className="p-6 border-none shadow-xl ring-1 ring-slate-100 bg-white rounded-xl text-left">
-                        <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-6">FAQ Categories</h4>
-                        <div className="space-y-2">
+                <div className="space-y-4 lg:col-span-1">
+                    <Card className="p-4">
+                        <h4 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">FAQ Categories</h4>
+                        <div className="space-y-1.5">
                             <button
                                 onClick={() => setActiveCategory('All')}
                                 className={cn(
-                                    "w-full flex items-center justify-between px-4 py-3 rounded-2xl text-xs font-bold transition-all",
-                                    activeCategory === 'All' ? "bg-slate-900 text-white shadow-lg" : "text-slate-600 hover:bg-slate-50"
+                                    "flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold transition-all",
+                                    activeCategory === 'All' ? "bg-slate-900 text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"
                                 )}
                             >
-                                <span className="flex items-center gap-3">
+                                <span className="flex items-center gap-2.5">
                                     <Layers className="h-4 w-4 opacity-70" />
                                     All Topics
                                 </span>
-                                <span className="text-[10px] opacity-60 font-black">{faqs.length}</span>
+                                <span className="text-[10px] font-black opacity-60">{faqs.length}</span>
                             </button>
                             {categoriesWithCounts.map((cat) => (
                                 <button
                                     key={cat.id}
                                     onClick={() => setActiveCategory(cat.name)}
                                     className={cn(
-                                        "w-full flex items-center justify-between px-4 py-3 rounded-2xl text-xs font-bold transition-all",
-                                        activeCategory === cat.name ? "bg-pink-600 text-white shadow-lg shadow-pink-100" : "text-slate-600 hover:bg-slate-50"
+                                        "flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-bold transition-all",
+                                        activeCategory === cat.name ? "bg-primary text-white shadow-sm" : "text-slate-600 hover:bg-slate-50"
                                     )}
                                 >
-                                    <span className="flex items-center gap-3">
+                                    <span className="flex items-center gap-2.5">
                                         <div className={cn("h-1.5 w-1.5 rounded-full", activeCategory === cat.name ? "bg-white" : `bg-${cat.color}-500`)} />
                                         {cat.name}
                                     </span>
-                                    <span className="text-[10px] opacity-60 font-black">{cat.count}</span>
+                                    <span className="text-[10px] font-black opacity-60">{cat.count}</span>
                                 </button>
                             ))}
                         </div>
@@ -287,25 +264,25 @@ const FAQManagement = () => {
                 </div>
 
                 {/* Main Content: FAQ List */}
-                <div className="lg:col-span-3 space-y-6">
+                <div className="space-y-4 lg:col-span-3">
                     {/* Filter & Search Bar */}
-                    <Card className="p-4 border-none shadow-xl ring-1 ring-slate-100/50 bg-white/80 backdrop-blur-xl rounded-xl flex flex-col md:flex-row gap-4 items-center">
-                        <div className="flex-1 relative group w-full text-left">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-pink-500 transition-colors" />
+                    <Card className="flex flex-col items-center gap-3 p-3.5 md:flex-row">
+                        <div className="relative w-full flex-1">
+                            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                             <input
                                 type="text"
                                 placeholder="Search questions or answers..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-11 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-semibold outline-none focus:ring-2 focus:ring-pink-500/10 transition-all"
+                                className="h-9 w-full rounded-md border border-slate-200 bg-white pl-10 pr-4 text-xs font-semibold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                             />
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Sort:</span>
+                        <div className="flex shrink-0 items-center gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Sort:</span>
                             <select
                                 value={sortBy}
                                 onChange={(e) => setSortBy(e.target.value)}
-                                className="bg-slate-50 border-none px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none text-slate-600 cursor-pointer"
+                                className="h-9 rounded-md border border-slate-200 bg-white px-3 text-[10px] font-black uppercase tracking-widest text-slate-600 outline-none"
                             >
                                 <option>Most Viewed</option>
                                 <option>Newest First</option>
@@ -315,9 +292,9 @@ const FAQManagement = () => {
                     </Card>
 
                     {/* FAQ Grid/List */}
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                         <AnimatePresence mode='popLayout'>
-                            {filteredAndSortedFaqs.map((faq, index) => (
+                            {filteredAndSortedFaqs.map((faq) => (
                                 <motion.div
                                     key={faq.id}
                                     layout
@@ -326,46 +303,39 @@ const FAQManagement = () => {
                                     exit={{ opacity: 0, scale: 0.95 }}
                                     transition={{ duration: 0.3 }}
                                 >
-                                    <Card className={cn(
-                                        "border-none shadow-lg ring-1 transition-all overflow-hidden rounded-xl text-left",
-                                        expandedId === faq.id ? "ring-pink-200 bg-white" : "ring-slate-100 bg-white hover:ring-slate-200"
-                                    )}>
-                                        <div className="p-6">
-                                            <div className="flex items-start gap-4">
-                                                <div className="p-3 bg-slate-50 rounded-2xl text-slate-300">
+                                    <Card className="p-0">
+                                        <div className="p-5">
+                                            <div className="flex items-start gap-3">
+                                                <div className="rounded-lg bg-slate-50 p-2.5 text-slate-300">
                                                     <GripVertical className="h-4 w-4" />
                                                 </div>
                                                 <div className="flex-1">
-                                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
-                                                        <div className="flex items-center gap-3">
-                                                            <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest border-slate-200 text-slate-400">
-                                                                {faq.id}
-                                                            </Badge>
-                                                            <Badge variant={faq.status === 'published' ? 'success' : 'secondary'} className="text-[8px] font-black uppercase tracking-widest">
-                                                                {faq.status}
-                                                            </Badge>
-                                                        </div>
+                                                    <div className="mb-2 flex flex-col justify-between gap-3 md:flex-row md:items-center">
                                                         <div className="flex items-center gap-2">
-                                                            <div className="flex items-center gap-2 mr-4">
+                                                            <Badge variant="outline">{faq.id}</Badge>
+                                                            <Badge variant={faq.status === 'published' ? 'success' : 'secondary'}>{faq.status}</Badge>
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <div className="mr-3 flex items-center gap-1.5">
                                                                 <Eye className="h-3.5 w-3.5 text-slate-300" />
                                                                 <span className="text-[10px] font-bold text-slate-400">{faq.views.toLocaleString()}</span>
                                                             </div>
                                                             <button
                                                                 onClick={() => handleToggleStatus(faq)}
                                                                 title={faq.status === 'published' ? 'Set as Draft' : 'Publish Now'}
-                                                                className="p-2 transition-all text-slate-400 hover:text-brand-500 hover:bg-brand-50 rounded-lg"
+                                                                className="rounded-lg p-2 text-slate-400 transition-all hover:bg-primary/10 hover:text-primary"
                                                             >
                                                                 {faq.status === 'published' ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                                             </button>
                                                             <button
                                                                 onClick={() => handleEditClick(faq)}
-                                                                className="p-2 transition-all text-slate-400 hover:text-brand-500 hover:bg-brand-50 rounded-lg"
+                                                                className="rounded-lg p-2 text-slate-400 transition-all hover:bg-primary/10 hover:text-primary"
                                                             >
                                                                 <Edit3 className="h-4 w-4" />
                                                             </button>
                                                             <button
                                                                 onClick={() => handleDeleteFaq(faq._id)}
-                                                                className="p-2 transition-all text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg"
+                                                                className="rounded-lg p-2 text-slate-400 transition-all hover:bg-danger/10 hover:text-danger"
                                                             >
                                                                 <Trash2 className="h-4 w-4" />
                                                             </button>
@@ -373,9 +343,9 @@ const FAQManagement = () => {
                                                     </div>
                                                     <div
                                                         onClick={() => setExpandedId(expandedId === faq.id ? null : faq.id)}
-                                                        className="cursor-pointer group"
+                                                        className="group cursor-pointer"
                                                     >
-                                                        <h3 className="text-base font-black text-slate-900 group-hover:text-pink-600 transition-colors flex items-center justify-between">
+                                                        <h3 className="flex items-center justify-between text-sm font-black text-slate-900 transition-colors group-hover:text-primary">
                                                             {faq.question}
                                                             {expandedId === faq.id ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
                                                         </h3>
@@ -392,18 +362,18 @@ const FAQManagement = () => {
                                                         transition={{ duration: 0.3 }}
                                                         className="overflow-hidden"
                                                     >
-                                                        <div className="mt-6 pt-6 border-t border-slate-50 ml-14">
-                                                            <div className="bg-slate-50 p-6 rounded-xl relative">
-                                                                <p className="text-sm font-bold text-slate-600 leading-relaxed italic">
+                                                        <div className="ml-12 mt-4 border-t border-slate-100 pt-4">
+                                                            <div className="rounded-xl bg-slate-50 p-4">
+                                                                <p className="text-sm font-medium italic leading-relaxed text-slate-600">
                                                                     "{faq.answer}"
                                                                 </p>
                                                             </div>
-                                                            <div className="flex items-center justify-between mt-4">
-                                                                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-2">
+                                                            <div className="mt-3 flex items-center justify-between">
+                                                                <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-300">
                                                                     <ArrowUpRight className="h-3 w-3" />
                                                                     Category: <span className="text-slate-500">{faq.category}</span>
                                                                 </span>
-                                                                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
+                                                                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">
                                                                     Updated: {faq.lastUpdated}
                                                                 </span>
                                                             </div>
@@ -419,7 +389,7 @@ const FAQManagement = () => {
                     </div>
                 </div>
             </div>
-            <div className="mt-6 flex justify-center">
+            <div className="flex justify-center">
                 <Pagination
                     page={page}
                     totalPages={Math.ceil(total / pageSize) || 1}
@@ -445,63 +415,61 @@ const FAQManagement = () => {
                 title={editingFaqId ? `Edit Question: ${editingFaqId}` : "Create New FAQ"}
                 size="lg"
             >
-                <form onSubmit={handleSaveFaq} className="space-y-6 text-left">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Category</label>
-                                <select
-                                    value={newFaq.category}
-                                    onChange={(e) => setNewFaq({ ...newFaq, category: e.target.value })}
-                                    className="w-full px-5 py-3.5 bg-slate-50 border-none rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-pink-500/10 transition-all shadow-sm cursor-pointer"
-                                >
-                                    {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Visibility State</label>
-                                <div className="flex bg-slate-100 p-1 rounded-2xl">
-                                    <button
-                                        type="button"
-                                        onClick={() => setNewFaq({ ...newFaq, status: 'published' })}
-                                        className={cn("flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", newFaq.status === 'published' ? "bg-white text-pink-600 shadow-sm" : "text-slate-400")}
-                                    >PUBLISHED</button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setNewFaq({ ...newFaq, status: 'draft' })}
-                                        className={cn("flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", newFaq.status === 'draft' ? "bg-white text-pink-600 shadow-sm" : "text-slate-400")}
-                                    >DRAFT</button>
-                                </div>
+                <form onSubmit={handleSaveFaq} className="space-y-5">
+                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                        <div>
+                            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Category</label>
+                            <select
+                                value={newFaq.category}
+                                onChange={(e) => setNewFaq({ ...newFaq, category: e.target.value })}
+                                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-sm font-semibold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                            >
+                                {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Visibility State</label>
+                            <div className="flex rounded-lg bg-slate-100 p-1">
+                                <button
+                                    type="button"
+                                    onClick={() => setNewFaq({ ...newFaq, status: 'published' })}
+                                    className={cn("flex-1 rounded-md py-2 text-[10px] font-bold uppercase tracking-widest transition-all", newFaq.status === 'published' ? "bg-white text-primary shadow-sm" : "text-slate-400")}
+                                >Published</button>
+                                <button
+                                    type="button"
+                                    onClick={() => setNewFaq({ ...newFaq, status: 'draft' })}
+                                    className={cn("flex-1 rounded-md py-2 text-[10px] font-bold uppercase tracking-widest transition-all", newFaq.status === 'draft' ? "bg-white text-primary shadow-sm" : "text-slate-400")}
+                                >Draft</button>
                             </div>
                         </div>
                     </div>
                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Question</label>
+                        <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Question</label>
                         <input
                             type="text"
                             required
                             value={newFaq.question}
                             onChange={(e) => setNewFaq({ ...newFaq, question: e.target.value })}
                             placeholder="Enter the question..."
-                            className="w-full px-5 py-5 bg-slate-50 border-none rounded-2xl text-base font-black outline-none focus:ring-2 focus:ring-pink-500/10 transition-all shadow-sm"
+                            className="h-11 w-full rounded-md border border-slate-200 bg-white px-3.5 text-sm font-semibold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                         />
                     </div>
                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Answer</label>
+                        <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Answer</label>
                         <textarea
                             rows={4}
                             required
                             value={newFaq.answer}
                             onChange={(e) => setNewFaq({ ...newFaq, answer: e.target.value })}
                             placeholder="Type the answer here..."
-                            className="w-full px-5 py-5 bg-slate-50 border-none rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-pink-500/10 transition-all shadow-sm resize-none"
+                            className="w-full resize-none rounded-md border border-slate-200 bg-white px-3.5 py-3 text-sm font-medium outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                         />
                     </div>
-                    <div className="flex gap-4">
-                        <button type="button" onClick={() => setIsAddModalOpen(false)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-slate-200 transition-all">CANCEL</button>
-                        <button type="submit" className="flex-[2] py-4 bg-pink-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-pink-700 shadow-xl shadow-pink-100 transition-all flex items-center justify-center gap-2">
-                            <Save className="h-4 w-4" /> SAVE FAQ
-                        </button>
+                    <div className="flex gap-3">
+                        <Button type="button" variant="outline" className="flex-1" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
+                        <Button type="submit" className="flex-[2]">
+                            <Save className="h-4 w-4" /> Save FAQ
+                        </Button>
                     </div>
                 </form>
             </Modal>
@@ -511,32 +479,32 @@ const FAQManagement = () => {
                 onClose={() => setIsCategoryModalOpen(false)}
                 title="Manage Categories"
             >
-                <div className="space-y-6 text-left">
-                    <div className="space-y-3">
+                <div className="space-y-5">
+                    <div className="space-y-2">
                         {categories.map((cat) => (
-                            <div key={cat.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                <div className="flex items-center gap-4">
-                                    <div className={cn("h-4 w-4 rounded-full shadow-sm", `bg-${cat.color}-500`)} />
-                                    <span className="text-sm font-black text-slate-900">{cat.name}</span>
+                            <div key={cat.id} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-3">
+                                <div className="flex items-center gap-3">
+                                    <div className={cn("h-3.5 w-3.5 rounded-full", `bg-${cat.color}-500`)} />
+                                    <span className="text-sm font-bold text-slate-900">{cat.name}</span>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <button onClick={() => handleDeleteCategory(cat.name)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-white rounded-lg transition-all"><Trash2 className="h-4 w-4" /></button>
-                                </div>
+                                <button onClick={() => handleDeleteCategory(cat.name)} className="rounded-lg p-2 text-slate-400 transition-all hover:bg-white hover:text-danger">
+                                    <Trash2 className="h-4 w-4" />
+                                </button>
                             </div>
                         ))}
                     </div>
-                    <div className="relative group">
-                        <Plus className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-brand-500" />
+                    <div className="relative">
+                        <Plus className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                         <input
                             type="text"
                             value={newCategoryName}
                             onChange={(e) => setNewCategoryName(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()}
                             placeholder="New Category Label..."
-                            className="w-full pl-11 pr-4 py-4 bg-white ring-1 ring-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
+                            className="h-10 w-full rounded-md border border-slate-200 bg-white pl-10 pr-4 text-[10px] font-bold uppercase tracking-widest outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                         />
                     </div>
-                    <button onClick={handleAddCategory} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-slate-800 transition-all">GENERATE NEW CATEGORY</button>
+                    <Button className="w-full" onClick={handleAddCategory}>Generate New Category</Button>
                 </div>
             </Modal>
         </div>

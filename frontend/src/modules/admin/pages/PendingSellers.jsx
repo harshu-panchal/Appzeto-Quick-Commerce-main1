@@ -1,7 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Card from '@shared/components/ui/Card';
 import Badge from '@shared/components/ui/Badge';
+import Button from '@shared/components/ui/Button';
+import PageHeader from '@shared/components/ui/PageHeader';
+import StatCard from '@shared/components/ui/StatCard';
+import FilterBar from '@shared/components/ui/FilterBar';
+import DataTable from '@shared/components/ui/DataTable';
+import EmptyState from '@shared/components/ui/EmptyState';
+import { SkeletonStatCard, SkeletonCard } from '@shared/components/ui/Skeleton';
 import {
     HiOutlineBuildingOffice2,
     HiOutlineMagnifyingGlass,
@@ -175,159 +181,150 @@ const PendingSellers = () => {
         }
     };
 
-    return (
-        <div className="ds-section-spacing animate-in fade-in slide-in-from-bottom-2 duration-700 pb-16">
-            {/* Page Header */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div>
-                    <h1 className="ds-h1 flex items-center gap-2">
-                        Pending Approvals
-                        <Badge variant="warning" className="admin-tiny px-1.5 py-0 font-bold animate-pulse">Action Required</Badge>
-                    </h1>
-                    <p className="ds-description mt-0.5">Check new seller applications before they can start selling.</p>
-                </div>
-                <div className="flex items-center gap-2 bg-amber-50 px-4 py-2 rounded-xl ring-1 ring-amber-100">
-                    <HiOutlineClock className="h-4 w-4 text-amber-600" />
-                    <span className="text-[10px] font-bold text-amber-700 uppercase tracking-widest">Avg Review Time: {summaryStats.avgReviewTimeHours}h</span>
-                </div>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {[
-                    { label: 'Total Applications', val: stats.total, icon: HiOutlineDocumentText, color: 'text-brand-600', bg: 'bg-brand-50' },
-                    { label: 'Received Today', val: stats.today, icon: HiOutlineCalendarDays, color: 'text-brand-600', bg: 'bg-brand-50' },
-                    { label: 'Missing Info', val: stats.urgent, icon: HiOutlineXCircle, color: 'text-rose-600', bg: 'bg-rose-50' }
-                ].map((stat, i) => (
-                    <Card key={i} className="border-none shadow-sm ring-1 ring-slate-100 p-5">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="ds-label">{stat.label}</p>
-                                <h4 className="ds-stat-medium mt-1">{stat.val}</h4>
-                            </div>
-                            <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center shadow-inner", stat.bg, stat.color)}>
-                                <stat.icon className="h-6 w-6" />
-                            </div>
-                        </div>
-                    </Card>
-                ))}
-            </div>
-
-            {/* Content Area */}
-            <Card className="border-none shadow-xl ring-1 ring-slate-100 overflow-hidden rounded-xl">
-                <div className="p-6 border-b border-slate-50 flex flex-col md:flex-row gap-4 items-center justify-between bg-white">
-                    <div className="relative flex-1 w-full max-w-md">
-                        <HiOutlineMagnifyingGlass className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder="Search by shop name or owner..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-xs font-semibold outline-none focus:ring-2 focus:ring-primary/10"
-                        />
+    const sellerColumns = [
+        {
+            header: 'Applicant Store',
+            key: 'store',
+            cell: (s) => (
+                <div className="flex cursor-pointer items-center gap-3" onClick={() => navigate(`/admin/sellers/active/${s.id}`)}>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
+                        <HiOutlineBuildingOffice2 className="h-5 w-5" />
                     </div>
-                    <button className="flex items-center gap-2 px-4 py-2.5 bg-white ring-1 ring-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all">
-                        <HiOutlineFunnel className="h-4 w-4" />
-                        <span>Filter by Date</span>
+                    <div>
+                        <p className="text-sm font-bold text-slate-900 hover:text-primary">{s.shopName}</p>
+                        <p className="text-[11px] font-medium text-slate-400">{s.ownerName}</p>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            header: 'Documentation',
+            key: 'docs',
+            cell: (s) => (
+                <div className="flex flex-wrap items-center gap-1.5">
+                    {(s.documents || []).map((doc, idx) => (
+                        <Badge key={idx} variant="info">{doc}</Badge>
+                    ))}
+                </div>
+            ),
+        },
+        {
+            header: 'Applied On',
+            key: 'applied',
+            cell: (s) => (
+                <div>
+                    <p className="text-xs font-bold text-slate-700">{s.applicationDate}</p>
+                    <p className="text-[11px] font-medium text-slate-400">Received {s.receivedAt || 'Recently'}</p>
+                </div>
+            ),
+        },
+        {
+            header: 'Actions',
+            key: 'actions',
+            align: 'right',
+            cell: (s) => (
+                <div className="flex items-center justify-end gap-2">
+                    {s.documents && s.documents.length > 0 && (
+                        <button
+                            onClick={() => handleApprove(s.id)}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg bg-success/10 text-success transition-all hover:bg-success hover:text-white"
+                            title="Quick Approve"
+                        >
+                            <HiOutlineCheckCircle className="h-4.5 w-4.5" />
+                        </button>
+                    )}
+                    <button
+                        onClick={() => handleReject(s.id)}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-danger/10 text-danger transition-all hover:bg-danger hover:text-white"
+                        title="Quick Reject"
+                    >
+                        <HiOutlineXCircle className="h-4.5 w-4.5" />
+                    </button>
+                    <div className="mx-1 h-4 w-px bg-slate-200" />
+                    <button
+                        onClick={() => { setViewingSeller(s); setIsReviewModalOpen(true); }}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-[11px] font-bold text-white transition-all hover:bg-slate-800"
+                    >
+                        <HiOutlineEye className="h-3.5 w-3.5" />
+                        Review
                     </button>
                 </div>
+            ),
+        },
+    ];
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-slate-50/50 border-b border-slate-100">
-                                <th className="ds-table-header-cell px-6">Applicant Store</th>
-                                <th className="ds-table-header-cell px-6">Documentation</th>
-                                <th className="ds-table-header-cell px-6">Applied On</th>
-                                <th className="ds-table-header-cell px-6 !text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                            {isLoading ? (
-                                <tr>
-                                    <td colSpan="4" className="px-6 py-20 text-center">
-                                        <div className="flex flex-col items-center justify-center gap-3">
-                                            <HiOutlineArrowPath className="h-8 w-8 text-slate-300 animate-spin" />
-                                            <p className="text-slate-500 font-bold text-sm">Loading seller applications...</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : filteredSellers.length > 0 ? filteredSellers.map((s) => (
-                                <tr key={s.id} className="hover:bg-slate-50/30 transition-colors group">
-                                    <td className="px-6 py-5 align-middle">
-                                        <div
-                                            className="flex items-center gap-4 cursor-pointer group/name"
-                                            onClick={() => navigate(`/admin/sellers/active/${s.id}`)}
-                                        >
-                                            <div className="h-10 w-10 rounded-xl overflow-hidden bg-slate-100 ring-2 ring-slate-100 group-hover:ring-primary/20 transition-all">
-                                                <div className="h-full w-full flex items-center justify-center bg-slate-100 text-slate-400">
-                                                    <HiOutlineBuildingOffice2 className="h-5 w-5" />
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-bold text-slate-900 group-hover/name:text-primary transition-colors">{s.shopName}</p>
-                                                <p className="text-[10px] font-bold text-slate-400">{s.ownerName}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-5 align-middle">
-                                        <div className="flex flex-wrap gap-1.5 items-center">
-                                            {(s.documents || []).map((doc, idx) => (
-                                                <span key={idx} className="px-2 py-0.5 bg-brand-50 text-brand-600 text-[8px] font-bold rounded-full ring-1 ring-brand-100 uppercase">{doc}</span>
-                                            ))}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-5 align-middle">
-                                        <div className="flex flex-col justify-center">
-                                            <span className="text-xs font-bold text-slate-700">{s.applicationDate}</span>
-                                            <span className="text-[9px] font-medium text-slate-400">Received {s.receivedAt || 'Recently'}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-5 text-right align-middle">
-                                        <div className="flex items-center justify-end gap-3 h-full">
-                                            {s.documents && s.documents.length > 0 && (
-                                                <button
-                                                    onClick={() => handleApprove(s.id)}
-                                                    className="h-8 w-8 flex items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all ring-1 ring-emerald-100"
-                                                    title="Quick Approve"
-                                                >
-                                                    <HiOutlineCheckCircle className="h-5 w-5" />
-                                                </button>
-                                            )}
-                                            <button
-                                                onClick={() => handleReject(s.id)}
-                                                className="h-8 w-8 flex items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition-all ring-1 ring-rose-100"
-                                                title="Quick Reject"
-                                            >
-                                                <HiOutlineXCircle className="h-5 w-5" />
-                                            </button>
-                                            <div className="w-[1px] h-4 bg-slate-200 mx-1" />
-                                            <button
-                                                onClick={() => { setViewingSeller(s); setIsReviewModalOpen(true); }}
-                                                className="h-9 px-4 bg-black  text-primary-foreground rounded-xl text-[10px] font-bold hover:bg-brand-700 transition-all shadow-md shadow-brand-100 hover:-translate-y-0.5 flex items-center gap-2"
-                                            >
-                                                <HiOutlineEye className="h-4 w-4" />
-                                                REVIEW
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )) : (
-                                <tr>
-                                    <td colSpan="4" className="px-6 py-20 text-center">
-                                        <div className="flex flex-col items-center justify-center">
-                                            <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                                                <HiOutlineCheckCircle className="h-8 w-8 text-slate-200" />
-                                            </div>
-                                            <p className="text-slate-500 font-bold text-sm">All caught up! No pending applications.</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+    return (
+        <div className="space-y-5">
+            <PageHeader
+                title={
+                    <span className="flex items-center gap-2">
+                        Pending Approvals
+                        <Badge variant="warning">Action Required</Badge>
+                    </span>
+                }
+                description="Check new seller applications before they can start selling."
+                actions={
+                    <div className="flex items-center gap-2 rounded-lg border border-warning/20 bg-warning/10 px-3 py-1.5">
+                        <HiOutlineClock className="h-3.5 w-3.5 text-warning" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-warning">Avg Review Time: {summaryStats.avgReviewTimeHours}h</span>
+                    </div>
+                }
+            />
+
+            {isLoading && pendingSellers.length === 0 ? (
+                <div className="space-y-5">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        {Array.from({ length: 3 }).map((_, i) => <SkeletonStatCard key={i} />)}
+                    </div>
+                    <SkeletonCard lines={6} />
                 </div>
-            </Card>
+            ) : (
+                <>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        {[
+                            { label: 'Total Applications', val: stats.total, icon: HiOutlineDocumentText, color: 'text-primary', bg: 'bg-primary/10' },
+                            { label: 'Received Today', val: stats.today, icon: HiOutlineCalendarDays, color: 'text-info', bg: 'bg-info/10' },
+                            { label: 'Missing Info', val: stats.urgent, icon: HiOutlineXCircle, color: 'text-danger', bg: 'bg-danger/10' },
+                        ].map((stat, i) => (
+                            <StatCard key={i} label={stat.label} value={stat.val} icon={stat.icon} color={stat.color} bg={stat.bg} />
+                        ))}
+                    </div>
+
+                    <FilterBar
+                        left={
+                            <div className="relative w-full sm:w-80">
+                                <HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search by shop name or owner..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="h-9 w-full rounded-md border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                />
+                            </div>
+                        }
+                        right={
+                            <button className="flex h-9 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+                                <HiOutlineFunnel className="h-4 w-4" />
+                                Filter by Date
+                            </button>
+                        }
+                    />
+
+                    <DataTable
+                        columns={sellerColumns}
+                        data={filteredSellers}
+                        rowKey={(s) => s.id}
+                        emptyState={
+                            <EmptyState
+                                icon={<HiOutlineCheckCircle className="h-6 w-6" />}
+                                title="All caught up!"
+                                description="No pending seller applications right now."
+                            />
+                        }
+                    />
+                </>
+            )}
 
             {/* Review Modal */}
             <AnimatePresence>
@@ -352,7 +349,7 @@ const PendingSellers = () => {
                                     {/* Sidebar Info */}
                                     <div className="lg:col-span-4 bg-slate-50 p-4 border-r border-slate-100">
                                         <div className="flex justify-between items-start mb-8">
-                                            <div className="h-20 w-20 rounded-xl bg-white shadow-xl flex items-center justify-center ds-stat-large font-bold text-primary border-4 border-white">
+                                            <div className="h-20 w-20 rounded-xl bg-white shadow-md flex items-center justify-center text-3xl font-black text-primary border-4 border-white">
                                                 {(viewingSeller.shopName || 'S').charAt(0)}
                                             </div>
                                             <button
@@ -365,8 +362,8 @@ const PendingSellers = () => {
 
                                         <div className="space-y-6">
                                             <div>
-                                                <h3 className="ds-h2 leading-tight">{viewingSeller.shopName}</h3>
-                                                <p className="text-xs font-bold text-primary mt-1 uppercase tracking-widest">{viewingSeller.category || 'General'} PARTNER</p>
+                                                <h3 className="text-lg font-bold leading-tight text-slate-900">{viewingSeller.shopName}</h3>
+                                                <p className="text-xs font-bold text-primary mt-1 uppercase tracking-widest">{viewingSeller.category || 'General'} Partner</p>
                                             </div>
 
                                             <div className="space-y-4">
@@ -406,10 +403,10 @@ const PendingSellers = () => {
                                             <HiOutlineXMark className="h-6 w-6 text-slate-300" />
                                         </button>
 
-                                        <div className="ds-section-spacing">
+                                        <div className="space-y-6">
                                             <div>
                                                 <div className="flex items-center gap-2 mb-2">
-                                                    <HiOutlineDocumentText className="h-5 w-5 text-brand-500" />
+                                                    <HiOutlineDocumentText className="h-5 w-5 text-primary" />
                                                     <h4 className="text-sm font-bold text-slate-900">Submitted Verification Documents</h4>
                                                 </div>
                                                 <p className="text-xs text-slate-400 font-medium">Check each document before final approval.</p>
@@ -419,25 +416,22 @@ const PendingSellers = () => {
                                                 {reviewDocuments.length > 0 ? reviewDocuments.map((doc) => (
                                                     <div
                                                         key={doc.key}
-                                                        className={`p-4 rounded-2xl border-2 transition-all group ${doc.isViewable
-                                                                ? 'border-slate-50 bg-slate-50/50 hover:bg-white hover:border-brand-100'
-                                                                : 'border-slate-100 bg-slate-50/70'
-                                                            }`}
+                                                        className={cn(
+                                                            "rounded-xl border p-4 transition-all",
+                                                            doc.isViewable ? "border-slate-100 bg-slate-50 hover:border-primary/20 hover:bg-white" : "border-slate-100 bg-slate-50"
+                                                        )}
                                                     >
                                                         <div className="flex items-center justify-between gap-4">
-                                                            <div className="flex items-center gap-3 min-w-0">
-                                                                <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center shadow-sm shrink-0 group-hover:scale-110 transition-transform">
-                                                                    <HiOutlineDocumentText className="h-5 w-5 text-brand-400" />
+                                                            <div className="flex min-w-0 items-center gap-3">
+                                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+                                                                    <HiOutlineDocumentText className="h-5 w-5 text-primary" />
                                                                 </div>
                                                                 <div className="min-w-0">
                                                                     <p className="text-xs font-bold text-slate-700">{doc.label}</p>
-                                                                    <p className={`text-[9px] font-bold uppercase tracking-tighter truncate ${doc.isViewable ? 'text-brand-500' : 'text-amber-500'
-                                                                        }`}>
+                                                                    <p className={cn("truncate text-[10px] font-bold uppercase tracking-tight", doc.isViewable ? "text-primary" : "text-warning")}>
                                                                         {doc.isViewable
-                                                                            ? doc.fileType === 'pdf'
-                                                                                ? 'SECURE PDF'
-                                                                                : 'SECURE IMAGE'
-                                                                            : 'FILE LINK NOT AVAILABLE'}
+                                                                            ? doc.fileType === 'pdf' ? 'Secure PDF' : 'Secure Image'
+                                                                            : 'File Link Not Available'}
                                                                     </p>
                                                                 </div>
                                                             </div>
@@ -446,33 +440,33 @@ const PendingSellers = () => {
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => handleOpenDocument(doc.url)}
-                                                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-bold uppercase tracking-wider hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
+                                                                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-slate-800"
                                                                 >
                                                                     <HiOutlineArrowTopRightOnSquare className="h-3.5 w-3.5" />
-                                                                    <span>View</span>
+                                                                    View
                                                                 </button>
                                                             ) : (
-                                                                <div className="h-6 w-6 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+                                                                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-warning/10 text-warning">
                                                                     <HiOutlineXMark className="h-3.5 w-3.5" />
                                                                 </div>
                                                             )}
                                                         </div>
                                                     </div>
                                                 )) : (
-                                                    <div className="md:col-span-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
+                                                    <div className="md:col-span-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
                                                         <p className="text-sm font-bold text-slate-500">No documents were submitted with this application.</p>
                                                     </div>
                                                 )}
                                             </div>
 
-                                            <div className="bg-amber-50 rounded-xl p-6 border border-amber-100/50">
+                                            <div className="rounded-xl border border-warning/20 bg-warning/10 p-5">
                                                 <div className="flex gap-4">
-                                                    <div className="h-10 w-10 rounded-full bg-amber-200 flex items-center justify-center shrink-0">
-                                                        <HiOutlineCheckCircle className="h-6 w-6 text-amber-700" />
+                                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning/20 text-warning">
+                                                        <HiOutlineCheckCircle className="h-6 w-6" />
                                                     </div>
                                                     <div>
-                                                        <h5 className="text-xs font-bold text-amber-900">Initial Review Passed</h5>
-                                                        <p className="text-[10px] text-amber-700/80 font-medium mt-1 leading-relaxed">
+                                                        <h5 className="text-xs font-bold text-slate-900">Initial Review Passed</h5>
+                                                        <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-600">
                                                             Our system automatically checked all basic identity and shop locations. You need to check documents manually now.
                                                         </p>
                                                     </div>
@@ -480,32 +474,25 @@ const PendingSellers = () => {
                                             </div>
 
                                             {/* Action Bar */}
-                                            <div className="flex items-center gap-4 pt-6">
-                                                <button
+                                            <div className="flex items-center gap-3 pt-2">
+                                                <Button
+                                                    variant="outline"
                                                     disabled={isProcessing}
                                                     onClick={() => handleReject(viewingSeller.id)}
-                                                    className="flex-1 py-4 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 rounded-2xl text-[10px] font-bold tracking-widest transition-all uppercase"
+                                                    className="flex-1"
                                                 >
-                                                    REJECT APPLICATION
-                                                </button>
+                                                    Reject Application
+                                                </Button>
                                                 {reviewDocuments.length > 0 && (
-                                                    <button
+                                                    <Button
                                                         disabled={isProcessing}
+                                                        isLoading={isProcessing}
                                                         onClick={() => handleApprove(viewingSeller.id)}
-                                                        className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-bold tracking-widest shadow-2xl hover:bg-slate-800 transition-all transform active:scale-[0.98] uppercase flex items-center justify-center gap-2"
+                                                        className="flex-[2]"
                                                     >
-                                                        {isProcessing ? (
-                                                            <>
-                                                                <HiOutlineArrowPath className="h-4 w-4 animate-spin" />
-                                                                <span>FINALIZING...</span>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <HiOutlineCheckCircle className="h-4 w-4" />
-                                                                <span>APPROVE SELLER</span>
-                                                            </>
-                                                        )}
-                                                    </button>
+                                                        {!isProcessing && <HiOutlineCheckCircle className="h-4 w-4" />}
+                                                        {isProcessing ? 'Finalizing...' : 'Approve Seller'}
+                                                    </Button>
                                                 )}
                                             </div>
                                         </div>

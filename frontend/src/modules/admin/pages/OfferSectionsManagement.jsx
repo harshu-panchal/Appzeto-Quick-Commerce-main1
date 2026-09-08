@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Card from "@shared/components/ui/Card";
 import Badge from "@shared/components/ui/Badge";
+import Button from "@shared/components/ui/Button";
 import Modal from "@shared/components/ui/Modal";
+import PageHeader from "@shared/components/ui/PageHeader";
+import EmptyState from "@shared/components/ui/EmptyState";
 import { useToast } from "@shared/components/ui/Toast";
 import {
   HiOutlinePlus,
@@ -242,34 +245,26 @@ const OfferSectionsManagement = () => {
   };
 
   return (
-    <div className="ds-section-spacing animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-1 mb-6">
-        <div>
-          <h1 className="ds-h1 flex items-center gap-3">
+    <div className="space-y-5">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
             Offer Sections
-            <Badge
-              variant="primary"
-              className="text-[10px] font-black uppercase tracking-widest"
-            >
-              Category → Products
-            </Badge>
-          </h1>
-          <p className="ds-description mt-1">
-            Categories → Sellers → Products. Pick multiple categories and sellers, then choose products. Set banner colour and side image per section.
-          </p>
-        </div>
-        <button
-          onClick={openCreateModal}
-          className="flex items-center gap-2 px-6 py-3.5 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] active:scale-95 transition-all"
-        >
-          <HiOutlinePlus className="h-5 w-5" />
-          New Section
-        </button>
-      </div>
+            <Badge variant="primary">Category → Products</Badge>
+          </span>
+        }
+        description="Categories → Sellers → Products. Pick multiple categories and sellers, then choose products. Set banner colour and side image per section."
+        actions={
+          <Button onClick={openCreateModal}>
+            <HiOutlinePlus className="h-4 w-4" />
+            New Section
+          </Button>
+        }
+      />
 
-      <Card className="border-none shadow-xl ring-1 ring-slate-100 bg-white rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-slate-50 flex items-center justify-between">
-          <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+      <Card className="overflow-hidden p-0">
+        <div className="flex items-center justify-between border-b border-slate-100 p-4">
+          <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
             Sections ({sections.length})
           </h2>
           {isLoading && (
@@ -283,8 +278,6 @@ const OfferSectionsManagement = () => {
             const sideOpt = SIDE_IMAGE_OPTIONS.find(
               (o) => o.key === section.sideImageKey
             );
-            const sectionCatIds = (section.categoryIds || []).map((c) => (typeof c === "object" && c?._id ? c._id : c));
-            const sectionSellerIds = (section.sellerIds || []).map((s) => (typeof s === "object" && s?._id ? s._id : s));
             const catNames = (section.categoryIds || []).length
               ? (section.categoryIds || []).map((c) => (typeof c === "object" && c?.name ? c.name : categoryMap[c]?.name || c)).join(", ")
               : (section.categoryId?.name || "—");
@@ -295,11 +288,11 @@ const OfferSectionsManagement = () => {
             return (
               <div
                 key={section._id}
-                className="px-4 py-4 flex flex-col md:flex-row md:items-center gap-4 hover:bg-slate-50/40 transition-colors"
+                className="flex flex-col gap-4 px-4 py-4 transition-colors hover:bg-slate-50/40 md:flex-row md:items-center"
               >
                 <div className="flex items-center gap-3 md:min-w-[200px]">
                   <div
-                    className="h-14 w-14 rounded-2xl flex-shrink-0 bg-cover bg-center ring-2 ring-slate-100"
+                    className="h-12 w-12 flex-shrink-0 rounded-xl border border-slate-100 bg-cover bg-center"
                     style={{
                       backgroundColor: section.backgroundColor || "#FCD34D",
                       backgroundImage: sideOpt?.imageUrl
@@ -316,9 +309,9 @@ const OfferSectionsManagement = () => {
                     </p>
                   </div>
                 </div>
-                <div className="flex-1 flex items-center gap-2">
+                <div className="flex flex-1 items-center gap-2">
                   <span
-                    className="inline-block w-6 h-6 rounded-full border border-slate-200"
+                    className="inline-block h-6 w-6 rounded-full border border-slate-200"
                     style={{
                       backgroundColor: section.backgroundColor || "#FCD34D",
                     }}
@@ -334,8 +327,8 @@ const OfferSectionsManagement = () => {
                       disabled={idx === 0}
                       onClick={() => handleReorder("up", section)}
                       className={cn(
-                        "p-1.5 rounded-xl border text-slate-400 hover:text-slate-700 hover:bg-slate-50",
-                        idx === 0 && "opacity-30 cursor-not-allowed"
+                        "rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:bg-slate-50 hover:text-slate-700",
+                        idx === 0 && "cursor-not-allowed opacity-30"
                       )}
                     >
                       <HiOutlineArrowUpCircle className="h-4 w-4" />
@@ -344,9 +337,9 @@ const OfferSectionsManagement = () => {
                       disabled={idx === sections.length - 1}
                       onClick={() => handleReorder("down", section)}
                       className={cn(
-                        "p-1.5 rounded-xl border text-slate-400 hover:text-slate-700 hover:bg-slate-50",
+                        "rounded-lg border border-slate-200 p-1.5 text-slate-400 hover:bg-slate-50 hover:text-slate-700",
                         idx === sections.length - 1 &&
-                        "opacity-30 cursor-not-allowed"
+                        "cursor-not-allowed opacity-30"
                       )}
                     >
                       <HiOutlineArrowDownCircle className="h-4 w-4" />
@@ -354,29 +347,27 @@ const OfferSectionsManagement = () => {
                   </div>
                   <button
                     onClick={() => openEditModal(section)}
-                    className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl"
+                    className="rounded-lg p-2 text-slate-400 transition-all hover:bg-primary/10 hover:text-primary"
                   >
-                    <HiOutlinePencilSquare className="h-5 w-5" />
+                    <HiOutlinePencilSquare className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => handleDelete(section._id)}
-                    className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl"
+                    className="rounded-lg p-2 text-slate-400 transition-all hover:bg-danger/10 hover:text-danger"
                   >
-                    <HiOutlineTrash className="h-5 w-5" />
+                    <HiOutlineTrash className="h-4 w-4" />
                   </button>
                 </div>
               </div>
             );
           })}
           {sections.length === 0 && !isLoading && (
-            <div className="p-16 text-center">
-              <HiOutlinePhoto className="h-12 w-12 text-slate-200 mx-auto mb-3" />
-              <h3 className="text-lg font-black text-slate-900">
-                No offer sections yet
-              </h3>
-              <p className="text-sm font-bold text-slate-400 mt-2">
-                Click &quot;New Section&quot;: pick categories → sellers → products, then colour & side image.
-              </p>
+            <div className="p-4">
+              <EmptyState
+                icon={<HiOutlinePhoto className="h-6 w-6" />}
+                title="No offer sections yet"
+                description={'Click "New Section": pick categories → sellers → products, then colour & side image.'}
+              />
             </div>
           )}
         </div>
@@ -387,9 +378,9 @@ const OfferSectionsManagement = () => {
         onClose={() => setIsModalOpen(false)}
         title={editingSection ? "Edit Offer Section" : "New Offer Section"}
       >
-        <form onSubmit={handleSave} className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+        <form onSubmit={handleSave} className="space-y-5">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
               Section title
             </label>
             <input
@@ -398,15 +389,15 @@ const OfferSectionsManagement = () => {
                 setFormData((prev) => ({ ...prev, title: e.target.value }))
               }
               placeholder="E.g. Trending Tuesday!"
-              className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-bold outline-none ring-1 ring-transparent focus:ring-primary/20"
+              className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
               Categories (choose one or more)
             </label>
-            <div className="flex flex-wrap gap-1.5 border border-slate-100 rounded-xl p-3 bg-slate-50/50 max-h-32 overflow-y-auto">
+            <div className="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto rounded-xl border border-slate-100 bg-slate-50/50 p-3">
               {categories.map((c) => {
                 const selected = formData.categoryIds.includes(c._id);
                 return (
@@ -423,10 +414,10 @@ const OfferSectionsManagement = () => {
                       }))
                     }
                     className={cn(
-                      "px-2.5 py-1.5 rounded-full text-[11px] font-bold border transition-all",
+                      "rounded-full border px-2.5 py-1.5 text-[11px] font-bold transition-all",
                       selected
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                        ? "border-primary bg-primary text-white"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                     )}
                   >
                     {c.name}
@@ -436,11 +427,11 @@ const OfferSectionsManagement = () => {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
               Sellers (choose one or more – products will be from these sellers)
             </label>
-            <div className="flex flex-wrap gap-1.5 border border-slate-100 rounded-xl p-3 bg-slate-50/50 max-h-32 overflow-y-auto">
+            <div className="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto rounded-xl border border-slate-100 bg-slate-50/50 p-3">
               {sellers.map((s) => {
                 const selected = formData.sellerIds.includes(s._id);
                 return (
@@ -457,10 +448,10 @@ const OfferSectionsManagement = () => {
                       }))
                     }
                     className={cn(
-                      "px-2.5 py-1.5 rounded-full text-[11px] font-bold border transition-all",
+                      "rounded-full border px-2.5 py-1.5 text-[11px] font-bold transition-all",
                       selected
-                        ? "bg-black  text-primary-foreground border-brand-600"
-                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                        ? "border-primary bg-primary text-white"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                     )}
                   >
                     {s.shopName || s.name || s.email}
@@ -471,11 +462,11 @@ const OfferSectionsManagement = () => {
           </div>
 
           {(formData.categoryIds.length > 0 || formData.sellerIds.length > 0) && (
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                 Products (from selected categories & sellers)
               </label>
-              <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pr-1 border border-slate-100 rounded-xl p-3 bg-slate-50/50">
+              <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto rounded-xl border border-slate-100 bg-slate-50/50 p-3 pr-1">
                 {productsFiltered.length === 0 ? (
                   <span className="text-[11px] text-slate-400">
                     No products match. Add categories and/or sellers.
@@ -496,10 +487,10 @@ const OfferSectionsManagement = () => {
                           }))
                         }
                         className={cn(
-                          "px-2.5 py-1.5 rounded-full text-[11px] font-bold border transition-all",
+                          "rounded-full border px-2.5 py-1.5 text-[11px] font-bold transition-all",
                           selected
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                            ? "border-primary bg-primary text-white"
+                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                         )}
                       >
                         {p.name}
@@ -511,8 +502,8 @@ const OfferSectionsManagement = () => {
             </div>
           )}
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
               Banner colour
             </label>
             <div className="flex flex-wrap gap-2">
@@ -527,15 +518,15 @@ const OfferSectionsManagement = () => {
                     }))
                   }
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-2 rounded-2xl text-[11px] font-bold border-2 transition-all",
+                    "flex items-center gap-1.5 rounded-xl border-2 px-3 py-2 text-[11px] font-bold transition-all",
                     formData.backgroundColor === opt.value
-                      ? "border-slate-900 ring-2 ring-offset-2 ring-slate-400"
+                      ? "border-primary ring-2 ring-primary/20 ring-offset-2"
                       : "border-slate-200 hover:border-slate-300"
                   )}
                   title={opt.label}
                 >
                   <span
-                    className="w-5 h-5 rounded-full border border-slate-200"
+                    className="h-5 w-5 rounded-full border border-slate-200"
                     style={{ backgroundColor: opt.value }}
                   />
                   {opt.label}
@@ -544,8 +535,8 @@ const OfferSectionsManagement = () => {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
               Side image (choose one)
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -560,7 +551,7 @@ const OfferSectionsManagement = () => {
                     }))
                   }
                   className={cn(
-                    "rounded-xl overflow-hidden border-2 transition-all aspect-square bg-slate-100",
+                    "aspect-square overflow-hidden rounded-xl border-2 bg-slate-100 transition-all",
                     formData.sideImageKey === opt.key
                       ? "border-primary ring-2 ring-primary/30"
                       : "border-slate-200 hover:border-slate-300"
@@ -569,9 +560,9 @@ const OfferSectionsManagement = () => {
                   <img
                     src={opt.imageUrl}
                     alt={opt.label}
-                    className="w-full h-full object-cover"
+                    className="h-full w-full object-cover"
                   />
-                  <span className="block text-[10px] font-bold text-slate-600 p-1 truncate">
+                  <span className="block truncate p-1 text-[10px] font-bold text-slate-600">
                     {opt.label}
                   </span>
                 </button>
@@ -580,8 +571,8 @@ const OfferSectionsManagement = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                 Display order
               </label>
               <input
@@ -591,11 +582,11 @@ const OfferSectionsManagement = () => {
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, order: e.target.value }))
                 }
-                className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-bold outline-none"
+                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                 Status
               </label>
               <select
@@ -603,7 +594,7 @@ const OfferSectionsManagement = () => {
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, status: e.target.value }))
                 }
-                className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-bold outline-none"
+                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
@@ -611,20 +602,13 @@ const OfferSectionsManagement = () => {
             </div>
           </div>
 
-          <div className="flex gap-4 pt-4">
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(false)}
-              className="flex-1 py-4 bg-slate-100 text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest"
-            >
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="outline" className="flex-1" onClick={() => setIsModalOpen(false)}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 py-4 bg-primary text-primary-foreground rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20"
-            >
+            </Button>
+            <Button type="submit" className="flex-1">
               {editingSection ? "Save changes" : "Create section"}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>

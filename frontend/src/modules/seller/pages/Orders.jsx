@@ -1,8 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import Card from '@shared/components/ui/Card';
 import Button from '@shared/components/ui/Button';
 import Badge from '@shared/components/ui/Badge';
-import Input from '@shared/components/ui/Input';
+import PageHeader from '@shared/components/ui/PageHeader';
+import StatCard from '@shared/components/ui/StatCard';
+import FilterBar from '@shared/components/ui/FilterBar';
+import DataTable from '@shared/components/ui/DataTable';
+import EmptyState from '@shared/components/ui/EmptyState';
+import { SkeletonStatCard, SkeletonCard } from '@shared/components/ui/Skeleton';
 import {
     HiOutlineMagnifyingGlass,
     HiOutlineEye,
@@ -15,7 +19,6 @@ import {
     HiOutlineArchiveBoxXMark,
     HiOutlineChartBar,
     HiOutlineChevronDown,
-    HiOutlineChevronRight,
     HiOutlineInboxStack,
     HiOutlineMapPin,
     HiOutlinePhone,
@@ -26,9 +29,6 @@ import { cn } from '@/lib/utils';
 
 // Orders Page
 
-import { MagicCard } from '@/components/ui/magic-card';
-import { BlurFade } from '@/components/ui/blur-fade';
-import ShimmerButton from '@/components/ui/shimmer-button';
 import { sellerApi } from '../services/sellerApi';
 import { useToast } from '@shared/components/ui/Toast';
 import { getLegacyStatusFromOrder } from '@/shared/utils/orderStatus';
@@ -39,6 +39,16 @@ import { getOrderStatusVariant } from '../components/orders';
 import { useSellerOrders } from '../context/SellerOrdersContext';
 import ConfirmDialog from '@shared/components/ui/ConfirmDialog';
 import useConfirmDialog from '@shared/hooks/useConfirmDialog';
+
+/** Semantic variant (from getOrderStatusVariant) -> select-control tint classes. Shared across the mobile list, desktop table, and details modal so all three read the same colors for the same status. */
+const STATUS_SELECT_STYLES = {
+    warning: 'bg-warning/10 text-warning focus:ring-warning/30',
+    info: 'bg-info/10 text-info focus:ring-info/30',
+    primary: 'bg-primary/10 text-primary focus:ring-primary/30',
+    secondary: 'bg-slate-100 text-slate-600 focus:ring-slate-300',
+    success: 'bg-success/10 text-success focus:ring-success/30',
+    error: 'bg-danger/10 text-danger focus:ring-danger/30',
+};
 
 const Orders = () => {
     const { orders: ordersFromContext } = useSellerOrders();
@@ -195,29 +205,29 @@ const Orders = () => {
             label: 'Total Orders',
             value: summary.totalOrders,
             icon: HiOutlineArchiveBoxXMark,
-            color: 'text-brand-600',
-            bg: 'bg-brand-50'
+            color: 'text-primary',
+            bg: 'bg-primary/10'
         },
         {
             label: 'Pending',
             value: summary.pending,
             icon: HiOutlineClock,
-            color: 'text-amber-600',
-            bg: 'bg-amber-50'
+            color: 'text-warning',
+            bg: 'bg-warning/10'
         },
         {
             label: 'Confirmed',
             value: summary.confirmed,
             icon: HiOutlineCheck,
-            color: 'text-brand-600',
-            bg: 'bg-brand-50'
+            color: 'text-info',
+            bg: 'bg-info/10'
         },
         {
             label: 'Delivered',
             value: summary.delivered,
             icon: HiOutlineCheck,
-            color: 'text-brand-600',
-            bg: 'bg-brand-50'
+            color: 'text-success',
+            bg: 'bg-success/10'
         }
     ], [summary]);
 
@@ -288,7 +298,7 @@ const Orders = () => {
             headers.map(escapeCsv).join(","),
             ...rows.map((row) => row.map(escapeCsv).join(",")),
         ].join("\n");
-        const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+        const blob = new Blob(["﻿" + csvContent], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -298,395 +308,306 @@ const Orders = () => {
         showToast(`Exported ${data.length} order(s) as CSV`, "success");
     };
 
-    return (
-        <div className="space-y-4 sm:space-y-6 pb-20 sm:pb-16">
-            <BlurFade delay={0.1}>
-                {/* Page Header */}
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
-                    <div className="min-w-0">
-                        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 flex flex-wrap items-center gap-2">
-                            Order Management
-                            <Badge variant="primary" className="text-[10px] px-1.5 py-0 font-bold tracking-wider uppercase bg-brand-100 text-brand-700">Real-time</Badge>
-                        </h1>
-                        <p className="text-slate-600 text-sm sm:text-base mt-0.5 font-medium">Process and track your customer orders with ease.</p>
-                    </div>
-                    <div className="flex gap-2 flex-shrink-0">
-                        <Button
-                            onClick={exportOrders}
-                            variant="outline"
-                            className="flex items-center space-x-1.5 sm:space-x-2 px-3 py-2 sm:px-5 sm:py-2.5 rounded-lg text-xs sm:text-sm font-bold text-slate-600 bg-white hover:bg-slate-50 border-slate-200"
-                        >
-                            <HiOutlinePrinter className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                            <span className="hidden sm:inline">EXPORT ALL</span>
-                        </Button>
-                        <ShimmerButton
-                            onClick={() => setIsQuickViewModalOpen(true)}
-                            className="px-4 py-2 sm:px-6 sm:py-2.5 rounded-lg text-xs sm:text-sm font-bold text-white shadow-xl flex items-center space-x-1.5 sm:space-x-2"
-                        >
-                            <HiOutlineEye className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-0" />
-                            <span className="hidden sm:inline">QUICK VIEW</span>
-                        </ShimmerButton>
+    const StatusSelect = ({ order, className }) => (
+        <div className={cn("relative inline-block", className)}>
+            <select
+                value={order.status}
+                onChange={(e) => handleStatusUpdate(order.id, e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                className={cn(
+                    "w-full text-[10px] pl-2.5 pr-7 py-1.5 rounded-full font-black uppercase tracking-widest cursor-pointer appearance-none focus:ring-2 focus:ring-offset-1 transition-all border-none outline-none shadow-sm",
+                    STATUS_SELECT_STYLES[getStatusColor(order.status)] || STATUS_SELECT_STYLES.secondary
+                )}
+            >
+                <option value="pending" disabled={['confirmed', 'packed', 'out_for_delivery', 'delivered', 'cancelled'].includes(order.status)}>Pending</option>
+                <option value="confirmed" disabled={['packed', 'out_for_delivery', 'delivered', 'cancelled'].includes(order.status)}>Confirmed</option>
+                <option value="packed" disabled={['out_for_delivery', 'delivered', 'cancelled'].includes(order.status)}>Packed</option>
+                <option value="out_for_delivery" disabled={['delivered', 'cancelled'].includes(order.status)}>Out for Delivery</option>
+                <option value="delivered" disabled={order.status === 'cancelled'}>Delivered</option>
+                <option value="cancelled">Cancelled</option>
+            </select>
+            <HiOutlineChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3 w-3 pointer-events-none opacity-60" />
+        </div>
+    );
+
+    const orderColumns = [
+        {
+            header: 'Order Details',
+            key: 'order',
+            cell: (order) => (
+                <div>
+                    <span className="text-xs font-bold text-slate-900 hover:text-primary transition-colors cursor-pointer" onClick={() => handleViewDetails(order)}>
+                        #{order.id}
+                    </span>
+                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400 mt-1">
+                        <HiOutlineCalendarDays className="h-3 w-3" />
+                        {order.date} • {order.time}
                     </div>
                 </div>
-            </BlurFade>
+            ),
+        },
+        {
+            header: 'Customer',
+            key: 'customer',
+            cell: (order) => (
+                <div className="flex items-center gap-2.5">
+                    <div className="h-8 w-8 rounded-full bg-slate-900 flex items-center justify-center text-[10px] font-black text-white shrink-0">
+                        {order.customer.avatar}
+                    </div>
+                    <div>
+                        <p className="text-xs font-bold text-slate-900">{order.customer.name}</p>
+                        <p className="text-[11px] font-medium text-slate-400">{order.customer.phone}</p>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            header: 'Total',
+            key: 'total',
+            cell: (order) => (
+                <div className="flex flex-col">
+                    <span className="text-xs font-bold text-slate-900">₹{order.total.toLocaleString()}</span>
+                    <span className="text-[11px] font-medium text-slate-400">{order.items.length} items</span>
+                </div>
+            ),
+        },
+        {
+            header: 'Status',
+            key: 'status',
+            cell: (order) => <StatusSelect order={order} className="w-36" />,
+        },
+        {
+            header: 'Actions',
+            key: 'actions',
+            align: 'right',
+            cell: (order) => (
+                <button
+                    onClick={() => handleViewDetails(order)}
+                    className="p-1.5 hover:bg-primary/10 hover:text-primary rounded-lg transition-all text-slate-500"
+                >
+                    <HiOutlineEye className="h-4 w-4" />
+                </button>
+            ),
+        },
+    ];
+
+    return (
+        <div className="space-y-5">
+            <PageHeader
+                title={
+                    <span className="flex items-center gap-2">
+                        Order Management
+                        <Badge variant="primary">Real-time</Badge>
+                    </span>
+                }
+                description="Process and track your customer orders, from confirmation through delivery."
+                actions={
+                    <>
+                        <Button onClick={exportOrders} variant="outline">
+                            <HiOutlinePrinter className="h-4 w-4" />
+                            Export All
+                        </Button>
+                        <Button onClick={() => setIsQuickViewModalOpen(true)} variant="primary">
+                            <HiOutlineEye className="h-4 w-4" />
+                            Quick View
+                        </Button>
+                    </>
+                }
+            />
 
             {/* Quick Stats */}
             {loading ? (
-                <div className="min-h-[400px] flex flex-col items-center justify-center bg-white rounded-3xl border border-slate-100 shadow-sm">
-                    <Loader2 className="h-10 w-10 text-primary animate-spin" />
-                    <p className="text-slate-600 font-bold mt-4 uppercase tracking-widest text-xs">Fetching Active Orders...</p>
+                <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                    {Array.from({ length: 4 }).map((_, i) => <SkeletonStatCard key={i} />)}
                 </div>
             ) : (
                 <>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                         {stats.map((stat, i) => (
-                            <BlurFade key={i} delay={0.1 + (i * 0.05)}>
-                                <MagicCard
-                                    className="border-none shadow-sm ring-1 ring-slate-100 p-0 overflow-hidden group bg-white"
-                                    gradientColor={stat.bg.includes('indigo') ? "#eef2ff" : stat.bg.includes('amber') ? "#fffbeb" : stat.bg.includes('emerald') ? "#ecfdf5" : "#fff1f2"}
-                                >
-                                    <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 relative z-10">
-                                        <div className={cn("h-10 w-10 sm:h-12 sm:w-12 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 duration-300 shadow-sm shrink-0", stat.bg, stat.color)}>
-                                            <stat.icon className="h-5 w-5 sm:h-6 sm:w-6" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-widest truncate">{stat.label}</p>
-                                            <h4 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight">{stat.value}</h4>
-                                        </div>
-                                    </div>
-                                </MagicCard>
-                            </BlurFade>
+                            <StatCard key={i} label={stat.label} value={stat.value} icon={stat.icon} color={stat.color} bg={stat.bg} />
                         ))}
                     </div>
 
-                    {/* Main Content Area */}
-                    <BlurFade delay={0.3}>
-                        <Card className="border-none shadow-xl ring-1 ring-slate-100 rounded-lg bg-white overflow-visible">
-                            {/* Tabs */}
-                            <div className="border-b border-slate-100 bg-slate-50/30 overflow-x-auto scrollbar-hide">
-                                <div className="flex px-3 sm:px-6 items-center min-w-max">
-                                    {tabs.map((tab) => (
-                                        <button
-                                            key={tab}
-                                            onClick={() => setActiveTab(tab)}
-                                            className={cn(
-                                                "relative py-3 sm:py-4 px-2.5 sm:px-4 text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-300",
-                                                activeTab === tab
-                                                    ? "text-primary scale-105"
-                                                    : "text-slate-600 hover:text-slate-700"
-                                            )}
-                                        >
-                                            {tab}
-                                            {activeTab === tab && (
-                                                <motion.div
-                                                    layoutId="tab-underline"
-                                                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full mx-2 sm:mx-4"
-                                                />
-                                            )}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+                    {/* Tabs */}
+                    <div className="flex overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm scrollbar-hide">
+                        {tabs.map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={cn(
+                                    "relative shrink-0 whitespace-nowrap px-4 py-2.5 text-xs font-bold transition-colors",
+                                    activeTab === tab ? "text-primary" : "text-slate-500 hover:text-slate-700"
+                                )}
+                            >
+                                {tab}
+                                {activeTab === tab && (
+                                    <motion.div layoutId="tab-underline" className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-primary" />
+                                )}
+                            </button>
+                        ))}
+                    </div>
 
-                            {/* Toolbox */}
-                            <div className="p-3 sm:p-4 border-b border-slate-100 flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
-                                <div className="relative flex-1 group w-full">
-                                    <HiOutlineMagnifyingGlass className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-600 group-focus-within:text-primary transition-all" />
-                                    <input
-                                        type="text"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        placeholder="Search by Order ID or Customer Name..."
-                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-100/50 border-none rounded-lg text-sm font-semibold text-slate-700 placeholder:text-slate-500 focus:ring-2 focus:ring-primary/5 transition-all outline-none"
+                    {/* Toolbox */}
+                    <FilterBar
+                        left={
+                            <div className="relative w-full sm:w-72">
+                                <HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                <input
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    placeholder="Search by Order ID or Customer Name..."
+                                    className="h-9 w-full rounded-md border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                />
+                            </div>
+                        }
+                        right={
+                            <div className="flex flex-wrap items-center gap-2">
+                                <div className="w-32">
+                                    <DatePicker
+                                        value={startDate}
+                                        max={todayStr}
+                                        align="left"
+                                        onChange={(value) => {
+                                            if (!value) {
+                                                setStartDate("");
+                                                setPage(1);
+                                                return;
+                                            }
+                                            const today = new Date().toISOString().split("T")[0];
+                                            if (value > today) {
+                                                showToast("Start date cannot be in the future", "error");
+                                                return;
+                                            }
+                                            if (endDate && value > endDate) {
+                                                showToast("Start date cannot be after end date", "error");
+                                                return;
+                                            }
+                                            setPage(1);
+                                            setStartDate(value);
+                                        }}
+                                        placeholder="From date"
                                     />
                                 </div>
-                                <div className="flex gap-3 shrink-0 w-full lg:w-auto items-center justify-end flex-wrap">
-                                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end sm:justify-start">
-                                        <div className="w-full sm:w-32">
-                                            <DatePicker
-                                                value={startDate}
-                                                max={todayStr}
-                                                align="left"
-                                                onChange={(value) => {
-                                                    if (!value) {
-                                                        setStartDate("");
-                                                        setPage(1);
-                                                        return;
-                                                    }
-                                                    const today = new Date().toISOString().split("T")[0];
-                                                    if (value > today) {
-                                                        showToast("Start date cannot be in the future", "error");
-                                                        return;
-                                                    }
-                                                    if (endDate && value > endDate) {
-                                                        showToast("Start date cannot be after end date", "error");
-                                                        return;
-                                                    }
-                                                    setPage(1);
-                                                    setStartDate(value);
-                                                }}
-                                                placeholder="From date"
-                                            />
-                                        </div>
-                                        <span className="text-xs font-semibold text-slate-600 hidden sm:inline">
-                                            to
-                                        </span>
-                                        <div className="w-full sm:w-32 mt-2 sm:mt-0">
-                                            <DatePicker
-                                                value={endDate}
-                                                max={todayStr}
-                                                min={startDate || undefined}
-                                                align="right"
-                                                popupClassName="mt-4"
-                                                disabled={!startDate}
-                                                onChange={(value) => {
-                                                    if (!value) {
-                                                        setEndDate("");
-                                                        setPage(1);
-                                                        return;
-                                                    }
-                                                    const today = new Date().toISOString().split("T")[0];
-                                                    if (value > today) {
-                                                        showToast("End date cannot be in the future", "error");
-                                                        return;
-                                                    }
-                                                    if (startDate && value < startDate) {
-                                                        showToast("End date cannot be before start date", "error");
-                                                        return;
-                                                    }
-                                                    setPage(1);
-                                                    setEndDate(value);
-                                                }}
-                                                placeholder="To date"
-                                            />
-                                        </div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => { setStartDate(''); setEndDate(''); setPage(1); }}
-                                        className="text-xs font-semibold text-slate-600 hover:text-slate-700"
+                                <span className="hidden text-xs font-medium text-slate-400 sm:inline">to</span>
+                                <div className="w-32">
+                                    <DatePicker
+                                        value={endDate}
+                                        max={todayStr}
+                                        min={startDate || undefined}
+                                        align="right"
+                                        popupClassName="mt-4"
+                                        disabled={!startDate}
+                                        onChange={(value) => {
+                                            if (!value) {
+                                                setEndDate("");
+                                                setPage(1);
+                                                return;
+                                            }
+                                            const today = new Date().toISOString().split("T")[0];
+                                            if (value > today) {
+                                                showToast("End date cannot be in the future", "error");
+                                                return;
+                                            }
+                                            if (startDate && value < startDate) {
+                                                showToast("End date cannot be before start date", "error");
+                                                return;
+                                            }
+                                            setPage(1);
+                                            setEndDate(value);
+                                        }}
+                                        placeholder="To date"
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => { setStartDate(''); setEndDate(''); setPage(1); }}
+                                    className="text-xs font-semibold text-slate-500 hover:text-slate-700"
+                                >
+                                    Clear dates
+                                </button>
+                            </div>
+                        }
+                    />
+
+                    {/* Mobile: Card list */}
+                    <div className="md:hidden space-y-3">
+                        {filteredOrders.length === 0 ? (
+                            <EmptyState
+                                icon={<HiOutlineInboxStack className="h-6 w-6" />}
+                                title="No orders found"
+                                description="Adjust your filters or search to see more orders."
+                                action={<Button variant="outline" onClick={() => { setActiveTab('All'); setSearchTerm(''); }}>Clear Filters</Button>}
+                            />
+                        ) : (
+                            <AnimatePresence mode="popLayout">
+                                {filteredOrders.map((order) => (
+                                    <motion.div
+                                        key={order.id}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
                                     >
-                                        Clear dates
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Mobile: Card list */}
-                            <div className="md:hidden p-3 sm:p-4 space-y-3">
-                                {filteredOrders.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center py-12 px-4">
-                                        <div className="h-14 w-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 mb-3">
-                                            <HiOutlineInboxStack className="h-7 w-7" />
-                                        </div>
-                                        <h3 className="text-sm font-bold text-slate-900">No orders found</h3>
-                                        <p className="text-xs text-slate-600 font-medium text-center mt-1">Adjust filters or search.</p>
-                                        <Button variant="outline" className="mt-4 rounded-xl text-xs" onClick={() => { setActiveTab('All'); setSearchTerm(''); }}>CLEAR FILTERS</Button>
-                                    </div>
-                                ) : (
-                                <AnimatePresence mode="popLayout">
-                                    {filteredOrders
-                                        .map((order) => (
-                                        <motion.div
-                                            key={order.id}
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, scale: 0.95 }}
-                                            className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm active:bg-slate-50/50"
-                                        >
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div className="min-w-0 flex-1" onClick={() => handleViewDetails(order)}>
-                                                    <p className="text-xs font-black text-slate-900 truncate">#{order.id}</p>
-                                                    <p className="text-xs font-semibold text-slate-600 mt-0.5 flex items-center gap-1">
-                                                        <HiOutlineCalendarDays className="h-3 w-3 shrink-0" />
-                                                        {order.date} • {order.time}
-                                                    </p>
-                                                    <div className="flex items-center gap-2 mt-2">
-                                                        <div className="h-7 w-7 rounded-full bg-slate-900 flex items-center justify-center text-[10px] font-black text-white shrink-0">
-                                                            {order.customer.avatar}
-                                                        </div>
-                                                        <p className="text-xs font-bold text-slate-800 truncate">{order.customer.name}</p>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0 flex-1" onClick={() => handleViewDetails(order)}>
+                                                <p className="text-xs font-black text-slate-900 truncate">#{order.id}</p>
+                                                <p className="text-xs font-medium text-slate-400 mt-0.5 flex items-center gap-1">
+                                                    <HiOutlineCalendarDays className="h-3 w-3 shrink-0" />
+                                                    {order.date} • {order.time}
+                                                </p>
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <div className="h-7 w-7 rounded-full bg-slate-900 flex items-center justify-center text-[10px] font-black text-white shrink-0">
+                                                        {order.customer.avatar}
                                                     </div>
-                                                    <p className="text-sm font-black text-slate-900 mt-2">₹{order.total.toLocaleString()}</p>
+                                                    <p className="text-xs font-bold text-slate-800 truncate">{order.customer.name}</p>
                                                 </div>
-                                                <div className="flex flex-col items-end gap-2 shrink-0">
-                                                    <Badge variant={getStatusColor(order.status)} className="text-[10px] font-black uppercase px-2 py-0">
-                                                        {order.status}
-                                                    </Badge>
-                                                    <select
-                                                        value={order.status}
-                                                        onChange={(e) => handleStatusUpdate(order.id, e.target.value)}
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        className={cn(
-                                                            "w-full min-w-[100px] text-[10px] pl-2 pr-6 py-1.5 rounded-lg font-black uppercase cursor-pointer appearance-none border outline-none",
-                                                            order.status === 'pending' ? "bg-amber-100 text-amber-700" :
-                                                                order.status === 'delivered' ? "bg-brand-100 text-brand-700" :
-                                                                    order.status === 'cancelled' ? "bg-rose-100 text-rose-700" : "bg-slate-100 text-slate-700"
-                                                        )}
-                                                    >
-                                                        <option value="pending">Pending</option>
-                                                        <option value="confirmed">Confirmed</option>
-                                                        <option value="packed">Packed</option>
-                                                        <option value="out_for_delivery">Out</option>
-                                                        <option value="delivered">Delivered</option>
-                                                        <option value="cancelled">Cancelled</option>
-                                                    </select>
-                                                    <button
-                                                        onClick={() => handleViewDetails(order)}
-                                                        className="p-2 hover:bg-slate-100 rounded-lg text-slate-600"
-                                                    >
-                                                        <HiOutlineEye className="h-4 w-4" />
-                                                    </button>
-                                                </div>
+                                                <p className="text-sm font-black text-slate-900 mt-2">₹{order.total.toLocaleString()}</p>
                                             </div>
-                                        </motion.div>
-                                    ))}
-                                </AnimatePresence>
-                                )}
-                            </div>
-
-                            {/* Desktop: Table */}
-                            <div className="hidden md:block overflow-x-auto">
-                                <table className="w-full text-left border-collapse min-w-[640px] relative">
-                                    <thead className="sticky top-0 z-20 bg-slate-50 shadow-sm">
-                                        <tr className="border-b border-slate-200">
-                                            <th className="px-4 lg:px-6 py-3 lg:py-4 text-xs font-bold text-slate-700 uppercase tracking-widest">Order Details</th>
-                                            <th className="px-4 lg:px-6 py-3 lg:py-4 text-xs font-bold text-slate-600 uppercase tracking-widest">Customer</th>
-                                            <th className="px-4 lg:px-6 py-3 lg:py-4 text-xs font-bold text-slate-600 uppercase tracking-widest">Total</th>
-                                            <th className="px-4 lg:px-6 py-3 lg:py-4 text-xs font-bold text-slate-600 uppercase tracking-widest">Status</th>
-                                            <th className="px-4 lg:px-6 py-3 lg:py-4 text-xs font-bold text-slate-600 uppercase tracking-widest text-right">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-50">
-                                        <AnimatePresence mode="popLayout">
-                                            {filteredOrders
-                                                .map((order) => (
-                                                <motion.tr
-                                                    layout
-                                                    initial={{ opacity: 0, y: 10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    exit={{ opacity: 0, scale: 0.95 }}
-                                                    key={order.id}
-                                                    className="hover:bg-slate-50/50 transition-colors group"
-                                                >
-                                                    <td className="px-4 lg:px-6 py-3 lg:py-4">
-                                                        <div>
-                                                            <span className="text-xs font-bold text-slate-900 group-hover:text-primary transition-colors cursor-pointer" onClick={() => handleViewDetails(order)}>
-                                                                #{order.id}
-                                                            </span>
-                                                            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 mt-1">
-                                                                <HiOutlineCalendarDays className="h-3 w-3" />
-                                                                {order.date} • {order.time}
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 lg:px-6 py-3 lg:py-4">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="h-8 w-8 rounded-full bg-slate-900 flex items-center justify-center text-[10px] font-black text-white shadow-sm ring-2 ring-white">
-                                                                {order.customer.avatar}
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-xs font-bold text-slate-900">{order.customer.name}</p>
-                                                                <p className="text-xs font-semibold text-slate-600">{order.customer.phone}</p>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 lg:px-6 py-3 lg:py-4">
-                                                        <div className="flex flex-col">
-                                                            <span className="text-xs font-bold text-slate-900">₹{order.total.toLocaleString()}</span>
-                                                            <span className="text-xs font-semibold text-slate-600">{order.items.length} items</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 lg:px-6 py-3 lg:py-4">
-                                                        <div className="relative inline-block w-36">
-                                                            <select
-                                                                value={order.status}
-                                                                onChange={(e) => handleStatusUpdate(order.id, e.target.value)}
-                                                                className={cn(
-                                                                    "w-full text-[10px] pl-2.5 pr-8 py-1.5 rounded-full font-black uppercase tracking-widest cursor-pointer appearance-none focus:ring-2 focus:ring-offset-1 transition-all border-none outline-none shadow-sm",
-                                                                    order.status === 'pending' ? "bg-amber-100 text-amber-700 focus:ring-amber-200" :
-                                                                        order.status === 'confirmed' ? "bg-brand-100 text-brand-700 focus:ring-brand-200" :
-                                                                            order.status === 'packed' ? "bg-brand-100 text-brand-700 focus:ring-brand-200" :
-                                                                                order.status === 'out_for_delivery' ? "bg-purple-100 text-purple-700 focus:ring-purple-200" :
-                                                                                    order.status === 'delivered' ? "bg-brand-100 text-brand-700 focus:ring-brand-200" :
-                                                                                        order.status === 'cancelled' ? "bg-rose-100 text-rose-700 focus:ring-rose-200" :
-                                                                                            "bg-slate-100 text-slate-700 focus:ring-slate-200"
-                                                                )}
-                                                            >
-                                                                <option value="pending" disabled={['confirmed','packed','out_for_delivery','delivered','cancelled'].includes(order.status)}>Pending</option>
-                                                                <option value="confirmed" disabled={['packed','out_for_delivery','delivered','cancelled'].includes(order.status)}>Confirmed</option>
-                                                                <option value="packed" disabled={['out_for_delivery','delivered','cancelled'].includes(order.status)}>Packed</option>
-                                                                <option value="out_for_delivery" disabled={['delivered','cancelled'].includes(order.status)}>Out for Delivery</option>
-                                                                <option value="delivered" disabled={order.status === 'cancelled'}>Delivered</option>
-                                                                <option value="cancelled">Cancelled</option>
-                                                            </select>
-                                                            <HiOutlineChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none opacity-60" />
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-4 lg:px-6 py-3 lg:py-4 text-right">
-                                                        <div className="flex items-center justify-end space-x-1.5">
-                                                            <button
-                                                                onClick={() => handleViewDetails(order)}
-                                                                className="p-1.5 hover:bg-white hover:text-primary rounded-lg transition-all text-slate-600 shadow-sm ring-1 ring-slate-100"
-                                                            >
-                                                                <HiOutlineEye className="h-4 w-4" />
-                                                            </button>
-                                                            {/* Audit fix: this quick-action pair was dead code — it
-                                                                gated on `order.status === 'Pending'` (capital P) while
-                                                                `order.status` is always lowercase here, and even if
-                                                                reached, called `handleStatusUpdate(id, 'Processing')`,
-                                                                which isn't a recognized workflow status. Real order
-                                                                acceptance is handled by the global new-order modal in
-                                                                DashboardLayout.jsx; removed rather than "fixed" to
-                                                                avoid a second, parallel acceptance path. */}
-                                                        </div>
-                                                    </td>
-                                                </motion.tr>
-                                            ))}
-                                        </AnimatePresence>
-                                    </tbody>
-                                </table>
-                                {filteredOrders.length === 0 && (
-                                    <div className="flex flex-col items-center justify-center py-20 px-6">
-                                        <div className="h-16 w-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 mb-4">
-                                            <HiOutlineInboxStack className="h-8 w-8" />
+                                            <div className="flex flex-col items-end gap-2 shrink-0">
+                                                <Badge variant={getStatusColor(order.status)}>{order.status}</Badge>
+                                                <StatusSelect order={order} className="min-w-[110px]" />
+                                                <button onClick={() => handleViewDetails(order)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500">
+                                                    <HiOutlineEye className="h-4 w-4" />
+                                                </button>
+                                            </div>
                                         </div>
-                                        <h3 className="text-sm font-bold text-slate-900">No orders found</h3>
-                                        <p className="text-xs text-slate-600 font-medium max-w-xs text-center mt-1">We couldn't find any orders matching your current filters. Try adjusting your search.</p>
-                                        <Button variant="outline" className="mt-6 rounded-xl text-xs" onClick={() => { setActiveTab('All'); setSearchTerm(''); }}>CLEAR ALL FILTERS</Button>
-                                    </div>
-                                )}
-                            </div>
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
+                        )}
+                    </div>
 
-                            <div className="p-3 sm:p-4 border-t border-slate-50 bg-slate-50/30 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 px-3 sm:px-6">
-                                <p className="text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-widest text-center sm:text-left">
-                                    Showing {filteredOrders.length} of {total || summary.totalOrders || filteredOrders.length} Orders
-                                </p>
-                                <div className="flex gap-1 justify-center sm:justify-end">
-                                    <button className="p-1.5 rounded-lg border border-slate-200 text-slate-600 opacity-50 cursor-not-allowed" aria-hidden><HiOutlineChevronRight className="h-3.5 w-3.5 rotate-180" /></button>
-                                    <button className="p-1.5 rounded-lg border border-slate-200 text-slate-600 opacity-50 cursor-not-allowed" aria-hidden><HiOutlineChevronRight className="h-3.5 w-3.5" /></button>
-                                </div>
-                            </div>
-                        </Card>
-                    </BlurFade>
-
-                    <div className="mt-3 sm:mt-4 px-2 sm:px-0">
-                        <Pagination
-                            page={page}
-                            totalPages={Math.ceil((total || filteredOrders.length) / pageSize) || 1}
-                            total={total || filteredOrders.length}
-                            pageSize={pageSize}
-                            onPageChange={(p) => setPage(p)}
-                            onPageSizeChange={(newSize) => {
-                                setPageSize(newSize);
-                                setPage(1);
-                                fetchOrders(1, false);
-                            }}
-                            loading={loading}
+                    {/* Desktop: Table */}
+                    <div className="hidden md:block">
+                        <DataTable
+                            columns={orderColumns}
+                            data={filteredOrders}
+                            rowKey={(o) => o.id}
+                            emptyState={
+                                <EmptyState
+                                    icon={<HiOutlineInboxStack className="h-6 w-6" />}
+                                    title="No orders found"
+                                    description="We couldn't find any orders matching your current filters. Try adjusting your search."
+                                    action={<Button variant="outline" onClick={() => { setActiveTab('All'); setSearchTerm(''); }}>Clear All Filters</Button>}
+                                />
+                            }
                         />
                     </div>
 
-                    {/* Order Details Modal */}
-                    {/* ... (existing details modal) */}
+                    <Pagination
+                        page={page}
+                        totalPages={Math.ceil((total || filteredOrders.length) / pageSize) || 1}
+                        total={total || filteredOrders.length}
+                        pageSize={pageSize}
+                        onPageChange={(p) => setPage(p)}
+                        onPageSizeChange={(newSize) => {
+                            setPageSize(newSize);
+                            setPage(1);
+                            fetchOrders(1, false);
+                        }}
+                        loading={loading}
+                    />
 
                     {/* Quick View Summary Modal */}
                     <AnimatePresence>
@@ -703,33 +624,32 @@ const Orders = () => {
                                     initial={{ opacity: 0, scale: 0.95, y: 10 }}
                                     animate={{ opacity: 1, scale: 1, y: 0 }}
                                     exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                                    className="w-full max-w-lg relative z-10 bg-white rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
+                                    className="w-full max-w-lg relative z-10 bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
                                 >
-                                    <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                    <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
                                         <div className="flex items-center gap-3 min-w-0">
-                                            <div className="h-9 w-9 sm:h-10 sm:w-10 bg-primary text-primary-foreground rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
+                                            <div className="h-9 w-9 sm:h-10 sm:w-10 bg-primary text-white rounded-xl flex items-center justify-center shadow-sm shadow-primary/30 shrink-0">
                                                 <HiOutlineChartBar className="h-4 w-4 sm:h-5 sm:w-5" />
                                             </div>
                                             <div className="min-w-0">
                                                 <h3 className="text-sm sm:text-base font-black text-slate-900 truncate">Quick Snapshot</h3>
-                                                <p className="text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-widest">Today's Performance</p>
+                                                <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest">Today's Performance</p>
                                             </div>
                                         </div>
-                                        <button onClick={() => setIsQuickViewModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-600 shrink-0">
+                                        <button onClick={() => setIsQuickViewModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500 shrink-0">
                                             <HiOutlineXMark className="h-5 w-5" />
                                         </button>
                                     </div>
 
                                     <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
-                                        {/* Summary Grid */}
                                         <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                                            <div className="p-3 sm:p-4 rounded-2xl bg-brand-50 border border-brand-100">
-                                                <p className="text-[10px] sm:text-xs font-bold text-brand-400 uppercase tracking-widest mb-1">Total Revenue</p>
-                                                <p className="text-base sm:text-xl font-black text-brand-700 truncate">₹{summary.totalAmount.toLocaleString('en-IN')}</p>
+                                            <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/10">
+                                                <p className="text-[10px] font-bold text-primary/70 uppercase tracking-widest mb-1">Total Revenue</p>
+                                                <p className="text-lg sm:text-xl font-black text-primary truncate">₹{summary.totalAmount.toLocaleString('en-IN')}</p>
                                             </div>
-                                            <div className="p-3 sm:p-4 rounded-2xl bg-brand-50 border border-brand-100">
-                                                <p className="text-[10px] sm:text-xs font-bold text-brand-400 uppercase tracking-widest mb-1">Avg. Order Value</p>
-                                                <p className="text-base sm:text-xl font-black text-brand-700">₹{summary.totalOrders ? (summary.totalAmount / summary.totalOrders).toFixed(0) : '0'}</p>
+                                            <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/10">
+                                                <p className="text-[10px] font-bold text-primary/70 uppercase tracking-widest mb-1">Avg. Order Value</p>
+                                                <p className="text-lg sm:text-xl font-black text-primary">₹{summary.totalOrders ? (summary.totalAmount / summary.totalOrders).toFixed(0) : '0'}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -740,9 +660,9 @@ const Orders = () => {
                                                 setIsQuickViewModalOpen(false);
                                                 setActiveTab('Pending');
                                             }}
-                                            className="w-full py-2.5 sm:py-3 text-[10px] sm:text-xs font-bold"
+                                            className="w-full"
                                         >
-                                            VIEW ALL PENDING ORDERS
+                                            View All Pending Orders
                                         </Button>
                                     </div>
                                 </motion.div>
@@ -774,11 +694,11 @@ const Orders = () => {
                                             <div>
                                                 <h3 className="text-base font-black text-slate-900">Order Details</h3>
                                                 <div className="flex items-center space-x-2 mt-0.5">
-                                                    <Badge variant={getStatusColor(selectedOrder.status)} className="text-[10px] font-black uppercase tracking-widest px-1.5 py-0">{selectedOrder.status}</Badge>
-                                                    <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">#{selectedOrder.id}</span>
+                                                    <Badge variant={getStatusColor(selectedOrder.status)}>{selectedOrder.status}</Badge>
+                                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">#{selectedOrder.id}</span>
                                                 </div>
                                                 {(selectedOrder.date || selectedOrder.time) && (
-                                                    <p className="text-[11px] font-bold text-slate-500 mt-1.5 flex items-center gap-1.5">
+                                                    <p className="text-[11px] font-bold text-slate-400 mt-1.5 flex items-center gap-1.5">
                                                         <HiOutlineCalendarDays className="h-3.5 w-3.5" />
                                                         {selectedOrder.date}
                                                         {selectedOrder.time && (
@@ -792,7 +712,7 @@ const Orders = () => {
                                                 )}
                                             </div>
                                         </div>
-                                        <button onClick={() => setIsDetailsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-600">
+                                        <button onClick={() => setIsDetailsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500">
                                             <HiOutlineXMark className="h-5 w-5" />
                                         </button>
                                     </div>
@@ -802,7 +722,7 @@ const Orders = () => {
                                             <div className="space-y-3 sm:space-y-4">
                                                 <div>
                                                     <div className="flex items-center justify-between gap-2 mb-2">
-                                                        <h4 className="text-xs font-black text-slate-600 uppercase tracking-widest flex items-center gap-2">
+                                                        <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                                                             <HiOutlineMapPin className="h-3 w-3 text-primary" /> Delivery Address
                                                         </h4>
                                                         {selectedOrder.location &&
@@ -828,12 +748,12 @@ const Orders = () => {
                                                     </p>
                                                 </div>
                                                 <div>
-                                                    <h4 className="text-xs font-black text-slate-600 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                                        <HiOutlinePhone className="h-3 w-3 text-brand-500" /> Contact Info
+                                                    <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                                        <HiOutlinePhone className="h-3 w-3 text-success" /> Contact Info
                                                     </h4>
                                                     <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 shadow-sm">
                                                         <p className="text-xs font-bold text-slate-800">{selectedOrder.customer.name}</p>
-                                                        <p className="text-xs font-semibold text-slate-600 mt-0.5">{selectedOrder.customer.phone}</p>
+                                                        <p className="text-xs font-semibold text-slate-500 mt-0.5">{selectedOrder.customer.phone}</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -842,12 +762,12 @@ const Orders = () => {
                                                     <h4 className="text-xs font-black text-primary uppercase tracking-widest mb-3">Order Summary</h4>
                                                     <div className="space-y-2">
                                                         <div className="flex justify-between text-xs">
-                                                            <span className="font-bold text-slate-600">Subtotal</span>
+                                                            <span className="font-bold text-slate-500">Subtotal</span>
                                                             <span className="font-black text-slate-900">₹{Number(selectedOrder.subtotal ?? selectedOrder.total ?? 0).toFixed(2)}</span>
                                                         </div>
                                                         <div className="flex justify-between text-xs">
-                                                            <span className="font-bold text-slate-600">Delivery Fee</span>
-                                                            <span className="font-black text-brand-600">₹{Number(selectedOrder.deliveryFee ?? 0).toFixed(2)}</span>
+                                                            <span className="font-bold text-slate-500">Delivery Fee</span>
+                                                            <span className="font-black text-success">₹{Number(selectedOrder.deliveryFee ?? 0).toFixed(2)}</span>
                                                         </div>
                                                         <div className="h-px bg-primary/10 my-2" />
                                                         <div className="flex justify-between text-sm">
@@ -857,16 +777,16 @@ const Orders = () => {
                                                     </div>
                                                 </div>
                                                 <div className="bg-slate-900 p-3 sm:p-4 rounded-3xl text-white shadow-xl shadow-slate-900/10">
-                                                    <h4 className="text-xs font-black text-slate-600 uppercase tracking-widest mb-2">Payment Status</h4>
+                                                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Payment Status</h4>
                                                     <div className="flex items-center gap-2">
-                                                        <HiOutlineBanknotes className="h-5 w-5 text-brand-400" />
+                                                        <HiOutlineBanknotes className="h-5 w-5 text-success" />
                                                         <span className="text-xs font-bold tracking-tight">{selectedOrder.payment}</span>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <h4 className="text-xs font-black text-slate-600 uppercase tracking-widest mb-3 sm:mb-4">Items Ordered ({selectedOrder.items.length})</h4>
+                                        <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 sm:mb-4">Items Ordered ({selectedOrder.items.length})</h4>
                                         <div className="space-y-3 max-h-52 sm:max-h-64 overflow-y-auto pr-1">
                                             {selectedOrder.items.map((item, idx) => (
                                                 <div key={idx} className="flex items-center justify-between p-3 bg-white ring-1 ring-slate-100 rounded-2xl group hover:shadow-md transition-all">
@@ -876,7 +796,7 @@ const Orders = () => {
                                                         </div>
                                                         <div>
                                                             <p className="text-xs font-bold text-slate-900">{item.name}</p>
-                                                            <p className="text-xs font-semibold text-slate-600 mt-0.5">₹{item.price.toFixed(2)} × {item.qty}</p>
+                                                            <p className="text-xs font-semibold text-slate-500 mt-0.5">₹{item.price.toFixed(2)} × {item.qty}</p>
                                                         </div>
                                                     </div>
                                                     <div className="text-right">
@@ -890,31 +810,8 @@ const Orders = () => {
                                     {/* Modal Footer */}
                                     <div className="px-4 py-3 sm:px-6 sm:py-4 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row gap-3 sm:gap-0 sm:items-center justify-end">
                                         <div className="flex gap-2 items-center">
-                                            <button onClick={() => setIsDetailsModalOpen(false)} className="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-all">CLOSE</button>
-                                            <div className="relative inline-block w-40">
-                                                <select
-                                                    value={selectedOrder.status.toLowerCase()}
-                                                    onChange={(e) => handleStatusUpdate(selectedOrder.id, e.target.value)}
-                                                    className={cn(
-                                                        "w-full text-xs pl-3 pr-8 py-2 rounded-xl font-black uppercase tracking-wider border appearance-none cursor-pointer focus:ring-2 focus:ring-offset-1 transition-all outline-none shadow-sm",
-                                                        getStatusColor(selectedOrder.status) === 'warning' ? "bg-amber-100 text-amber-700 focus:ring-amber-200" :
-                                                            getStatusColor(selectedOrder.status) === 'info' ? "bg-brand-100 text-brand-700 focus:ring-brand-200" :
-                                                                getStatusColor(selectedOrder.status) === 'primary' ? "bg-brand-100 text-brand-700 focus:ring-brand-200" :
-                                                                    getStatusColor(selectedOrder.status) === 'secondary' ? "bg-purple-100 text-purple-700 focus:ring-purple-200" :
-                                                                        getStatusColor(selectedOrder.status) === 'success' ? "bg-brand-100 text-brand-700 focus:ring-brand-200" :
-                                                                            getStatusColor(selectedOrder.status) === 'error' ? "bg-rose-100 text-rose-700 focus:ring-rose-200" :
-                                                                                "bg-slate-100 text-slate-700 focus:ring-slate-200"
-                                                    )}
-                                                >
-                                                    <option value="pending" disabled={['confirmed','packed','out_for_delivery','delivered','cancelled'].includes(selectedOrder.status.toLowerCase())}>Pending</option>
-                                                    <option value="confirmed" disabled={['packed','out_for_delivery','delivered','cancelled'].includes(selectedOrder.status.toLowerCase())}>Confirmed</option>
-                                                    <option value="packed" disabled={['out_for_delivery','delivered','cancelled'].includes(selectedOrder.status.toLowerCase())}>Packed</option>
-                                                    <option value="out_for_delivery" disabled={['delivered','cancelled'].includes(selectedOrder.status.toLowerCase())}>Out for Delivery</option>
-                                                    <option value="delivered" disabled={selectedOrder.status.toLowerCase() === 'cancelled'}>Delivered</option>
-                                                    <option value="cancelled">Cancelled</option>
-                                                </select>
-                                                <HiOutlineChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none opacity-60" />
-                                            </div>
+                                            <button onClick={() => setIsDetailsModalOpen(false)} className="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100 transition-all">Close</button>
+                                            <StatusSelect order={{ ...selectedOrder, status: selectedOrder.status.toLowerCase() }} className="w-40" />
                                         </div>
                                     </div>
                                 </motion.div>
@@ -922,6 +819,12 @@ const Orders = () => {
                         )}
                     </AnimatePresence>
                 </>
+            )}
+            {loading && (
+                <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white py-16 shadow-sm">
+                    <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                    <p className="text-slate-500 font-semibold mt-3 text-xs uppercase tracking-widest">Fetching orders...</p>
+                </div>
             )}
             <ConfirmDialog
                 isOpen={statusConfirm.isOpen}

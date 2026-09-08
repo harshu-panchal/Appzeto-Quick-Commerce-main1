@@ -280,8 +280,8 @@ const AddProduct = () => {
           ))}
 
           <div className="pt-8 px-4">
-            <div className="p-4 bg-brand-50 rounded-md border border-brand-100">
-              <p className="text-[9px] font-bold text-brand-600 uppercase tracking-widest mb-1">
+            <div className="p-4 bg-primary/5 rounded-md border border-primary/20">
+              <p className="text-[9px] font-bold text-primary uppercase tracking-widest mb-1">
                 Status
               </p>
               <select
@@ -289,7 +289,7 @@ const AddProduct = () => {
                 onChange={(e) =>
                   setFormData({ ...formData, status: e.target.value })
                 }
-                className="w-full bg-transparent border-none text-xs font-bold text-brand-700 outline-none p-0 cursor-pointer focus:ring-0">
+                className="w-full bg-transparent border-none text-xs font-bold text-primary outline-none p-0 cursor-pointer focus:ring-0">
                 <option value="active">PUBLISHED</option>
                 <option value="inactive">DRAFT</option>
               </select>
@@ -464,7 +464,7 @@ const AddProduct = () => {
                       />
                     </div>
                     <div className="col-span-6 md:col-span-2 space-y-1">
-                      <label className="text-[8px] font-bold text-brand-500 uppercase tracking-widest ml-1">
+                      <label className="text-[8px] font-bold text-primary uppercase tracking-widest ml-1">
                         Sale
                       </label>
                       <input
@@ -484,7 +484,7 @@ const AddProduct = () => {
                           setFormData({ ...formData, variants: newVariants });
                         }}
                         placeholder="450"
-                        className="w-full px-3 py-2 bg-brand-50 ring-1 ring-brand-100 border-none rounded-xl text-xs font-bold text-brand-700 outline-none focus:ring-2 focus:ring-brand-200"
+                        className="w-full px-3 py-2 bg-primary/5 ring-1 ring-primary/20 border-none rounded-xl text-xs font-bold text-primary outline-none focus:ring-2 focus:ring-primary/20"
                       />
                     </div>
                     <div className="col-span-6 md:col-span-2 space-y-1">
@@ -546,7 +546,7 @@ const AddProduct = () => {
                             });
                           }
                         }}
-                        className="p-2 text-slate-300 hover:text-rose-500 transition-colors">
+                        className="p-2 text-slate-300 hover:text-danger transition-colors">
                         <HiOutlineTrash className="h-4 w-4" />
                       </button>
                     </div>
@@ -561,7 +561,7 @@ const AddProduct = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5 flex flex-col">
                   <label className="text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-widest ml-1">
-                    Main Group <span className="text-rose-500">*</span>
+                    Main Group <span className="text-danger">*</span>
                   </label>
                   <select
                     value={formData.header}
@@ -579,7 +579,7 @@ const AddProduct = () => {
                 </div>
                 <div className="space-y-1.5 flex flex-col">
                   <label className="text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-widest ml-1">
-                    Specific Category <span className="text-rose-500">*</span>
+                    Specific Category <span className="text-danger">*</span>
                   </label>
                   <select
                     value={formData.category}
@@ -602,7 +602,7 @@ const AddProduct = () => {
               <div className="grid grid-cols-1 gap-6">
                 <div className="space-y-1.5 flex flex-col">
                   <label className="text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-widest ml-1">
-                    Sub-Category <span className="text-rose-500">*</span>
+                    Sub-Category <span className="text-danger">*</span>
                   </label>
                   <select
                     value={formData.subcategory}

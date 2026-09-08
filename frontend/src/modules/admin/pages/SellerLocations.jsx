@@ -7,6 +7,8 @@ import {
 } from "@react-google-maps/api";
 import Card from "@shared/components/ui/Card";
 import Badge from "@shared/components/ui/Badge";
+import PageHeader from "@shared/components/ui/PageHeader";
+import StatCard from "@shared/components/ui/StatCard";
 import Pagination from "@shared/components/ui/Pagination";
 import {
   HiOutlineBuildingOffice2,
@@ -16,6 +18,9 @@ import {
   HiOutlineExclamationTriangle,
   HiOutlineGlobeAlt,
   HiOutlineMap,
+  HiOutlineUsers,
+  HiOutlineMapPin,
+  HiOutlineClipboardDocumentList,
 } from "react-icons/hi2";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -49,11 +54,11 @@ const mapContainerStyle = {
 };
 
 const lifecycleClassMap = {
-  active: "bg-brand-50 text-brand-700 border-brand-100",
-  pending: "bg-amber-50 text-amber-700 border-amber-100",
-  rejected: "bg-rose-50 text-rose-700 border-rose-100",
+  active: "bg-primary/10 text-primary border-primary/20",
+  pending: "bg-warning/10 text-warning border-warning/20",
+  rejected: "bg-danger/10 text-danger border-danger/20",
   inactive: "bg-slate-100 text-slate-700 border-slate-200",
-  verified: "bg-brand-50 text-brand-700 border-brand-100",
+  verified: "bg-primary/10 text-primary border-primary/20",
   unverified: "bg-slate-100 text-slate-700 border-slate-200",
 };
 
@@ -170,9 +175,9 @@ const ActiveSellerMap = ({
 
   if (!googleMapApiKey || mapLoadError) {
     return (
-      <div className="absolute inset-0 z-20 bg-slate-950/80 text-white flex items-center justify-center p-6 text-center">
+      <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/80 p-6 text-center text-white">
         <div className="max-w-md space-y-3">
-          <HiOutlineExclamationTriangle className="h-9 w-9 mx-auto text-amber-300" />
+          <HiOutlineExclamationTriangle className="mx-auto h-9 w-9 text-warning" />
           <p className="text-lg font-black">Google Maps is not available</p>
           <p className="text-sm text-slate-200">
             Set `VITE_GOOGLE_MAPS_API_KEY` with Maps JavaScript API enabled to
@@ -185,7 +190,7 @@ const ActiveSellerMap = ({
 
   if (!mapLoaded) {
     return (
-      <div className="h-full flex items-center justify-center text-slate-500 font-bold">
+      <div className="flex h-full items-center justify-center font-bold text-slate-500">
         Loading map...
       </div>
     );
@@ -385,7 +390,7 @@ const SellerLocations = () => {
     cn(
       "w-full text-left rounded-xl px-3 py-3 transition-all border",
       selectedSellerId === seller.id
-        ? "bg-slate-900 text-white border-slate-900 shadow-lg"
+        ? "bg-primary text-white border-primary shadow-sm"
         : "bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50",
     );
 
@@ -423,117 +428,82 @@ const SellerLocations = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-84px)] flex flex-col gap-5 animate-in fade-in duration-700">
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-        <div>
-          <h1 className="ds-h1 flex items-center gap-2">
+    <div className="flex min-h-[calc(100vh-84px)] flex-col gap-5">
+      <PageHeader
+        title={
+          <span className="flex items-center gap-2">
             Seller Locations
-            <Badge
-              variant="primary"
-              className="text-[9px] px-1.5 py-0 font-bold tracking-wider uppercase">
-              Google Maps
-            </Badge>
-          </h1>
-          <p className="ds-description mt-0.5">
-            Global view of seller locations, radius coverage, and order density.
-          </p>
-        </div>
+            <Badge variant="primary">Google Maps</Badge>
+          </span>
+        }
+        description="Global view of seller locations, radius coverage, and order density."
+        actions={
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-xl bg-slate-100 p-1">
+              <button
+                onClick={() => setMapView("coverage")}
+                disabled={!mapUnlocked}
+                className={cn(
+                  "rounded-lg px-4 py-1.5 text-[10px] font-bold transition-all",
+                  !mapUnlocked
+                    ? "cursor-not-allowed text-slate-400"
+                    : mapView === "coverage"
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700",
+                )}>
+                Coverage
+              </button>
+              <button
+                onClick={() => setMapView("density")}
+                disabled={!mapUnlocked}
+                className={cn(
+                  "rounded-lg px-4 py-1.5 text-[10px] font-bold transition-all",
+                  !mapUnlocked
+                    ? "cursor-not-allowed text-slate-400"
+                    : mapView === "density"
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700",
+                )}>
+                Density
+              </button>
+            </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex bg-slate-100 p-1 rounded-xl">
+            {mapUnlocked && (
+              <button
+                onClick={() => setMapUnlocked(false)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-bold text-slate-600 shadow-sm transition-all hover:text-slate-900"
+                title="Lock map to save API cost">
+                Lock Map
+              </button>
+            )}
+
             <button
-              onClick={() => setMapView("coverage")}
-              disabled={!mapUnlocked}
-              className={cn(
-                "px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all",
-                !mapUnlocked
-                  ? "text-slate-400 cursor-not-allowed"
-                  : mapView === "coverage"
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700",
-              )}>
-              COVERAGE
-            </button>
-            <button
-              onClick={() => setMapView("density")}
-              disabled={!mapUnlocked}
-              className={cn(
-                "px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all",
-                !mapUnlocked
-                  ? "text-slate-400 cursor-not-allowed"
-                  : mapView === "density"
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700",
-              )}>
-              DENSITY
+              onClick={() => setRefreshTick((value) => value + 1)}
+              className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 shadow-sm transition-all hover:text-primary"
+              title="Refresh">
+              <HiOutlineArrowPath className={cn("h-5 w-5", loading && "animate-spin")} />
             </button>
           </div>
+        }
+      />
 
-          {mapUnlocked && (
-            <button
-              onClick={() => setMapUnlocked(false)}
-              className="px-3 py-2.5 bg-white ring-1 ring-slate-200 rounded-xl shadow-sm text-[11px] font-bold text-slate-600 hover:text-slate-900 transition-all"
-              title="Lock map to save API cost">
-              Lock Map
-            </button>
-          )}
-
-          <button
-            onClick={() => setRefreshTick((value) => value + 1)}
-            className="p-2.5 bg-white ring-1 ring-slate-200 rounded-xl shadow-sm text-slate-500 hover:text-primary transition-all"
-            title="Refresh">
-            <HiOutlineArrowPath
-              className={cn("h-5 w-5", loading && "animate-spin")}
-            />
-          </button>
-        </div>
+      <div className="grid shrink-0 grid-cols-2 gap-4 md:grid-cols-4">
+        <StatCard label="Sellers" value={stats.totalSellers.toLocaleString("en-IN")} icon={HiOutlineUsers} color="text-primary" bg="bg-primary/10" />
+        <StatCard label="Mapped" value={stats.mappedSellers.toLocaleString("en-IN")} icon={HiOutlineMapPin} color="text-info" bg="bg-info/10" />
+        <StatCard label="Avg Radius" value={`${stats.averageRadiusKm} km`} icon={HiOutlineGlobeAlt} color="text-warning" bg="bg-warning/10" />
+        <StatCard label="Active Orders" value={stats.totalActiveOrders.toLocaleString("en-IN")} icon={HiOutlineClipboardDocumentList} color="text-success" bg="bg-success/10" />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
-        <Card className="border-none ring-1 ring-slate-100 p-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-            Sellers
-          </p>
-          <p className="text-2xl font-black text-slate-900 mt-1">
-            {stats.totalSellers.toLocaleString("en-IN")}
-          </p>
-        </Card>
-        <Card className="border-none ring-1 ring-slate-100 p-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-            Mapped
-          </p>
-          <p className="text-2xl font-black text-brand-600 mt-1">
-            {stats.mappedSellers.toLocaleString("en-IN")}
-          </p>
-        </Card>
-        <Card className="border-none ring-1 ring-slate-100 p-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-            Avg Radius
-          </p>
-          <p className="text-2xl font-black text-slate-900 mt-1">
-            {stats.averageRadiusKm} km
-          </p>
-        </Card>
-        <Card className="border-none ring-1 ring-slate-100 p-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-            Active Orders
-          </p>
-          <p className="text-2xl font-black text-slate-900 mt-1">
-            {stats.totalActiveOrders.toLocaleString("en-IN")}
-          </p>
-        </Card>
-      </div>
-
-      <div className="flex-1 grid grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)] gap-5 min-h-[600px]">
-        <Card className="border-none shadow-xl ring-1 ring-slate-100 rounded-2xl overflow-hidden flex flex-col min-h-0">
-          <div className="p-4 border-b border-slate-100 space-y-3">
+      <div className="grid min-h-[600px] flex-1 grid-cols-1 gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <Card className="flex min-h-0 flex-col overflow-hidden p-0">
+          <div className="space-y-3 border-b border-slate-100 p-4">
             <div className="relative">
-              <HiOutlineMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <HiOutlineMagnifyingGlass className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
                 placeholder="Search by store, owner, city..."
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-50 text-xs font-semibold outline-none ring-1 ring-transparent focus:ring-primary/20"
+                className="w-full rounded-md border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-xs font-semibold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
             </div>
 
@@ -541,7 +511,7 @@ const SellerLocations = () => {
               <select
                 value={lifecycle}
                 onChange={(event) => setLifecycle(event.target.value)}
-                className="px-3 py-2 rounded-xl bg-white ring-1 ring-slate-200 text-[11px] font-bold text-slate-700 outline-none">
+                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 outline-none">
                 {LIFECYCLE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -551,7 +521,7 @@ const SellerLocations = () => {
               <select
                 value={sort}
                 onChange={(event) => setSort(event.target.value)}
-                className="px-3 py-2 rounded-xl bg-white ring-1 ring-slate-200 text-[11px] font-bold text-slate-700 outline-none">
+                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 outline-none">
                 {SORT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -564,7 +534,7 @@ const SellerLocations = () => {
               <select
                 value={category}
                 onChange={(event) => setCategory(event.target.value)}
-                className="px-3 py-2 rounded-xl bg-white ring-1 ring-slate-200 text-[11px] font-bold text-slate-700 outline-none">
+                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 outline-none">
                 <option value="all">All categories</option>
                 {filtersMeta.categories.map((option) => (
                   <option key={option} value={option}>
@@ -575,7 +545,7 @@ const SellerLocations = () => {
               <select
                 value={city}
                 onChange={(event) => setCity(event.target.value)}
-                className="px-3 py-2 rounded-xl bg-white ring-1 ring-slate-200 text-[11px] font-bold text-slate-700 outline-none">
+                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-700 outline-none">
                 <option value="all">All cities</option>
                 {filtersMeta.cities.map((option) => (
                   <option key={option} value={option}>
@@ -586,14 +556,14 @@ const SellerLocations = () => {
             </div>
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
             {loading ? (
-              <div className="h-full flex items-center justify-center text-slate-500 text-sm font-bold">
+              <div className="flex h-full items-center justify-center text-sm font-bold text-slate-500">
                 Loading seller nodes...
               </div>
             ) : error ? (
-              <div className="h-full flex flex-col items-center justify-center gap-3 text-center">
-                <HiOutlineExclamationTriangle className="h-8 w-8 text-rose-400" />
+              <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+                <HiOutlineExclamationTriangle className="h-8 w-8 text-danger" />
                 <p className="text-sm font-bold text-slate-600">{error}</p>
               </div>
             ) : items.length ? (
@@ -618,9 +588,9 @@ const SellerLocations = () => {
                         <HiOutlineBuildingOffice2 className="h-5 w-5" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-black truncate flex items-center gap-2">
-                          <span 
-                            className="h-2 w-2 rounded-full shrink-0 shadow-sm"
+                        <p className="flex items-center gap-2 truncate text-xs font-black">
+                          <span
+                            className="h-2 w-2 shrink-0 rounded-full shadow-sm"
                             style={{ backgroundColor: sellerColor }}
                           />
                           {seller.shopName}
@@ -629,12 +599,12 @@ const SellerLocations = () => {
                         className={cn(
                           "text-[10px] mt-1 truncate",
                           selectedSellerId === seller.id
-                            ? "text-slate-200"
+                            ? "text-white/70"
                             : "text-slate-500",
                         )}>
                         {seller.ownerName || "Owner not available"}
                       </p>
-                      <div className="mt-2 flex items-center gap-2 flex-wrap">
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
                         <span
                           className={cn(
                             "text-[9px] font-black px-2 py-0.5 rounded-full border uppercase tracking-wide",
@@ -649,7 +619,7 @@ const SellerLocations = () => {
                           className={cn(
                             "text-[9px] font-bold",
                             selectedSellerId === seller.id
-                              ? "text-slate-100"
+                              ? "text-white/80"
                               : "text-slate-500",
                           )}>
                           {seller.serviceRadiusKm}km
@@ -658,7 +628,7 @@ const SellerLocations = () => {
                           className={cn(
                             "text-[9px] font-bold",
                             selectedSellerId === seller.id
-                              ? "text-slate-100"
+                              ? "text-white/80"
                               : "text-slate-500",
                           )}>
                           {seller.activeOrders} active orders
@@ -669,7 +639,7 @@ const SellerLocations = () => {
                               "text-[9px] font-bold px-2 py-0.5 rounded-full border",
                               selectedSellerId === seller.id
                                 ? "bg-white/10 border-white/20 text-white"
-                                : "bg-amber-50 text-amber-700 border-amber-100",
+                                : "bg-warning/10 text-warning border-warning/20",
                             )}>
                             No map pin
                           </span>
@@ -681,7 +651,7 @@ const SellerLocations = () => {
                 );
               })
             ) : (
-              <div className="h-full flex flex-col items-center justify-center gap-3 text-center px-4">
+              <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
                 <HiOutlineGlobeAlt className="h-10 w-10 text-slate-300" />
                 <p className="text-sm font-bold text-slate-500">
                   No sellers matched the selected filters.
@@ -690,7 +660,7 @@ const SellerLocations = () => {
             )}
           </div>
 
-          <div className="px-3 pb-3 pt-1 border-t border-slate-100">
+          <div className="border-t border-slate-100 px-3 pb-3 pt-1">
             <Pagination
               page={page}
               totalPages={totalPages}
@@ -703,23 +673,23 @@ const SellerLocations = () => {
           </div>
         </Card>
 
-        <Card className="border-none shadow-xl ring-1 ring-slate-100 rounded-2xl overflow-hidden relative min-h-0">
+        <Card className="relative min-h-0 overflow-hidden p-0">
           {!mapUnlocked ? (
-            <div className="h-full bg-gradient-to-br from-slate-100 via-slate-50 to-white p-6 flex items-center justify-center">
-              <div className="max-w-xl text-center space-y-4">
-                <div className="mx-auto h-12 w-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center">
+            <div className="flex h-full items-center justify-center bg-gradient-to-br from-slate-100 via-slate-50 to-white p-6">
+              <div className="max-w-xl space-y-4 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 text-white">
                   <HiOutlineMap className="h-6 w-6" />
                 </div>
                 <h3 className="text-2xl font-black text-slate-900">
                   Map Is Locked To Save API Cost
                 </h3>
-                <p className="text-sm font-semibold text-slate-600 leading-relaxed">
+                <p className="text-sm font-semibold leading-relaxed text-slate-600">
                   Google Maps loads only when needed. Click below to open the
                   live map for this session.
                 </p>
                 <button
                   onClick={() => setMapUnlocked(true)}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-black hover:bg-slate-800 transition-colors">
+                  className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-black text-white transition-colors hover:bg-slate-800">
                   <HiOutlineMap className="h-4 w-4" />
                   Open Live Map
                 </button>
@@ -742,7 +712,7 @@ const SellerLocations = () => {
 
           {mapUnlocked && (
             <div className="absolute bottom-5 left-5 z-20">
-              <div className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl text-[10px] font-bold text-slate-700 flex items-center gap-2 shadow-lg ring-1 ring-slate-200">
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white/90 px-4 py-2 text-[10px] font-bold text-slate-700 shadow-lg backdrop-blur-md">
                 <HiOutlineInformationCircle className="h-4 w-4 text-slate-500" />
                 Circles represent seller service radius. Density colors indicate live order load.
               </div>
@@ -755,4 +725,3 @@ const SellerLocations = () => {
 };
 
 export default SellerLocations;
-

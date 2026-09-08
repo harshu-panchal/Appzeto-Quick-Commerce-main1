@@ -110,12 +110,14 @@ const navItems = [
     path: "/admin",
     icon: LayoutDashboard,
     color: "indigo",
+    group: "Overview",
     end: true,
   },
   {
     label: "Categories",
     icon: Tag,
     color: "rose",
+    group: "Catalog & Growth",
     children: [
       { label: "All Categories", path: "/admin/categories/hierarchy" },
       { label: "Header Categories", path: "/admin/categories/header" },
@@ -123,11 +125,12 @@ const navItems = [
       { label: "Sub-Categories", path: "/admin/categories/sub" },
     ],
   },
-  { label: "Products", path: "/admin/products", icon: Box, color: "amber" },
+  { label: "Products", path: "/admin/products", icon: Box, color: "amber", group: "Catalog & Growth" },
   {
     label: "Marketing Tools",
     icon: Sparkles,
     color: "amber",
+    group: "Catalog & Growth",
     children: [
       { label: "Create Sections", path: "/admin/experience-studio" },
       { label: "Hero & categories per page", path: "/admin/hero-categories" },
@@ -141,6 +144,7 @@ const navItems = [
     label: "Customer Support",
     icon: Receipt,
     color: "emerald",
+    group: "Orders & Support",
     children: [
       { label: "Help Tickets", path: "/admin/support-tickets" },
       { label: "Review Content", path: "/admin/moderation" },
@@ -150,6 +154,7 @@ const navItems = [
     label: "Sellers",
     icon: Store,
     color: "blue",
+    group: "People",
     children: [
       { label: "Active Sellers", path: "/admin/sellers/active" },
       { label: "Waiting for Review", path: "/admin/sellers/pending" },
@@ -160,6 +165,7 @@ const navItems = [
     label: "Delivery Drivers",
     icon: Truck,
     color: "emerald",
+    group: "People",
     children: [
       { label: "Active Drivers", path: "/admin/delivery-boys/active" },
       { label: "Waiting for Review", path: "/admin/delivery-boys/pending" },
@@ -167,37 +173,42 @@ const navItems = [
       { label: "Send Money", path: "/admin/delivery-funds" },
     ],
   },
-  { label: "Wallet", path: "/admin/wallet", icon: Wallet, color: "violet" },
+  { label: "Wallet", path: "/admin/wallet", icon: Wallet, color: "violet", group: "Finance" },
   {
     label: "Money Requests",
     path: "/admin/withdrawals",
     icon: Banknote,
     color: "cyan",
+    group: "Finance",
   },
   {
     label: "Seller Payments",
     path: "/admin/seller-transactions",
     icon: Receipt,
     color: "orange",
+    group: "Finance",
   },
   {
     label: "Collect Cash",
     path: "/admin/cash-collection",
     icon: CircleDollarSign,
     color: "green",
+    group: "Finance",
   },
-  { label: "Customers", path: "/admin/customers", icon: Users, color: "sky" },
-  { label: "FAQs", path: "/admin/faqs", icon: HelpCircle, color: "pink" },
+  { label: "Customers", path: "/admin/customers", icon: Users, color: "sky", group: "People" },
+  { label: "FAQs", path: "/admin/faqs", icon: HelpCircle, color: "pink", group: "Orders & Support" },
   {
     label: "Legal Pages",
     path: "/admin/legal-pages",
     icon: ScrollText,
     color: "violet",
+    group: "System",
   },
   {
     label: "Orders",
     icon: ClipboardList,
     color: "fuchsia",
+    group: "Orders & Support",
     children: [
       { label: "All Orders", path: "/admin/orders/all" },
       { label: "New Orders", path: "/admin/orders/pending" },
@@ -214,15 +225,17 @@ const navItems = [
     path: "/admin/billing",
     icon: RotateCcw,
     color: "red",
+    group: "Finance",
   },
   {
     label: "Settings",
     path: "/admin/settings",
     icon: Settings,
     color: "slate",
+    group: "System",
   },
-  { label: "My Profile", path: "/admin/profile", icon: User, color: "indigo" },
-  { label: "System Settings", path: "/admin/env", icon: Terminal, color: "dark" },
+  { label: "My Profile", path: "/admin/profile", icon: User, color: "indigo", group: "System" },
+  { label: "System Settings", path: "/admin/env", icon: Terminal, color: "dark", group: "System" },
 ];
 
 const BillingCharges = React.lazy(() => import("../pages/BillingCharges"));

@@ -1,18 +1,19 @@
 import React, { useState, useEffect, useRef } from "react";
-import Card from "@shared/components/ui/Card";
 import Badge from "@shared/components/ui/Badge";
+import Button from "@shared/components/ui/Button";
+import PageHeader from "@shared/components/ui/PageHeader";
+import FilterBar from "@shared/components/ui/FilterBar";
+import DataTable from "@shared/components/ui/DataTable";
 import {
   Plus,
   Search,
   Edit,
-  Trash,
   Trash2,
   X,
   Upload,
   Image,
   Sparkles,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { adminApi } from "../../services/adminApi";
 import { toast } from "sonner";
@@ -24,11 +25,9 @@ import { getIconSvg } from "@shared/constants/categoryIcons";
 import HomeIcon from "@mui/icons-material/Home";
 import DevicesIcon from "@mui/icons-material/Devices";
 import LocalGroceryStoreIcon from "@mui/icons-material/LocalGroceryStore";
-import KitchenIcon from "@mui/icons-material/Kitchen";
 import ChildCareIcon from "@mui/icons-material/ChildCare";
 import PetsIcon from "@mui/icons-material/Pets";
 import SportsSoccerIcon from "@mui/icons-material/SportsSoccer";
-import CardGiftcardIcon from "@mui/icons-material/CardGiftcard";
 import MenuBookIcon from "@mui/icons-material/MenuBook";
 import SpaIcon from "@mui/icons-material/Spa";
 import ToysIcon from "@mui/icons-material/Toys";
@@ -287,209 +286,161 @@ const HeaderCategories = () => {
     setIsAddModalOpen(true);
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">
-            Header Categories
-          </h1>
-          <p className="text-gray-500 mt-1">Manage top-level categories</p>
+  const renderIconPreview = (cat) => (
+    <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+      {cat.iconId && iconComponents[cat.iconId] ? (
+        <div className="flex h-6 w-6 items-center justify-center text-primary">
+          {(() => { const IconComp = iconComponents[cat.iconId]; return <IconComp fontSize="medium" />; })()}
         </div>
-        <button
-          onClick={openAddModal}
-          className="flex items-center gap-2 bg-black text-primary-foreground px-4 py-2 rounded-lg hover:bg-brand-700 transition-colors">
-          <Plus className="w-5 h-5" />
-          Add New Header
-        </button>
-      </div>
+      ) : cat.iconId && getIconSvg(cat.iconId) ? (
+        <div className="h-6 w-6 text-primary" dangerouslySetInnerHTML={{ __html: getIconSvg(cat.iconId) }} />
+      ) : cat.image ? (
+        <img src={cat.image} alt={cat.name} className="h-full w-full object-cover" />
+      ) : (
+        <Image className="h-5 w-5 text-slate-400" />
+      )}
+    </div>
+  );
 
-      <Card className="border-none shadow-sm">
-        <div className="p-4 border-b border-gray-100 flex gap-4 items-center">
-          {selectedItems.length > 0 && (
-            <button
-              onClick={handleBulkDelete}
-              className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors text-sm font-medium">
-              <Trash2 className="w-4 h-4" />
-              Delete ({selectedItems.length})
-            </button>
-          )}
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+  const categoryColumns = [
+    {
+      header: '',
+      key: 'select',
+      hideOnMobile: true,
+      cell: (cat) => (
+        <input
+          type="checkbox"
+          className="rounded border-slate-300 text-primary focus:ring-primary"
+          checked={selectedItems.includes(cat._id || cat.id)}
+          onChange={() => handleSelect(cat._id || cat.id)}
+        />
+      ),
+    },
+    {
+      header: 'Header Category',
+      key: 'name',
+      primary: true,
+      cell: (cat) => (
+        <div className="flex items-center gap-3">
+          {renderIconPreview(cat)}
+          <div>
+            <p className="text-sm font-bold text-slate-900">{cat.name}</p>
+            <p className="text-[11px] font-medium text-slate-400">{cat.slug}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: 'Commission',
+      key: 'commission',
+      cell: (cat) => <span className="text-sm font-semibold text-slate-700">{cat.adminCommission ?? 0}%</span>,
+    },
+    {
+      header: 'Handling Fees',
+      key: 'fees',
+      cell: (cat) => <span className="text-sm font-semibold text-slate-700">₹{cat.handlingFees ?? 0}</span>,
+    },
+    {
+      header: 'Status',
+      key: 'status',
+      cell: (cat) => <Badge variant={cat.status === "active" ? "success" : "warning"}>{cat.status}</Badge>,
+    },
+    {
+      header: 'Actions',
+      key: 'actions',
+      align: 'right',
+      cell: (cat) => (
+        <div className="flex items-center justify-end gap-1">
+          <button onClick={() => openEditModal(cat)} className="rounded-lg p-2 text-slate-500 transition-all hover:bg-primary/10 hover:text-primary">
+            <Edit className="h-4 w-4" />
+          </button>
+          <button onClick={() => { setDeleteTarget(cat); setIsDeleteModalOpen(true); }} className="rounded-lg p-2 text-slate-500 transition-all hover:bg-danger/10 hover:text-danger">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <PageHeader
+        title="Header Categories"
+        description="Manage the top-level navigation categories customers browse by."
+        actions={
+          <Button onClick={openAddModal}>
+            <Plus className="h-4 w-4" />
+            Add New Header
+          </Button>
+        }
+      />
+
+      <FilterBar
+        left={
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
               placeholder="Search header categories..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+              className="h-9 w-full rounded-md border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
           </div>
-        </div>
+        }
+        right={
+          selectedItems.length > 0 && (
+            <Button variant="danger" onClick={handleBulkDelete}>
+              <Trash2 className="h-4 w-4" />
+              Delete ({selectedItems.length})
+            </Button>
+          )
+        }
+      />
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                <th className="w-12 py-3 px-4 text-left">
-                  <input
-                    type="checkbox"
-                    className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                    checked={
-                      selectedItems.length > 0 &&
-                      categories.length > 0 &&
-                      selectedItems.length === categories.length
-                    }
-                    onChange={handleSelectAll}
-                  />
-                </th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Image
-                </th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Slug
-                </th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Comm (%)
-                </th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Fees (₹)
-                </th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {isLoading ? (
-                <tr>
-                  <td colSpan="8" className="text-center py-8 text-gray-500">
-                    Loading...
-                  </td>
-                </tr>
-              ) : categories.length === 0 ? (
-                <tr>
-                  <td colSpan="8" className="text-center py-8 text-gray-500">
-                    No header categories found
-                  </td>
-                </tr>
-              ) : (
-                categories.map((cat) => (
-                  <tr
-                    key={cat._id || cat.id}
-                    className="hover:bg-gray-50/50 transition-colors">
-                    <td className="py-3 px-4">
-                      <input
-                        type="checkbox"
-                        className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                        checked={selectedItems.includes(cat._id || cat.id)}
-                        onChange={() => handleSelect(cat._id || cat.id)}
-                      />
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center border border-gray-200">
-                        {cat.iconId && iconComponents[cat.iconId] ? (
-                          <div className="w-6 h-6 text-brand-600 flex items-center justify-center">
-                            {(() => {
-                              const IconComp = iconComponents[cat.iconId];
-                              return <IconComp fontSize="medium" />;
-                            })()}
-                          </div>
-                        ) : cat.iconId && getIconSvg(cat.iconId) ? (
-                          <div
-                            className="w-6 h-6 text-brand-600"
-                            dangerouslySetInnerHTML={{
-                              __html: getIconSvg(cat.iconId),
-                            }}
-                          />
-                        ) : cat.image ? (
-                          <img
-                            src={cat.image}
-                            alt={cat.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <Image className="w-5 h-5 text-gray-400" />
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 font-medium text-gray-900">
-                      {cat.name}
-                    </td>
-                    <td className="py-3 px-4 text-gray-500">{cat.slug}</td>
-                    <td className="py-3 px-4 text-gray-500 font-medium">
-                      {cat.adminCommission ?? 0}%
-                    </td>
-                    <td className="py-3 px-4 text-gray-500 font-medium">
-                      ₹{cat.handlingFees ?? 0}
-                    </td>
-                    <td className="py-3 px-4">
-                      <Badge
-                        variant={
-                          cat.status === "active" ? "success" : "warning"
-                        }>
-                        {cat.status}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-right space-x-2">
-                      <button
-                        onClick={() => openEditModal(cat)}
-                        className="p-1 text-gray-500 hover:text-brand-600 transition-colors">
-                        <Edit className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setDeleteTarget(cat);
-                          setIsDeleteModalOpen(true);
-                        }}
-                        className="p-1 text-gray-500 hover:text-red-600 transition-colors">
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="px-4 py-3 border-t border-gray-100">
-          <Pagination
-            page={page}
-            totalPages={Math.ceil(total / pageSize) || 1}
-            total={total}
-            pageSize={pageSize}
-            onPageChange={(p) => fetchCategories(p)}
-            onPageSizeChange={(size) => {
-              setPageSize(size);
-              setPage(1);
-            }}
-            loading={isLoading}
-          />
-        </div>
-      </Card>
+      <div className="flex items-center gap-2 px-1">
+        <input
+          type="checkbox"
+          className="rounded border-slate-300 text-primary focus:ring-primary"
+          checked={selectedItems.length > 0 && categories.length > 0 && selectedItems.length === categories.length}
+          onChange={handleSelectAll}
+        />
+        <span className="text-xs font-medium text-slate-500">Select all on this page</span>
+      </div>
+
+      <DataTable
+        columns={categoryColumns}
+        data={categories}
+        rowKey={(c) => c._id || c.id}
+        loading={isLoading}
+        emptyState={<div className="py-12 text-center text-sm text-slate-400">No header categories found.</div>}
+      />
+
+      <Pagination
+        page={page}
+        totalPages={Math.ceil(total / pageSize) || 1}
+        total={total}
+        pageSize={pageSize}
+        onPageChange={(p) => fetchCategories(p)}
+        onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+        loading={isLoading}
+      />
 
       {/* Add/Edit Modal */}
       <AnimatePresence>
         {isAddModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm overflow-y-auto">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center shrink-0">
-                <h2 className="text-lg font-bold text-gray-900">
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+              <div className="p-5 border-b border-slate-100 flex justify-between items-center shrink-0">
+                <h2 className="text-lg font-bold text-slate-900">
                   {editingItem ? "Edit Header Category" : "Add Header Category"}
                 </h2>
-                <button
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600">
-                  <X className="w-6 h-6" />
+                <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
@@ -501,12 +452,12 @@ const HeaderCategories = () => {
               >
                 {/* Icon/Image Selection */}
                 <div className="flex flex-col items-center gap-4">
-                  <div className="flex gap-4">
+                  <div className="flex flex-wrap items-start justify-center gap-4">
                     {/* SVG Icon Display */}
                     <div className="flex flex-col items-center gap-2">
-                      <div className="w-24 h-24 rounded-full bg-linear-to-br from-brand-50 to-purple-50 border-2 border-brand-200 flex items-center justify-center">
+                      <div className="w-24 h-24 rounded-full bg-primary/5 border-2 border-primary/20 flex items-center justify-center">
                         {formData.iconId && iconComponents[formData.iconId] ? (
-                          <div className="w-12 h-12 text-brand-600 flex items-center justify-center">
+                          <div className="w-12 h-12 text-primary flex items-center justify-center">
                             {(() => {
                               const IconComp = iconComponents[formData.iconId];
                               return <IconComp fontSize="large" />;
@@ -514,33 +465,33 @@ const HeaderCategories = () => {
                           </div>
                         ) : formData.iconId && getIconSvg(formData.iconId) ? (
                           <div
-                            className="w-12 h-12 text-brand-600"
+                            className="w-12 h-12 text-primary"
                             dangerouslySetInnerHTML={{
                               __html: getIconSvg(formData.iconId),
                             }}
                           />
                         ) : (
-                          <Sparkles className="w-10 h-10 text-brand-300" />
+                          <Sparkles className="w-10 h-10 text-primary/30" />
                         )}
                       </div>
                       <button
                         type="button"
                         onClick={() => setIsIconSelectorOpen(true)}
-                        className="px-3 py-1.5 text-sm bg-black text-primary-foreground rounded-lg hover:bg-brand-700 transition-colors">
+                        className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
                         {formData.iconId ? 'Change Icon' : 'Select Icon'}
                       </button>
                     </div>
 
                     {/* OR Divider */}
                     <div className="flex items-center">
-                      <span className="text-gray-400 font-medium">OR</span>
+                      <span className="text-slate-400 font-medium">OR</span>
                     </div>
 
                     {/* Image Upload */}
                     <div className="flex flex-col items-center gap-2">
                       <div
                         onClick={() => fileInputRef.current?.click()}
-                        className="w-24 h-24 rounded-full bg-gray-50 border-2 border-dashed border-gray-300 flex items-center justify-center cursor-pointer hover:border-brand-500 overflow-hidden transition-colors">
+                        className="w-24 h-24 rounded-full bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center cursor-pointer hover:border-primary overflow-hidden transition-colors">
                         {previewUrl ? (
                           <img
                             src={previewUrl}
@@ -549,8 +500,8 @@ const HeaderCategories = () => {
                           />
                         ) : (
                           <div className="text-center">
-                            <Upload className="w-8 h-8 text-gray-400 mx-auto" />
-                            <span className="text-xs text-gray-500 mt-1">
+                            <Upload className="w-8 h-8 text-slate-400 mx-auto" />
+                            <span className="text-xs text-slate-500 mt-1">
                               Upload
                             </span>
                           </div>
@@ -563,10 +514,10 @@ const HeaderCategories = () => {
                         onChange={handleImageChange}
                         accept="image/*"
                       />
-                      <span className="text-xs text-gray-500">Custom Image</span>
+                      <span className="text-xs text-slate-500">Custom Image</span>
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 text-center">
+                  <p className="text-xs text-slate-500 text-center">
                     Choose an SVG icon or upload a custom image
                   </p>
                 </div>
@@ -574,99 +525,63 @@ const HeaderCategories = () => {
                 {/* Header Color Picker */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium text-gray-700">
-                        Header Background
-                      </label>
-                    </div>
+                    <label className="text-sm font-medium text-slate-700">
+                      Header Background
+                    </label>
                     <div className="flex items-center gap-2">
                       <input
                         type="color"
                         value={formData.headerColor || "#FF1E1E"}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            headerColor: e.target.value,
-                          })
-                        }
-                        className="w-10 h-10 rounded-lg border border-gray-300 cursor-pointer bg-transparent p-0 overflow-hidden shrink-0"
+                        onChange={(e) => setFormData({ ...formData, headerColor: e.target.value })}
+                        className="w-10 h-10 rounded-lg border border-slate-300 cursor-pointer bg-transparent p-0 overflow-hidden shrink-0"
                       />
                       <input
                         type="text"
                         value={formData.headerColor || "#FF1E1E"}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            headerColor: e.target.value,
-                          })
-                        }
-                        className="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                        onChange={(e) => setFormData({ ...formData, headerColor: e.target.value })}
+                        className="flex-1 px-3 py-2 rounded-md border border-slate-300 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary/20"
                         placeholder="#FF1E1E"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium text-gray-700">
-                        Title/Text Color
-                      </label>
-                    </div>
+                    <label className="text-sm font-medium text-slate-700">
+                      Title/Text Color
+                    </label>
                     <div className="flex items-center gap-2">
                       <input
                         type="color"
                         value={formData.headerFontColor || "#FFFFFF"}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            headerFontColor: e.target.value,
-                          })
-                        }
-                        className="w-10 h-10 rounded-lg border border-gray-300 cursor-pointer bg-transparent p-0 overflow-hidden shrink-0"
+                        onChange={(e) => setFormData({ ...formData, headerFontColor: e.target.value })}
+                        className="w-10 h-10 rounded-lg border border-slate-300 cursor-pointer bg-transparent p-0 overflow-hidden shrink-0"
                       />
                       <input
                         type="text"
                         value={formData.headerFontColor || "#FFFFFF"}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            headerFontColor: e.target.value,
-                          })
-                        }
-                        className="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                        onChange={(e) => setFormData({ ...formData, headerFontColor: e.target.value })}
+                        className="flex-1 px-3 py-2 rounded-md border border-slate-300 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary/20"
                         placeholder="#FFFFFF"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium text-gray-700">
-                        Active Tab / Icon Color
-                      </label>
-                    </div>
+                    <label className="text-sm font-medium text-slate-700">
+                      Active Tab / Icon Color
+                    </label>
                     <div className="flex items-center gap-2">
                       <input
                         type="color"
                         value={formData.headerIconColor || "#111111"}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            headerIconColor: e.target.value,
-                          })
-                        }
-                        className="w-10 h-10 rounded-lg border border-gray-300 cursor-pointer bg-transparent p-0 overflow-hidden shrink-0"
+                        onChange={(e) => setFormData({ ...formData, headerIconColor: e.target.value })}
+                        className="w-10 h-10 rounded-lg border border-slate-300 cursor-pointer bg-transparent p-0 overflow-hidden shrink-0"
                       />
                       <input
                         type="text"
                         value={formData.headerIconColor || "#111111"}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            headerIconColor: e.target.value,
-                          })
-                        }
-                        className="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                        onChange={(e) => setFormData({ ...formData, headerIconColor: e.target.value })}
+                        className="flex-1 px-3 py-2 rounded-md border border-slate-300 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary/20"
                         placeholder="#111111"
                       />
                     </div>
@@ -674,80 +589,58 @@ const HeaderCategories = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Name
-                  </label>
+                  <label className="text-sm font-medium text-slate-700">Name</label>
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        name: e.target.value,
-                        slug: makeSlug(e.target.value),
-                      })
-                    }
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value, slug: makeSlug(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                     placeholder="e.g., Electronics"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Slug
-                  </label>
+                  <label className="text-sm font-medium text-slate-700">Slug</label>
                   <input
                     type="text"
                     value={formData.slug}
                     readOnly
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                    className="w-full px-3 py-2 rounded-md border border-slate-300 bg-slate-50 text-slate-600 focus:outline-none"
                     placeholder="e.g., electronics"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Status
-                  </label>
+                  <label className="text-sm font-medium text-slate-700">Status</label>
                   <select
                     value={formData.status}
-                    onChange={(e) =>
-                      setFormData({ ...formData, status: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full px-3 py-2 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
                   </select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
-                      Admin Commission (%)
-                    </label>
+                    <label className="text-sm font-medium text-slate-700">Admin Commission (%)</label>
                     <input
                       type="number"
                       value={formData.adminCommission}
-                      onChange={(e) =>
-                        setFormData({ ...formData, adminCommission: e.target.value })
-                      }
-                      className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                      onChange={(e) => setFormData({ ...formData, adminCommission: e.target.value })}
+                      className="w-full px-3 py-2 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                       placeholder="0"
                       min="0"
                       max="100"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">
-                      Handling Fees (₹)
-                    </label>
+                    <label className="text-sm font-medium text-slate-700">Handling Fees (₹)</label>
                     <input
                       type="number"
                       value={formData.handlingFees}
-                      onChange={(e) =>
-                        setFormData({ ...formData, handlingFees: e.target.value })
-                      }
-                      className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                      onChange={(e) => setFormData({ ...formData, handlingFees: e.target.value })}
+                      className="w-full px-3 py-2 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                       placeholder="0"
                       min="0"
                     />
@@ -755,21 +648,13 @@ const HeaderCategories = () => {
                 </div>
               </div>
 
-              <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-gray-50 shrink-0">
-                <button
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium">
+              <div className="p-5 border-t border-slate-100 flex justify-end gap-3 bg-slate-50 shrink-0">
+                <button onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 text-slate-600 hover:text-slate-800 font-medium">
                   Cancel
                 </button>
-                <button
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className="px-4 py-2 bg-black text-primary-foreground rounded-lg hover:bg-brand-700 font-medium disabled:opacity-50 flex items-center gap-2">
-                  {isSaving && (
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  )}
+                <Button onClick={handleSave} isLoading={isSaving}>
                   {editingItem ? "Update Header" : "Create Header"}
-                </button>
+                </Button>
               </div>
             </motion.div>
           </div>
@@ -793,37 +678,24 @@ const HeaderCategories = () => {
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
         {isDeleteModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden">
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
               <div className="p-6 text-center">
-                <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4">
+                <div className="w-12 h-12 rounded-full bg-danger/10 text-danger flex items-center justify-center mx-auto mb-4">
                   <Trash2 className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">
-                  Delete Category?
-                </h3>
-                <p className="text-gray-500 text-sm mb-6">
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Delete Category?</h3>
+                <p className="text-slate-500 text-sm mb-6">
                   Are you sure you want to delete{" "}
-                  <span className="font-semibold text-gray-900">
-                    {deleteTarget?.name}
-                  </span>
-                  ? This action cannot be undone.
+                  <span className="font-semibold text-slate-900">{deleteTarget?.name}</span>? This action cannot be undone.
                 </p>
                 <div className="flex gap-3 justify-center">
-                  <button
-                    onClick={() => setIsDeleteModalOpen(false)}
-                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors">
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleDelete}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors">
-                    Delete
-                  </button>
+                  <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>Cancel</Button>
+                  <Button variant="danger" onClick={handleDelete}>Delete</Button>
                 </div>
               </div>
             </motion.div>

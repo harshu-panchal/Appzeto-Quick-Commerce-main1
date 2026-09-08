@@ -7,11 +7,12 @@ import {
     HiOutlineSearch,
     HiOutlineMenu
 } from 'react-icons/hi';
+import { ChevronDown } from 'lucide-react';
 import { useNavigate, useLocation, NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { sellerApi } from '@/modules/seller/services/sellerApi';
 import { adminApi } from '@/modules/admin/services/adminApi';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import NotificationPopup from './NotificationPopup';
 import ConfirmDialog from '@shared/components/ui/ConfirmDialog';
 import { toast } from 'sonner';
@@ -19,7 +20,7 @@ import { toast } from 'sonner';
 import { useSettings } from '@core/context/SettingsContext';
 import { onNotificationNew } from '@core/services/orderSocket';
 
-const Topbar = ({ onMenuClick }) => {
+const Topbar = ({ onMenuClick, sidebarCollapsed = false }) => {
     const { user, logout, role, token } = useAuth();
     const { settings } = useSettings();
     const navigate = useNavigate();
@@ -32,8 +33,10 @@ const Topbar = ({ onMenuClick }) => {
     const [notifications, setNotifications] = React.useState([]);
     const [unreadCount, setUnreadCount] = React.useState(0);
     const [showNotifications, setShowNotifications] = React.useState(false);
+    const [showProfileMenu, setShowProfileMenu] = React.useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
     const notificationRef = React.useRef(null);
+    const profileMenuRef = React.useRef(null);
 
     const isSeller = location.pathname.startsWith('/seller');
     const isAdmin = location.pathname.startsWith('/admin');
@@ -131,6 +134,9 @@ const Topbar = ({ onMenuClick }) => {
             if (notificationRef.current && !notificationRef.current.contains(event.target)) {
                 setShowNotifications(false);
             }
+            if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+                setShowProfileMenu(false);
+            }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -170,7 +176,7 @@ const Topbar = ({ onMenuClick }) => {
         <header className={cn(
             "bg-white/70 backdrop-blur-xl border-b border-gray-100/50 flex items-center justify-between shadow-[0_4px_30px_rgba(0,0,0,0.02)] transition-all duration-300",
             (role === 'admin' || role === 'seller')
-                ? "fixed top-0 left-0 right-0 z-[200] h-14 px-4 md:left-72 md:h-16 md:px-6"
+                ? cn("fixed top-0 left-0 right-0 z-[200] h-14 px-4 md:h-16 md:px-6", sidebarCollapsed ? "md:left-20" : "md:left-64")
                 : "fixed top-0 left-72 right-0 h-16 px-6 z-[200]"
         )}>
             <div className="flex items-center flex-1 mr-4 overflow-hidden">
@@ -195,19 +201,17 @@ const Topbar = ({ onMenuClick }) => {
                     )}
                 </NavLink>
 
-                {!isSeller && !isAdmin && (
-                    <form onSubmit={handleSearchSubmit} className="relative w-full md:w-[400px] group hidden md:block">
-                        <HiOutlineSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-primary transition-all duration-300" />
-                        <input
-                            type="text"
-                            placeholder="Search anything..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()}
-                            className="w-full pl-10 pr-4 py-2 bg-gray-100/50 border border-transparent rounded-xl text-xs font-medium focus:bg-white focus:ring-2 focus:ring-primary/10 focus:border-primary/20 transition-all duration-500 outline-none"
-                        />
-                    </form>
-                )}
+                <form onSubmit={handleSearchSubmit} className="relative w-full md:w-[380px] group hidden md:block">
+                    <HiOutlineSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-all duration-300" />
+                    <input
+                        type="text"
+                        placeholder={isSeller ? "Search your products..." : "Search anything..."}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()}
+                        className="w-full h-9 pl-10 pr-4 bg-slate-100/70 border border-transparent rounded-full text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary/30 transition-all duration-300 outline-none"
+                    />
+                </form>
             </div>
 
             <div className="flex items-center space-x-4">
@@ -223,7 +227,7 @@ const Topbar = ({ onMenuClick }) => {
                     >
                         <HiOutlineBell className="h-5 w-5" />
                         {unreadCount > 0 && (
-                            <span className="absolute top-2 right-2 h-2 w-2 bg-rose-500 rounded-full ring-2 ring-white shadow-sm"></span>
+                            <span className="absolute top-2 right-2 h-2 w-2 bg-danger rounded-full ring-2 ring-white shadow-sm"></span>
                         )}
                     </button>
 
@@ -239,38 +243,71 @@ const Topbar = ({ onMenuClick }) => {
                     </AnimatePresence>
                 </div>
 
-                <div className="h-8 w-px bg-gray-100 mx-1"></div>
-                <button
-                    onClick={() => {
-                        if (location.pathname.startsWith('/admin')) {
-                            navigate('/admin/profile');
-                        } else if (location.pathname.startsWith('/seller')) {
-                            navigate('/seller/profile');
-                        } else if (location.pathname.startsWith('/delivery')) {
-                            navigate('/delivery/profile');
-                        } else {
-                            navigate('/profile');
-                        }
-                    }}
-                    className="flex items-center space-x-2.5 p-1 pr-3 hover:bg-gray-50 rounded-xl transition-all duration-300 group ring-1 ring-transparent hover:ring-gray-100 shadow-sm hover:shadow-md"
-                >
-                    <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-xs shadow-md group-hover:scale-105 transition-transform">
-                        {user?.name?.[0] || 'A'}
-                    </div>
-                    <div>
-                        <p className="text-xs font-bold text-gray-900 leading-tight">{user?.name || 'Demo User'}</p>
-                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{user?.role || 'Member'}</p>
-                    </div>
-                </button>
-                <button
-                    onClick={handleLogoutClick}
-                    className="flex items-center space-x-1.5 px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-xl transition-all duration-300 font-bold text-xs shadow-sm hover:shadow-rose-100/50"
-                >
-                    <HiOutlineLogout className="h-4 w-4" />
-                    <span className="hidden lg:block">Sign Out</span>
-                </button>
+                <div className="h-8 w-px bg-slate-100 mx-1"></div>
+                <div className="relative" ref={profileMenuRef}>
+                    <button
+                        onClick={() => setShowProfileMenu((prev) => !prev)}
+                        aria-haspopup="menu"
+                        aria-expanded={showProfileMenu}
+                        className={cn(
+                            "flex items-center space-x-2.5 p-1 pr-2.5 rounded-xl transition-all duration-300 group ring-1 ring-transparent hover:ring-slate-100 hover:bg-slate-50",
+                            showProfileMenu && "bg-slate-50 ring-slate-100"
+                        )}
+                    >
+                        <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-xs shadow-sm shadow-primary/30">
+                            {user?.name?.[0] || 'A'}
+                        </div>
+                        <div className="hidden sm:block text-left">
+                            <p className="text-xs font-bold text-slate-900 leading-tight">{user?.name || 'Demo User'}</p>
+                            <p className="text-[9px] text-slate-400 font-black uppercase tracking-wider">{user?.role || 'Member'}</p>
+                        </div>
+                        <ChevronDown className={cn("h-3.5 w-3.5 text-slate-400 transition-transform hidden sm:block", showProfileMenu && "rotate-180")} />
+                    </button>
+
+                    <AnimatePresence>
+                        {showProfileMenu && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 8, scale: 0.97 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 8, scale: 0.97 }}
+                                transition={{ type: "spring", damping: 22, stiffness: 320 }}
+                                className="absolute right-0 mt-2 w-52 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl z-[210]"
+                            >
+                                <button
+                                    onClick={() => {
+                                        setShowProfileMenu(false);
+                                        if (location.pathname.startsWith('/admin')) {
+                                            navigate('/admin/profile');
+                                        } else if (location.pathname.startsWith('/seller')) {
+                                            navigate('/seller/profile');
+                                        } else if (location.pathname.startsWith('/delivery')) {
+                                            navigate('/delivery/profile');
+                                        } else {
+                                            navigate('/profile');
+                                        }
+                                    }}
+                                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                                >
+                                    <HiOutlineUserCircle className="h-4 w-4 text-slate-400" />
+                                    My Profile
+                                </button>
+                                <div className="my-1 border-t border-slate-100" />
+                                <button
+                                    onClick={() => {
+                                        setShowProfileMenu(false);
+                                        handleLogoutClick();
+                                    }}
+                                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold text-danger hover:bg-danger/10 transition-colors"
+                                >
+                                    <HiOutlineLogout className="h-4 w-4" />
+                                    Sign Out
+                                </button>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
             </div>
-            
+
             <ConfirmDialog
                 isOpen={showLogoutConfirm}
                 title="Sign Out"

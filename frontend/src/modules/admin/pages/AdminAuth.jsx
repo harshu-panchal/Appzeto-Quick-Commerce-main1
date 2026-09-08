@@ -122,11 +122,11 @@ const AdminAuth = () => {
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-[#f3f6ff] p-6 font-['Outfit',_sans-serif]">
+        <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
             {/* Background Decorations */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-[-20%] left-[-10%] w-[800px] h-[800px] bg-brand-50 opacity-40 rounded-full blur-[120px]"></div>
-                <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-white opacity-60 rounded-full blur-[100px]"></div>
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                <div className="absolute -left-[10%] -top-[20%] h-[800px] w-[800px] rounded-full bg-primary/10 opacity-40 blur-[120px]"></div>
+                <div className="absolute -bottom-[10%] -right-[10%] h-[600px] w-[600px] rounded-full bg-white opacity-60 blur-[100px]"></div>
             </div>
 
             <motion.div
@@ -134,10 +134,10 @@ const AdminAuth = () => {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5, type: "spring", bounce: 0.3 }}
-                className="relative w-full max-w-[1050px] min-h-[650px] bg-white rounded-[50px] shadow-[0_40px_120px_rgba(0,0,0,0.06)] overflow-hidden flex flex-col md:flex-row border border-white"
+                className="relative flex min-h-[600px] w-full max-w-[1000px] flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-lg md:flex-row"
             >
                 {/* Left Side: Form */}
-                <div className="w-full md:w-[45%] p-12 md:p-20 flex flex-col justify-center relative z-10 bg-white">
+                <div className="relative z-10 flex w-full flex-col justify-center bg-white p-10 md:w-[45%] md:p-16">
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={isLogin ? 'login' : 'signup'}
@@ -145,23 +145,23 @@ const AdminAuth = () => {
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: 30, opacity: 0 }}
                             transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                            className="space-y-10"
+                            className="space-y-8"
                         >
-                            <div className="space-y-3">
+                            <div className="space-y-2">
                                 <motion.h1
-                                    className="text-5xl font-black text-brand-900 tracking-tight"
+                                    className="text-4xl font-black tracking-tight text-slate-900"
                                     layoutId="auth-title"
                                 >
                                     {isLogin ? 'Login' : 'Sign Up'}
                                 </motion.h1>
-                                <p className="text-gray-400 font-medium text-base">
+                                <p className="text-base font-medium text-slate-400">
                                     {isLogin
                                         ? `Welcome to ${appName} Admin Platform`
                                         : 'Start managing your platform today'}
                                 </p>
                             </div>
 
-                            <form onSubmit={handleSubmit} className="space-y-5">
+                            <form onSubmit={handleSubmit} className="space-y-4">
                                 <AnimatePresence mode="popLayout">
                                     {!isLogin && (
                                         <motion.div
@@ -170,8 +170,8 @@ const AdminAuth = () => {
                                             exit={{ height: 0, opacity: 0, y: -10 }}
                                             className="group relative"
                                         >
-                                            <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-600 transition-colors">
-                                                <User size={20} />
+                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-primary">
+                                                <User size={18} />
                                             </div>
                                             <input
                                                 type="text"
@@ -185,15 +185,15 @@ const AdminAuth = () => {
                                                     handleChange(e);
                                                 }}
                                                 placeholder="Full Name"
-                                                className="w-full pl-14 pr-5 py-5 bg-[#f8f9ff] border-2 border-transparent rounded-[24px] text-sm font-bold text-gray-700 outline-none focus:bg-white focus:border-brand-100 focus:ring-8 focus:ring-brand-50/50 transition-all placeholder:text-gray-300"
+                                                className="w-full rounded-xl border-2 border-transparent bg-slate-50 py-4 pl-12 pr-4 text-sm font-bold text-slate-700 outline-none transition-all placeholder:text-slate-300 focus:border-primary/20 focus:bg-white focus:ring-4 focus:ring-primary/10"
                                             />
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
 
                                 <div className="group relative">
-                                    <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-600 transition-colors">
-                                        <Mail size={20} />
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-primary">
+                                        <Mail size={18} />
                                     </div>
                                     <input
                                         type="email"
@@ -202,13 +202,13 @@ const AdminAuth = () => {
                                         value={formData.email}
                                         onChange={handleChange}
                                         placeholder="Username or email"
-                                        className="w-full pl-14 pr-5 py-5 bg-[#f8f9ff] border-2 border-transparent rounded-[24px] text-sm font-bold text-gray-700 outline-none focus:bg-white focus:border-brand-100 focus:ring-8 focus:ring-brand-50/50 transition-all placeholder:text-gray-300"
+                                        className="w-full rounded-xl border-2 border-transparent bg-slate-50 py-4 pl-12 pr-4 text-sm font-bold text-slate-700 outline-none transition-all placeholder:text-slate-300 focus:border-primary/20 focus:bg-white focus:ring-4 focus:ring-primary/10"
                                     />
                                 </div>
 
                                 <div className="group relative">
-                                    <div className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-600 transition-colors">
-                                        <Lock size={20} />
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-primary">
+                                        <Lock size={18} />
                                     </div>
                                     <input
                                         type={showPassword ? "text" : "password"}
@@ -220,32 +220,32 @@ const AdminAuth = () => {
                                         value={formData.password}
                                         onChange={handleChange}
                                         placeholder="Password (min 10 chars)"
-                                        className="w-full pl-14 pr-14 py-5 bg-[#f8f9ff] border-2 border-transparent rounded-[24px] text-sm font-bold text-gray-700 outline-none focus:bg-white focus:border-brand-100 focus:ring-8 focus:ring-brand-50/50 transition-all placeholder:text-gray-300"
+                                        className="w-full rounded-xl border-2 border-transparent bg-slate-50 py-4 pl-12 pr-12 text-sm font-bold text-slate-700 outline-none transition-all placeholder:text-slate-300 focus:border-primary/20 focus:bg-white focus:ring-4 focus:ring-primary/10"
                                     />
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brand-600 transition-colors focus:outline-none"
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-primary focus:outline-none"
                                     >
-                                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                     </button>
                                 </div>
 
                                 <button
                                     type="submit"
                                     disabled={isLoading}
-                                    className="w-full bg-black  text-primary-foreground rounded-[24px] py-5 text-base font-black shadow-2xl shadow-brand-200 hover:bg-brand-700 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+                                    className="flex w-full items-center justify-center gap-3 rounded-xl bg-primary py-4 text-base font-black text-white shadow-sm shadow-primary/30 transition-all hover:scale-[1.01] hover:bg-primary/90 active:scale-[0.98] disabled:opacity-50"
                                 >
                                     {isLoading ? (
                                         <motion.div
                                             animate={{ rotate: 360 }}
                                             transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                                            className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full"
+                                            className="h-5 w-5 rounded-full border-2 border-white/30 border-t-white"
                                         />
                                     ) : (
                                         <>
                                             <span>{isLogin ? 'Login Now' : 'Create Account'}</span>
-                                            <ArrowRight size={20} />
+                                            <ArrowRight size={18} />
                                         </>
                                     )}
                                 </button>
@@ -256,57 +256,54 @@ const AdminAuth = () => {
                 </div>
 
                 {/* Right Side: Illustration & Curve */}
-                <div className="hidden md:flex w-[55%] relative bg-[#f8f9ff] overflow-hidden items-center justify-center">
-                    <div className="absolute top-8 right-8 z-30">
-                        <div className="w-20 h-20 rounded-2xl bg-white/85 backdrop-blur-sm border border-brand-100 shadow-[0_12px_30px_rgba(79,70,229,0.18)] flex items-center justify-center overflow-hidden">
+                <div className="relative hidden w-[55%] items-center justify-center overflow-hidden bg-slate-50 md:flex">
+                    <div className="absolute right-6 top-6 z-30">
+                        <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl border border-primary/10 bg-white/85 shadow-sm backdrop-blur-sm">
                             {logoUrl ? (
                                 <img
                                     src={logoUrl}
                                     alt={`${appName} logo`}
-                                    className="w-14 h-14 object-contain"
+                                    className="h-11 w-11 object-contain"
                                 />
                             ) : (
-                                <ShieldCheck size={30} className="text-brand-600" />
+                                <ShieldCheck size={26} className="text-primary" />
                             )}
                         </div>
                     </div>
                     {/* The Smooth Curve (SVG) */}
-                    <div className="absolute inset-y-0 -left-1 w-[200px] z-20">
+                    <div className="absolute inset-y-0 -left-1 z-20 w-[200px]">
                         <svg className="h-full w-full fill-white" preserveAspectRatio="none" viewBox="0 0 100 100">
                             <path d="M 0 0 C 40 0, 100 20, 100 50 C 100 80, 40 100, 0 100 Z"></path>
                         </svg>
                     </div>
 
                     {/* Lottie Animation Scene */}
-                    <div className="relative z-10 w-full h-full flex flex-col items-center justify-center p-20">
+                    <div className="relative z-10 flex h-full w-full flex-col items-center justify-center p-16">
                         {/* Glow Effect Backdrop */}
-                        <div className="absolute w-64 h-64 bg-brand-400/20 rounded-full blur-[80px]" />
+                        <div className="absolute h-64 w-64 rounded-full bg-primary/10 blur-[80px]" />
 
                         <motion.div
                             initial={{ scale: 0.8, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             transition={{ delay: 0.3, duration: 1, type: "spring" }}
-                            className="w-full max-w-[400px] relative z-10"
+                            className="relative z-10 w-full max-w-[380px]"
                         >
                             <Lottie
                                 animationData={backendAnimation}
                                 loop={true}
-                                className="w-full h-auto drop-shadow-[0_20px_40px_rgba(79,70,229,0.15)]"
+                                className="h-auto w-full"
                             />
                         </motion.div>
 
                     </div>
-
-                    {/* Subtle Texture */}
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(79,70,229,0.05)_0%,transparent_100%)]"></div>
                 </div>
             </motion.div>
 
             {/* Verification Label */}
-            <div className="absolute bottom-8 text-gray-400 font-bold text-[10px] tracking-[5px] uppercase flex items-center gap-3">
-                <div className="w-8 h-[1px] bg-gray-200"></div>
+            <div className="absolute bottom-8 flex items-center gap-3 text-[10px] font-bold uppercase tracking-[5px] text-slate-400">
+                <div className="h-px w-8 bg-slate-200"></div>
                 {`Protected by ${appName} Security`}
-                <div className="w-8 h-[1px] bg-gray-200"></div>
+                <div className="h-px w-8 bg-slate-200"></div>
             </div>
         </div>
     );

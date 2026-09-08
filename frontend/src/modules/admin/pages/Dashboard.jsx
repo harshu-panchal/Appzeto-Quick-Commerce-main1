@@ -3,17 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import Card from '@shared/components/ui/Card';
 import PageHeader from '@shared/components/ui/PageHeader';
 import StatCard from '@shared/components/ui/StatCard';
+import ChartCard from '@shared/components/ui/ChartCard';
+import DataTable from '@shared/components/ui/DataTable';
 import Badge from '@shared/components/ui/Badge';
+import { SkeletonStatCard, SkeletonCard } from '@shared/components/ui/Skeleton';
 import { adminApi } from '../services/adminApi';
 import {
     Users,
     Store,
     Truck,
     BarChart3,
-    Activity,
-    Database,
-    RotateCw,
-    Loader2
 } from 'lucide-react';
 import {
     AreaChart,
@@ -54,15 +53,6 @@ const AdminDashboard = () => {
         fetchStats();
     }, []);
 
-    if (loading) {
-        return (
-            <div className="h-[80vh] flex flex-col items-center justify-center space-y-4">
-                <Loader2 className="h-10 w-10 text-primary animate-spin" />
-                <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Synchronizing Data...</p>
-            </div>
-        );
-    }
-
     const overview = statsData?.overview || {};
     const formatLastUpdated = (value) => {
         if (!value) return 'Last Update: --';
@@ -89,18 +79,18 @@ const AdminDashboard = () => {
             label: 'Total Users',
             value: overview.totalUsers?.toLocaleString() || '0',
             icon: Users,
-            color: 'text-brand-600',
-            bg: 'bg-brand-50',
+            color: 'text-primary',
+            bg: 'bg-primary/10',
             trend: '+12.5%',
             description: 'Active this month',
-            onClick: () => navigate('/admin/users')
+            onClick: () => navigate('/admin/customers')
         },
         {
             label: 'Active Sellers',
             value: overview.activeSellers?.toLocaleString() || '0',
             icon: Store,
-            color: 'text-purple-600',
-            bg: 'bg-purple-50',
+            color: 'text-info',
+            bg: 'bg-info/10',
             trend: '+5.2%',
             description: 'Verified stores',
             onClick: () => navigate('/admin/sellers/active')
@@ -109,8 +99,8 @@ const AdminDashboard = () => {
             label: 'Total Orders',
             value: overview.totalOrders?.toLocaleString() || '0',
             icon: Truck,
-            color: 'text-orange-600',
-            bg: 'bg-orange-50',
+            color: 'text-warning',
+            bg: 'bg-warning/10',
             trend: '+18.4%',
             description: 'Last 30 days',
             onClick: () => navigate('/admin/orders/all')
@@ -119,8 +109,8 @@ const AdminDashboard = () => {
             label: 'Revenue',
             value: `₹${overview.totalRevenue?.toLocaleString() || '0'}`,
             icon: BarChart3,
-            color: 'text-brand-600',
-            bg: 'bg-brand-50',
+            color: 'text-success',
+            bg: 'bg-success/10',
             trend: '+8.2%',
             description: 'Net earnings',
             onClick: () => navigate('/admin/wallet')
@@ -132,230 +122,199 @@ const AdminDashboard = () => {
     const recentOrders = statsData?.recentOrders || [];
     const topProducts = statsData?.topProducts || [];
 
+    const orderColumns = [
+        {
+            header: 'Order ID',
+            key: 'id',
+            cell: (order) => (
+                <span className="font-semibold text-primary">#{order.id?.slice(-8).toUpperCase()}</span>
+            ),
+        },
+        {
+            header: 'Customer',
+            key: 'customer',
+            cell: (order) => (
+                <div className="flex items-center gap-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[10px] font-semibold uppercase text-slate-500">
+                        {order.customer?.[0] || '?'}
+                    </div>
+                    <span className="font-medium text-slate-700">{order.customer}</span>
+                </div>
+            ),
+        },
+        {
+            header: 'Status',
+            key: 'status',
+            cell: (order) => <Badge variant={order.status}>{order.statusText}</Badge>,
+        },
+        {
+            header: 'Amount',
+            key: 'amount',
+            cell: (order) => <span className="font-bold text-slate-900">{order.amount}</span>,
+        },
+        {
+            header: 'Time',
+            key: 'time',
+            cell: (order) => <span className="text-xs text-slate-400">{order.time}</span>,
+        },
+    ];
+
     return (
-        <div className="ds-section-spacing">
+        <div className="space-y-5">
             <PageHeader
                 title="Dashboard"
-                description="Overview of your platform's performance."
-                actions={
-                    <>
-                        <Badge variant="outline" className="ds-badge ds-badge-gray">
-                            {formatLastUpdated(lastUpdatedAt)}
-                        </Badge>
-                    </>
-                }
+                description="A real-time overview of platform activity — users, sellers, orders, and revenue."
+                actions={<Badge variant="outline">{formatLastUpdated(lastUpdatedAt)}</Badge>}
             />
 
-            {/* Main Stats Grid */}
-            <div className="ds-grid-stats">
-                {stats.map((stat) => (
-                    <StatCard
-                        key={stat.label}
-                        label={stat.label}
-                        value={stat.value}
-                        icon={stat.icon}
-                        trend={stat.trend}
-                        description={stat.description}
-                        color={stat.color}
-                        bg={stat.bg}
-                        onClick={stat.onClick}
-                        className={cn("ring-1 ring-gray-100", stat.bg + "/30")}
-                    />
-                ))}
+            {/* KPI row */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {loading
+                    ? Array.from({ length: 4 }).map((_, i) => <SkeletonStatCard key={i} />)
+                    : stats.map((stat) => (
+                        <StatCard
+                            key={stat.label}
+                            label={stat.label}
+                            value={stat.value}
+                            icon={stat.icon}
+                            trend={stat.trend}
+                            description={stat.description}
+                            color={stat.color}
+                            bg={stat.bg}
+                            onClick={stat.onClick}
+                        />
+                    ))}
             </div>
 
-            <div className="ds-grid-cards-3">
-                {/* Revenue Analytics */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <div className="lg:col-span-2">
-                    <Card
-                        title="Earnings"
-                        subtitle="Monthly revenue trends"
-                        className="h-full"
-                    >
-                        <div className="ds-chart-container min-h-[250px]">
-                            <ResponsiveContainer width="100%" height={250} className="focus:outline-none">
-                                <AreaChart data={chartData} style={{ outline: 'none' }}>
+                    {loading ? (
+                        <SkeletonCard lines={4} />
+                    ) : (
+                        <ChartCard title="Earnings" subtitle="Monthly revenue trends" height={260} isEmpty={chartData.length === 0} emptyMessage="No revenue recorded yet for this period.">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={chartData}>
                                     <defs>
                                         <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1} />
-                                            <stop offset="95%" stopColor="#4f46e5" stopOpacity={0} />
+                                            <stop offset="5%" stopColor="#2563eb" stopOpacity={0.15} />
+                                            <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                    <XAxis
-                                        dataKey="name"
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fill: '#94a3b8', fontSize: 11 }}
-                                        dy={8}
-                                    />
-                                    <YAxis
-                                        axisLine={false}
-                                        tickLine={false}
-                                        tick={{ fill: '#94a3b8', fontSize: 11 }}
-                                        tickFormatter={(value) => `₹${value}`}
-                                    />
+                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} dy={8} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} tickFormatter={(value) => `₹${value}`} />
                                     <Tooltip
-                                        formatter={(value) => [`₹${value}`, "Revenue"]}
-                                        contentStyle={{
-                                            borderRadius: '12px',
-                                            border: 'none',
-                                            boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
-                                            padding: '8px',
-                                            fontSize: '11px'
-                                        }}
+                                        formatter={(value) => [`₹${value}`, 'Revenue']}
+                                        contentStyle={{ borderRadius: '10px', border: '1px solid #000', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '8px', fontSize: '11px' }}
                                     />
-                                    <Area
-                                        type="monotone"
-                                        dataKey="revenue"
-                                        stroke="#4f46e5"
-                                        strokeWidth={3}
-                                        fillOpacity={1}
-                                        fill="url(#colorRevenue)"
-                                    />
+                                    <Area type="monotone" dataKey="revenue" stroke="#2563eb" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRevenue)" />
                                 </AreaChart>
                             </ResponsiveContainer>
-                        </div>
-                    </Card>
+                        </ChartCard>
+                    )}
                 </div>
 
-                {/* Categories Distribution */}
                 <div className="lg:col-span-1">
-                    <Card
-                        title="Top Categories"
-                        subtitle="Sales breakdown by category"
-                        className="h-full border-none shadow-sm ring-1 ring-gray-100"
-                    >
-                        <div className="h-[250px] min-h-[250px] relative">
-                            <ResponsiveContainer width="100%" height={250} className="focus:outline-none">
-                                <PieChart style={{ outline: 'none' }}>
-                                    <Pie
-                                        data={categoryData}
-
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={80}
-                                        paddingAngle={8}
-                                        dataKey="value"
-                                    >
-                                        {categoryData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                        ))}
-                                    </Pie>
-                                </PieChart>
-                            </ResponsiveContainer>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                <span className="text-2xl font-bold text-gray-900">72%</span>
-                                <span className="text-[10px] text-gray-400 font-semibold uppercase">Growth</span>
-                            </div>
-                        </div>
-                        <div className="space-y-3 mt-4">
+                    {loading ? (
+                        <SkeletonCard lines={3} />
+                    ) : (
+                        <ChartCard title="Top Categories" subtitle="Sales breakdown by category" height={190} isEmpty={categoryData.length === 0} emptyMessage="No category sales yet.">
+                            <>
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie data={categoryData} cx="50%" cy="50%" innerRadius={54} outerRadius={72} paddingAngle={8} dataKey="value">
+                                            {categoryData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                    </PieChart>
+                                </ResponsiveContainer>
+                                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                                    <span className="text-xl font-black text-slate-900">72%</span>
+                                    <span className="text-[9px] font-bold uppercase text-slate-400">Growth</span>
+                                </div>
+                            </>
+                        </ChartCard>
+                    )}
+                    {!loading && categoryData.length > 0 && (
+                        <div className="mt-3 space-y-2">
                             {categoryData.map((cat) => (
                                 <div key={cat.name} className="flex items-center justify-between">
-                                    <div className="flex items-center space-x-2">
+                                    <div className="flex items-center gap-2">
                                         <div className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.color }} />
-                                        <span className="text-sm font-semibold text-gray-600">{cat.name}</span>
+                                        <span className="text-xs font-semibold text-slate-600">{cat.name}</span>
                                     </div>
-                                    <span className="text-sm font-bold text-gray-900">{cat.value}</span>
+                                    <span className="text-xs font-bold text-slate-900">{cat.value}</span>
                                 </div>
                             ))}
                         </div>
-                    </Card>
+                    )}
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Recent Orders */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <div className="lg:col-span-2">
-                    <Card
-                        title="Recent Orders"
-                        subtitle="Track the latest customer orders"
-                        className="border-none shadow-sm ring-1 ring-gray-100 h-full"
-                    >
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="text-left border-b border-gray-100">
-                                        <th className="admin-table-header">Order ID</th>
-                                        <th className="admin-table-header">Customer</th>
-                                        <th className="admin-table-header">Status</th>
-                                        <th className="admin-table-header">Amount</th>
-                                        <th className="admin-table-header">Time</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-50">
-                                    {recentOrders.map((order) => (
-                                        <tr key={order.id} className="group hover:bg-gray-50/50 transition-all">
-                                            <td className="py-4 text-sm font-semibold text-primary">#{order.id?.slice(-8).toUpperCase()}</td>
-                                            <td className="py-4">
-                                                <div className="flex items-center space-x-2">
-                                                    <div className="h-7 w-7 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-semibold text-gray-500 ring-2 ring-white shadow-sm uppercase">
-                                                        {order.customer?.[0] || "?"}
-                                                    </div>
-                                                    <span className="text-sm font-semibold text-gray-700">{order.customer}</span>
-                                                </div>
-                                            </td>
-                                            <td className="py-4">
-                                                <Badge variant={order.status} className="rounded-full px-3 py-0.5 text-[10px] font-bold tracking-tight uppercase">
-                                                    {order.statusText}
-                                                </Badge>
-                                            </td>
-                                            <td className="py-4 text-sm font-bold text-gray-900">{order.amount}</td>
-                                            <td className="py-4 text-xs font-semibold text-gray-400">{order.time}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                        <button 
-                            onClick={() => navigate('/admin/orders/all')}
-                            className="w-full mt-6 py-3 rounded-xl bg-gray-50 text-xs font-bold text-gray-500 hover:bg-primary hover:text-white transition-all"
-                        >
-                            VIEW ALL ORDERS
-                        </button>
-                    </Card>
+                    {loading ? (
+                        <SkeletonCard lines={5} />
+                    ) : (
+                        <Card title="Recent Orders" subtitle="Track the latest customer orders">
+                            <DataTable
+                                columns={orderColumns}
+                                data={recentOrders}
+                                rowKey={(o) => o.id}
+                                className="border-none shadow-none rounded-none"
+                                emptyState={
+                                    <div className="py-10 text-center text-sm text-slate-400">No orders placed yet.</div>
+                                }
+                            />
+                            <button
+                                onClick={() => navigate('/admin/orders/all')}
+                                className="mt-4 w-full rounded-lg bg-slate-50 py-2.5 text-xs font-bold text-slate-500 transition-all hover:bg-primary hover:text-white"
+                            >
+                                VIEW ALL ORDERS
+                            </button>
+                        </Card>
+                    )}
                 </div>
 
-                {/* Top Products */}
                 <div className="lg:col-span-1">
-                    <Card
-                        title="Top Products"
-                        subtitle="Best selling items this week"
-                        className="border-none shadow-sm ring-1 ring-gray-100 h-full"
-                    >
-                        <div className="space-y-4">
-                            {topProducts.length > 0 ? topProducts.map((product, i) => (
-                                <div key={i} className="flex items-center justify-between p-3 rounded-2xl hover:bg-gray-50 transition-all border border-transparent hover:border-gray-100 group">
-                                    <div className="flex items-center space-x-3">
-                                        <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform overflow-hidden", !product.image ? (product.color + " text-2xl") : "bg-gray-50")}>
-                                            {product.image ? (
-                                                <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
-                                            ) : (
-                                                <span>{product.icon}</span>
-                                            )}
+                    {loading ? (
+                        <SkeletonCard lines={3} />
+                    ) : (
+                        <Card title="Top Products" subtitle="Best selling items this week">
+                            <div className="space-y-3">
+                                {topProducts.length > 0 ? topProducts.map((product, i) => (
+                                    <div key={i} className="flex items-center justify-between rounded-lg p-2 transition-all hover:bg-slate-50">
+                                        <div className="flex items-center gap-3">
+                                            <div className={cn("flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg", !product.image ? (product.color + " text-xl") : "bg-slate-50")}>
+                                                {product.image ? (
+                                                    <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
+                                                ) : (
+                                                    <span>{product.icon}</span>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold leading-none text-slate-900">{product.name}</p>
+                                                <p className="mt-1 text-[10px] font-semibold uppercase text-slate-400">{product.cat}</p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <p className="text-sm font-bold text-gray-900 leading-none">{product.name}</p>
-                                            <p className="text-[10px] text-gray-400 font-semibold uppercase mt-1.5">{product.cat}</p>
+                                        <div className="text-right">
+                                            <p className="text-sm font-bold text-slate-900">{product.rev}</p>
+                                            <p className="text-[10px] font-bold text-success">{product.trend}</p>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-sm font-bold text-gray-900">{product.rev}</p>
-                                        <p className="text-[10px] text-brand-600 font-bold">{product.trend}</p>
-                                    </div>
-                                </div>
-                            )) : (
-                                <div className="py-12 text-center text-slate-300 italic text-xs">No sales data yet</div>
-                            )}
-                        </div>
-                        <button 
-                            onClick={() => navigate('/admin/products')}
-                            className="w-full mt-6 py-3 border-2 border-dashed border-gray-100 rounded-xl text-xs font-bold text-gray-400 hover:border-primary hover:text-primary transition-all"
-                        >
-                            VIEW ALL PRODUCTS
-                        </button>
-                    </Card>
+                                )) : (
+                                    <div className="py-10 text-center text-sm text-slate-400">No sales data yet</div>
+                                )}
+                            </div>
+                            <button
+                                onClick={() => navigate('/admin/products')}
+                                className="mt-4 w-full rounded-lg border-2 border-dashed border-slate-200 py-2.5 text-xs font-bold text-slate-400 transition-all hover:border-primary hover:text-primary"
+                            >
+                                VIEW ALL PRODUCTS
+                            </button>
+                        </Card>
+                    )}
                 </div>
             </div>
         </div>
@@ -363,4 +322,3 @@ const AdminDashboard = () => {
 };
 
 export default AdminDashboard;
-

@@ -1,25 +1,26 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import Card from '@shared/components/ui/Card';
 import Badge from '@shared/components/ui/Badge';
+import Button from '@shared/components/ui/Button';
 import Modal from '@shared/components/ui/Modal';
+import ConfirmDialog from '@shared/components/ui/ConfirmDialog';
+import PageHeader from '@shared/components/ui/PageHeader';
+import StatCard from '@shared/components/ui/StatCard';
+import FilterBar from '@shared/components/ui/FilterBar';
+import DataTable from '@shared/components/ui/DataTable';
+import EmptyState from '@shared/components/ui/EmptyState';
+import { SkeletonStatCard, SkeletonCard } from '@shared/components/ui/Skeleton';
 import { useToast } from '@shared/components/ui/Toast';
 import {
     HiOutlinePlus,
     HiOutlineTicket,
     HiOutlineMagnifyingGlass,
-    HiOutlineFunnel,
     HiOutlineTrash,
     HiOutlinePencilSquare,
     HiOutlineCalendarDays,
     HiOutlineUsers,
-    HiOutlineBanknotes,
     HiOutlineClock,
     HiOutlineCheckCircle,
-    HiOutlineXMark,
-    HiOutlineEye
 } from 'react-icons/hi2';
-import { cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
 import { adminApi } from '../services/adminApi';
 
 const CouponManagement = () => {
@@ -27,6 +28,7 @@ const CouponManagement = () => {
     const today = new Date().toISOString().split('T')[0];
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [editingCoupon, setEditingCoupon] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
@@ -169,264 +171,204 @@ const CouponManagement = () => {
 
     const handleDelete = async (id) => {
         try {
+            setIsDeleting(true);
             await adminApi.deleteCoupon(id);
             setCoupons(coupons.filter(c => c._id !== id));
             setDeleteTarget(null);
             showToast('Coupon removed', 'warning');
         } catch (error) {
             showToast('Failed to delete coupon', 'error');
+        } finally {
+            setIsDeleting(false);
         }
     };
 
+    const getCouponStatus = (c) => {
+        const now = new Date();
+        const till = c.validTill ? new Date(c.validTill) : null;
+        const from = c.validFrom ? new Date(c.validFrom) : null;
+
+        if (!c.isActive) return { label: 'inactive', variant: 'secondary' };
+        if (till && till < now) return { label: 'expired', variant: 'danger' };
+        if (from && from > now) return { label: 'scheduled', variant: 'warning' };
+        if (c.usageLimit && (c.usedCount || 0) >= c.usageLimit) return { label: 'exhausted', variant: 'secondary' };
+        return { label: 'active', variant: 'success' };
+    };
+
+    const columns = [
+        {
+            header: 'Coupon Code',
+            key: 'code',
+            cell: (c) => (
+                <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <HiOutlineTicket className="h-4.5 w-4.5" />
+                    </div>
+                    <div>
+                        <span className="rounded-md border border-dashed border-slate-300 bg-slate-100 px-2 py-1 text-xs font-black tracking-wider text-slate-900">{c.code}</span>
+                        <p className="mt-1 text-[10px] font-bold text-slate-400">{c.title}</p>
+                        <p className="mt-0.5 line-clamp-2 text-[10px] font-medium text-slate-400">{c.description}</p>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            header: 'Offerings',
+            key: 'offerings',
+            cell: (c) => (
+                <div className="space-y-1">
+                    <p className="text-xs font-black text-slate-900">
+                        {c.discountType === 'percentage' ? `${c.discountValue}% Off` : c.discountType === 'free_delivery' ? 'Free Delivery' : `₹${c.discountValue} Off`}
+                    </p>
+                    {c.minOrderValue > 0 && (
+                        <p className="text-[10px] font-bold text-slate-400">Min. Order: ₹{c.minOrderValue}</p>
+                    )}
+                    <p className="text-[10px] font-bold capitalize text-slate-400">Type: {c.couponType?.replace(/_/g, ' ') || 'generic'}</p>
+                </div>
+            ),
+        },
+        {
+            header: 'Performance',
+            key: 'performance',
+            cell: (c) => (
+                <div className="space-y-1.5">
+                    <div className="flex items-end justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Redeemed</span>
+                        <span className="text-xs font-black text-slate-900">{c.usedCount || 0}{c.usageLimit ? `/${c.usageLimit}` : ''}</span>
+                    </div>
+                    <div className="h-1.5 w-28 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                            className="h-full rounded-full bg-primary transition-all duration-500"
+                            style={{ width: c.usageLimit ? `${((c.usedCount || 0) / c.usageLimit) * 100}%` : '0%' }}
+                        />
+                    </div>
+                </div>
+            ),
+        },
+        {
+            header: 'Validity',
+            key: 'validity',
+            cell: (c) => (
+                <div className="flex items-center gap-1.5 text-slate-500">
+                    <HiOutlineCalendarDays className="h-3.5 w-3.5" />
+                    <span className="text-[10px] font-bold uppercase tracking-tight">
+                        {c.validFrom ? new Date(c.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'} - {c.validTill ? new Date(c.validTill).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
+                    </span>
+                </div>
+            ),
+        },
+        {
+            header: 'Status',
+            key: 'status',
+            align: 'center',
+            cell: (c) => {
+                const status = getCouponStatus(c);
+                return <Badge variant={status.variant}>{status.label}</Badge>;
+            },
+        },
+        {
+            header: 'Actions',
+            key: 'actions',
+            align: 'right',
+            cell: (c) => (
+                <div className="flex items-center justify-end gap-1.5">
+                    <button
+                        onClick={() => handleOpenModal(c)}
+                        className="rounded-lg p-2 text-slate-400 transition-all hover:bg-primary/10 hover:text-primary"
+                    >
+                        <HiOutlinePencilSquare className="h-4 w-4" />
+                    </button>
+                    <button
+                        onClick={() => setDeleteTarget(c)}
+                        className="rounded-lg p-2 text-slate-400 transition-all hover:bg-danger/10 hover:text-danger"
+                    >
+                        <HiOutlineTrash className="h-4 w-4" />
+                    </button>
+                </div>
+            ),
+        },
+    ];
+
     return (
-        <div className="ds-section-spacing animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
-            {/* Header Area */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-1">
-                <div>
-                    <h1 className="ds-h1 flex items-center gap-3">
+        <div className="space-y-5">
+            <PageHeader
+                title={
+                    <span className="flex items-center gap-2">
                         Promo Engine
-                        <Badge variant="primary" className="text-[10px] font-black uppercase tracking-widest">v4.2 PRO</Badge>
-                    </h1>
-                    <p className="ds-description mt-1">Design, deploy, and track high-conversion discount campaigns.</p>
+                        <Badge variant="primary">v4.2</Badge>
+                    </span>
+                }
+                description="Design, deploy, and track high-conversion discount campaigns."
+                actions={
+                    <Button onClick={() => handleOpenModal()}>
+                        <HiOutlinePlus className="h-4 w-4" />
+                        Create New Promo
+                    </Button>
+                }
+            />
+
+            {isLoading && coupons.length === 0 ? (
+                <div className="space-y-5">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                        {Array.from({ length: 4 }).map((_, i) => <SkeletonStatCard key={i} />)}
+                    </div>
+                    <SkeletonCard lines={6} />
                 </div>
-                <button
-                    onClick={() => handleOpenModal()}
-                    className="flex items-center gap-2 px-6 py-3.5 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] active:scale-95 transition-all"
-                >
-                    <HiOutlinePlus className="h-5 w-5" />
-                    CREATE NEW PROMO
-                </button>
-            </div>
+            ) : (
+                <>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                        <StatCard label="Total Coupons" value={stats.total} icon={HiOutlineTicket} color="text-primary" bg="bg-primary/10" />
+                        <StatCard label="Active Codes" value={stats.active} icon={HiOutlineCheckCircle} color="text-success" bg="bg-success/10" />
+                        <StatCard label="Redemptions" value={stats.totalRedeemed.toLocaleString()} icon={HiOutlineUsers} color="text-warning" bg="bg-warning/10" />
+                        <StatCard label="Expiring Soon" value={stats.expiringSoon} icon={HiOutlineClock} color="text-danger" bg="bg-danger/10" />
+                    </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {[
-                    { label: 'Total Coupons', value: stats.total, icon: HiOutlineTicket, color: 'indigo' },
-                    { label: 'Active Codes', value: stats.active, icon: HiOutlineCheckCircle, color: 'emerald' },
-                    { label: 'Redemptions', value: stats.totalRedeemed.toLocaleString(), icon: HiOutlineUsers, color: 'amber' },
-                    { label: 'Expiring Soon', value: stats.expiringSoon, icon: HiOutlineClock, color: 'rose' },
-                ].map((s, i) => (
-                    <Card key={i} className="p-6 border-none shadow-xl ring-1 ring-slate-100 bg-white group hover:ring-primary/20 transition-all">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className={cn("p-2.5 rounded-2xl",
-                                s.color === 'indigo' && "bg-brand-50 text-brand-600",
-                                s.color === 'emerald' && "bg-brand-50 text-brand-600",
-                                s.color === 'amber' && "bg-amber-50 text-amber-600",
-                                s.color === 'rose' && "bg-rose-50 text-rose-600",
-                            )}>
-                                <s.icon className="h-6 w-6" />
+                    <FilterBar
+                        left={
+                            <div className="relative w-full sm:w-96">
+                                <HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search by code or description..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="h-9 w-full rounded-md border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-700 placeholder:text-slate-400 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                />
                             </div>
-                        </div>
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{s.label}</h4>
-                        <h3 className="text-2xl font-black text-slate-900">{s.value}</h3>
-                    </Card>
-                ))}
-            </div>
+                        }
+                        pills={['all', 'active', 'expired'].map((filter) => ({
+                            label: filter,
+                            active: statusFilter === filter,
+                            onClick: () => setStatusFilter(filter),
+                        }))}
+                    />
 
-            {/* Main Content Area */}
-            <Card className="border-none shadow-xl ring-1 ring-slate-100 bg-white rounded-xl overflow-hidden">
-                {/* Table Filters */}
-                <div className="p-4 border-b border-slate-50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4 flex-1">
-                        <div className="relative group flex-1 max-w-md">
-                            <HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
-                            <input
-                                type="text"
-                                placeholder="Search by code or description..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-2xl text-xs font-bold outline-none ring-1 ring-transparent focus:ring-primary/10 transition-all"
+                    <DataTable
+                        columns={columns}
+                        data={filteredCoupons}
+                        rowKey={(c) => c._id}
+                        loading={isLoading && coupons.length > 0}
+                        emptyState={
+                            <EmptyState
+                                icon={<HiOutlineTicket className="h-6 w-6" />}
+                                title="No codes found"
+                                description="Try adjusting your filters or create a new promotion."
                             />
-                        </div>
-                        <div className="flex bg-slate-100 p-1.5 rounded-2xl">
-                            {['all', 'active', 'expired'].map((filter) => (
-                                <button
-                                    key={filter}
-                                    onClick={() => setStatusFilter(filter)}
-                                    className={cn(
-                                        "px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                                        statusFilter === filter ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
-                                    )}
-                                >
-                                    {filter}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
+                        }
+                    />
+                </>
+            )}
 
-                {/* Coupons Table */}
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="bg-slate-50/50 border-b border-slate-50">
-                                <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Coupon Code</th>
-                                <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Offerings</th>
-                                <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Performance</th>
-                                <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Validity</th>
-                                <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
-                                <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                            {isLoading && (
-                                <tr>
-                                    <td colSpan="6" className="text-center py-8 text-slate-400 text-sm">
-                                        Loading coupons...
-                                    </td>
-                                </tr>
-                            )}
-                            {!isLoading && filteredCoupons.map((c) => (
-                                <tr key={c._id} className="group hover:bg-slate-50/30 transition-colors">
-                                    <td className="px-4 py-6">
-                                        <div className="flex items-center gap-4">
-                                            <div className="h-12 w-12 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center">
-                                                <HiOutlineTicket className="h-6 w-6" />
-                                            </div>
-                                            <div>
-                                                <span className="text-sm font-black text-slate-900 tracking-wider bg-slate-100 px-2 py-1 rounded-lg border-2 border-dashed border-slate-300">{c.code}</span>
-                                                <p className="text-[10px] font-bold text-slate-400 mt-1">{c.title}</p>
-                                                <p className="text-[10px] font-medium text-slate-400 mt-0.5 line-clamp-2">{c.description}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-6">
-                                        <div className="space-y-1">
-                                            <p className="text-xs font-black text-slate-900">
-                                                {c.discountType === 'percentage' ? `${c.discountValue}% OFF` : c.discountType === 'free_delivery' ? 'Free Delivery' : `₹${c.discountValue} OFF`}
-                                            </p>
-                                            {c.minOrderValue > 0 && (
-                                                <p className="text-[10px] font-bold text-slate-400">Min. Order: ₹{c.minOrderValue}</p>
-                                            )}
-                                            <p className="text-[10px] font-bold text-slate-400 capitalize">Type: {c.couponType?.replace(/_/g, ' ') || 'generic'}</p>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-6">
-                                        <div className="space-y-2">
-                                            <div className="flex justify-between items-end">
-                                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Redeemed</span>
-                                                <span className="text-xs font-black text-slate-900">{c.usedCount || 0}{c.usageLimit ? `/${c.usageLimit}` : ''}</span>
-                                            </div>
-                                            <div className="h-1.5 w-32 bg-slate-100 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-brand-500 rounded-full transition-all duration-1000"
-                                                    style={{ width: c.usageLimit ? `${((c.usedCount || 0) / c.usageLimit) * 100}%` : '0%' }}
-                                                />
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-6">
-                                        <div className="flex items-center gap-2 text-slate-500">
-                                            <HiOutlineCalendarDays className="h-4 w-4" />
-                                            <span className="text-[10px] font-bold uppercase tracking-tighter">
-                                                {c.validFrom ? new Date(c.validFrom).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'} - {c.validTill ? new Date(c.validTill).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-6 text-center">
-                                        {(() => {
-                                            const now = new Date();
-                                            const till = c.validTill ? new Date(c.validTill) : null;
-                                            const from = c.validFrom ? new Date(c.validFrom) : null;
-                                            
-                                            let status = 'inactive';
-                                            let variant = 'gray';
-                                            
-                                            if (!c.isActive) {
-                                                status = 'inactive';
-                                                variant = 'gray';
-                                            } else if (till && till < now) {
-                                                status = 'expired';
-                                                variant = 'error';
-                                            } else if (from && from > now) {
-                                                status = 'scheduled';
-                                                variant = 'warning';
-                                            } else if (c.usageLimit && (c.usedCount || 0) >= c.usageLimit) {
-                                                status = 'exhausted';
-                                                variant = 'gray';
-                                            } else {
-                                                status = 'active';
-                                                variant = 'success';
-                                            }
-                                            
-                                            return (
-                                                <Badge variant={variant} className="text-[9px] font-black uppercase">
-                                                    {status}
-                                                </Badge>
-                                            );
-                                        })()}
-                                    </td>
-                                    <td className="px-4 py-6">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <button
-                                                onClick={() => handleOpenModal(c)}
-                                                className="p-2 text-slate-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-all"
-                                            >
-                                                <HiOutlinePencilSquare className="h-5 w-5" />
-                                            </button>
-                                            <button
-                                                onClick={() => setDeleteTarget(c)}
-                                                className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
-                                            >
-                                                <HiOutlineTrash className="h-5 w-5" />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-
-                {filteredCoupons.length === 0 && (
-                    <div className="p-20 text-center">
-                        <div className="h-20 w-20 bg-slate-50 rounded-xl flex items-center justify-center mx-auto mb-6">
-                            <HiOutlineTicket className="h-10 w-10 text-slate-200" />
-                        </div>
-                        <h3 className="text-lg font-black text-slate-900">No codes found</h3>
-                        <p className="text-sm font-bold text-slate-400 mt-2">Try adjusting your filters or create a new promotion.</p>
-                    </div>
-                )}
-            </Card>
-
-            {/* Delete confirmation dialog */}
-            <AnimatePresence>
-                {deleteTarget && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden"
-                        >
-                            <div className="p-6 text-center">
-                                <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4">
-                                    <HiOutlineTrash className="w-6 h-6" />
-                                </div>
-                                <h3 className="text-lg font-bold text-slate-900 mb-2">Delete coupon?</h3>
-                                <p className="text-slate-500 text-sm mb-6">
-                                    Are you sure you want to remove{' '}
-                                    <span className="font-semibold text-slate-900">{deleteTarget.code}</span>? This action cannot be undone.
-                                </p>
-                                <div className="flex gap-3 justify-center">
-                                    <button
-                                        onClick={() => setDeleteTarget(null)}
-                                        className="px-4 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl font-medium transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={() => handleDelete(deleteTarget._id)}
-                                        className="px-4 py-2.5 bg-rose-600 text-white rounded-xl font-medium hover:bg-rose-700 transition-colors"
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
+            <ConfirmDialog
+                isOpen={!!deleteTarget}
+                onCancel={() => setDeleteTarget(null)}
+                onConfirm={() => handleDelete(deleteTarget._id)}
+                title="Delete coupon?"
+                message={deleteTarget ? `Are you sure you want to remove ${deleteTarget.code}? This action cannot be undone.` : ''}
+                confirmLabel="Delete"
+                variant="danger"
+                loading={isDeleting}
+            />
 
             {/* Modal for Create/Edit */}
             <Modal
@@ -434,20 +376,20 @@ const CouponManagement = () => {
                 onClose={() => setIsModalOpen(false)}
                 title={editingCoupon ? "Modify Promotion" : "New Promotion Protocol"}
             >
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Promo Code</label>
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Promo Code</label>
                             <input
                                 required
                                 value={formData.code}
                                 onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                                 placeholder="E.G. SUMMER50"
-                                className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-black uppercase tracking-widest outline-none ring-1 ring-transparent focus:ring-primary/20"
+                                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-black uppercase tracking-widest outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                             />
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Discount Kind</label>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Discount Kind</label>
                             <select
                                 value={formData.discountType}
                                 onChange={(e) => {
@@ -458,7 +400,7 @@ const CouponManagement = () => {
                                     }
                                     setFormData({ ...formData, discountType: newType, discountValue: currentVal });
                                 }}
-                                className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-black outline-none"
+                                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                             >
                                 <option value="percentage">Percentage (%)</option>
                                 <option value="fixed">Fixed Amount (₹)</option>
@@ -467,12 +409,12 @@ const CouponManagement = () => {
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coupon Strategy</label>
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Coupon Strategy</label>
                         <select
                             value={formData.couponType}
                             onChange={(e) => setFormData({ ...formData, couponType: e.target.value })}
-                            className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-black outline-none"
+                            className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                         >
                             <option value="generic">Generic Discount</option>
                             <option value="bulk_order">Bulk Order Discount</option>
@@ -486,9 +428,9 @@ const CouponManagement = () => {
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Discount Value</label>
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Discount Value</label>
                             <input
                                 required
                                 type="number"
@@ -504,11 +446,11 @@ const CouponManagement = () => {
                                     }
                                     setFormData({ ...formData, discountValue: val });
                                 }}
-                                className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-black outline-none"
+                                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                             />
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Min Order Requirement</label>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Min Order Requirement</label>
                             <input
                                 required
                                 type="number"
@@ -517,14 +459,14 @@ const CouponManagement = () => {
                                 onKeyDown={(e) => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault(); }}
                                 value={formData.minOrderValue}
                                 onChange={(e) => setFormData({ ...formData, minOrderValue: e.target.value })}
-                                className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-black outline-none"
+                                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                             />
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Max Discount (optional)</label>
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Max Discount (optional)</label>
                             <input
                                 type="number"
                                 min={0}
@@ -532,11 +474,11 @@ const CouponManagement = () => {
                                 onKeyDown={(e) => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault(); }}
                                 value={formData.maxDiscount}
                                 onChange={(e) => setFormData({ ...formData, maxDiscount: e.target.value })}
-                                className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-black outline-none"
+                                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                             />
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Uses (optional)</label>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total Uses (optional)</label>
                             <input
                                 type="number"
                                 min={0}
@@ -544,14 +486,14 @@ const CouponManagement = () => {
                                 onKeyDown={(e) => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault(); }}
                                 value={formData.usageLimit}
                                 onChange={(e) => setFormData({ ...formData, usageLimit: e.target.value })}
-                                className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-black outline-none"
+                                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                             />
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Per User Limit</label>
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Per User Limit</label>
                             <input
                                 type="number"
                                 min={1}
@@ -559,62 +501,55 @@ const CouponManagement = () => {
                                 onKeyDown={(e) => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault(); }}
                                 value={formData.perUserLimit}
                                 onChange={(e) => setFormData({ ...formData, perUserLimit: e.target.value })}
-                                className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-black outline-none"
+                                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                             />
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Start Date</label>
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Start Date</label>
                             <input
                                 required
                                 type="date"
                                 min={today}
                                 value={formData.validFrom}
                                 onChange={(e) => setFormData({ ...formData, validFrom: e.target.value })}
-                                className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-black outline-none"
+                                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                             />
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">End Date</label>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">End Date</label>
                             <input
                                 required
                                 type="date"
                                 min={formData.validFrom || today}
                                 value={formData.validTill}
                                 onChange={(e) => setFormData({ ...formData, validTill: e.target.value })}
-                                className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-black outline-none"
+                                className="h-10 w-full rounded-md border border-slate-200 bg-white px-3.5 text-xs font-bold outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                             />
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Campaign Description</label>
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Campaign Description</label>
                         <textarea
                             required
                             rows={3}
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                             placeholder="Briefly describe the campaign..."
-                            className="w-full px-4 py-3 bg-slate-50 border-none rounded-2xl text-xs font-black outline-none resize-none"
+                            className="w-full resize-none rounded-md border border-slate-200 bg-white px-3.5 py-3 text-xs font-medium outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                         />
                     </div>
 
-                    <div className="flex gap-4 pt-4">
-                        <button
-                            type="button"
-                            onClick={() => setIsModalOpen(false)}
-                            className="flex-1 py-4 bg-slate-100 text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest"
-                        >
-                            CANCEL
-                        </button>
-                        <button
-                            type="submit"
-                            className="flex-1 py-4 bg-primary text-primary-foreground rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-primary/20"
-                        >
-                            {editingCoupon ? 'SAVE CHANGES' : 'LAUNCH CAMPAIGN'}
-                        </button>
+                    <div className="flex gap-3 pt-2">
+                        <Button type="button" variant="outline" className="flex-1" onClick={() => setIsModalOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" className="flex-1">
+                            {editingCoupon ? 'Save Changes' : 'Launch Campaign'}
+                        </Button>
                     </div>
                 </form>
             </Modal>
