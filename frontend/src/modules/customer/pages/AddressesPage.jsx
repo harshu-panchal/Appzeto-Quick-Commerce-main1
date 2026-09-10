@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { customerApi } from '../services/customerApi';
 import { useLocation } from '../context/LocationContext';
@@ -107,42 +108,49 @@ const AddressesPage = () => {
         googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
         libraries,
     });
-    const [addresses, setAddresses] = useState([]);
-    const [rawAddresses, setRawAddresses] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [profileName, setProfileName] = useState('');
-    const [profilePhone, setProfilePhone] = useState('');
+    const queryClient = useQueryClient();
+    const addressesQueryKey = ['customer', 'addressesProfile'];
+
+    // Perf audit Phase 8: migrated to React Query. Every mutation on this
+    // page (save/update/delete/make-default) already called fetchAddresses()
+    // afterward to reload from the server — that becomes an
+    // `invalidateQueries` (awaited, so it still resolves after the refetch
+    // completes, matching the original's `await fetchAddresses()` before
+    // `await refreshAddresses?.()`).
+    const { data: addressesData, isFetching: loading } = useQuery({
+        queryKey: addressesQueryKey,
+        queryFn: async () => {
+            try {
+                const { data } = await customerApi.getProfile();
+                const profile = data?.result ?? data?.data ?? data;
+                const raw = Array.isArray(profile?.addresses) ? profile.addresses : [];
+                const formatted = raw.map((addr, idx) => ({
+                    id: addr._id ?? idx,
+                    type: (addr.label || 'home').charAt(0).toUpperCase() + (addr.label || 'home').slice(1),
+                    name: profile?.name ?? '',
+                    address: addr.fullAddress || [addr.landmark, addr.city, addr.state, addr.pincode].filter(Boolean).join(', ') || '',
+                    city: addr.city,
+                    state: addr.state,
+                    pincode: addr.pincode,
+                    phone: profile?.phone ?? '',
+                    isDefault: idx === 0
+                }));
+                return { addresses: formatted, rawAddresses: raw, profileName: profile?.name ?? '', profilePhone: profile?.phone ?? '' };
+            } catch {
+                return { addresses: [], rawAddresses: [], profileName: '', profilePhone: '' };
+            }
+        },
+    });
+
+    const addresses = addressesData?.addresses ?? [];
+    const rawAddresses = addressesData?.rawAddresses ?? [];
+    const profileName = addressesData?.profileName ?? '';
+    const profilePhone = addressesData?.profilePhone ?? '';
 
     const fetchAddresses = useCallback(async () => {
-        try {
-            const { data } = await customerApi.getProfile();
-            const profile = data?.result ?? data?.data ?? data;
-            const raw = Array.isArray(profile?.addresses) ? profile.addresses : [];
-            setRawAddresses(raw);
-            setProfileName(profile?.name ?? '');
-            setProfilePhone(profile?.phone ?? '');
-            setAddresses(raw.map((addr, idx) => ({
-                id: addr._id ?? idx,
-                type: (addr.label || 'home').charAt(0).toUpperCase() + (addr.label || 'home').slice(1),
-                name: profile?.name ?? '',
-                address: addr.fullAddress || [addr.landmark, addr.city, addr.state, addr.pincode].filter(Boolean).join(', ') || '',
-                city: addr.city,
-                state: addr.state,
-                pincode: addr.pincode,
-                phone: profile?.phone ?? '',
-                isDefault: idx === 0
-            })));
-        } catch {
-            setAddresses([]);
-            setRawAddresses([]);
-        } finally {
-            setLoading(false);
-        }
+        await queryClient.invalidateQueries({ queryKey: addressesQueryKey });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    useEffect(() => {
-        fetchAddresses();
-    }, [fetchAddresses]);
 
     // Auto-open Add modal when navigated from LocationDrawer with ?add=1
     useEffect(() => {
@@ -430,7 +438,6 @@ const AddressesPage = () => {
                 location: null
             });
             setIsAddOpen(false);
-            setLoading(true);
             await fetchAddresses();
             await refreshAddresses?.();
         } catch (err) {
@@ -524,7 +531,6 @@ const AddressesPage = () => {
             toast.success('Address updated successfully');
             setIsEditOpen(false);
             setSelectedAddress(null);
-            setLoading(true);
             await fetchAddresses();
             await refreshAddresses?.();
         } catch (err) {
@@ -555,7 +561,6 @@ const AddressesPage = () => {
             toast.success('Address deleted successfully');
             setIsDeleteOpen(false);
             setSelectedAddress(null);
-            setLoading(true);
             await fetchAddresses();
             await refreshAddresses?.();
         } catch (err) {
@@ -573,7 +578,6 @@ const AddressesPage = () => {
         const [moved] = updatedAddresses.splice(idx, 1);
         updatedAddresses.unshift(moved);
 
-        setLoading(true);
         try {
             await customerApi.updateProfile({ addresses: updatedAddresses });
             toast.success('Default address updated');
@@ -581,7 +585,6 @@ const AddressesPage = () => {
             await refreshAddresses?.();
         } catch (err) {
             toast.error(err.response?.data?.message || 'Failed to update default address');
-            setLoading(false);
         }
     };
 

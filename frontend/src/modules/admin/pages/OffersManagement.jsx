@@ -18,6 +18,7 @@ import {
 } from 'react-icons/hi2';
 import { cn } from '@/lib/utils';
 import { adminApi } from '../services/adminApi';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 const STYLE_OPTIONS = [
     { id: 'blue', label: 'Blue', className: 'bg-primary' },
@@ -31,13 +32,11 @@ const ICON_OPTIONS = [
     { id: 'tag', label: 'Tag', icon: HiOutlineTag },
 ];
 
+const OFFERS_QUERY_KEY = ['admin', 'offersList'];
+
 const OffersManagement = () => {
     const { showToast } = useToast();
-    const [offers, setOffers] = useState([]);
-    const [isLoading, setIsLoading] = useState(false);
-
-    const [categories, setCategories] = useState([]);
-    const [products, setProducts] = useState([]);
+    const queryClient = useQueryClient();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingOffer, setEditingOffer] = useState(null);
@@ -54,50 +53,59 @@ const OffersManagement = () => {
         productIds: [],
     });
 
-    const loadMasterData = async () => {
-        try {
-            const [catRes, prodRes] = await Promise.all([
-                adminApi.getCategories(),
-                adminApi.getProducts({ limit: 100 }),
-            ]);
+    // Perf audit Phase 8: migrated to React Query — `categories`/`products`
+    // are master lookup lists loaded once, `offers` is the mutable list.
+    const { data: categories = [], isError: isCategoriesError } = useQuery({
+        queryKey: ['admin', 'level2CategoriesForOffers'],
+        queryFn: async () => {
+            const res = await adminApi.getCategories();
+            const catList = res.data.results || res.data.result || [];
+            return Array.isArray(catList) ? catList.filter(c => c.type === 'category') : [];
+        },
+    });
 
-            const catList = catRes.data.results || catRes.data.result || [];
-            setCategories(Array.isArray(catList) ? catList.filter(c => c.type === 'category') : []);
-
-            const rawResult = prodRes.data.result;
-            const prodList = Array.isArray(prodRes.data.results)
-                ? prodRes.data.results
+    const { data: products = [], isError: isProductsError } = useQuery({
+        queryKey: ['admin', 'productsForOffers'],
+        queryFn: async () => {
+            const res = await adminApi.getProducts({ limit: 100 });
+            const rawResult = res.data.result;
+            return Array.isArray(res.data.results)
+                ? res.data.results
                 : Array.isArray(rawResult?.items)
                     ? rawResult.items
                     : Array.isArray(rawResult)
                         ? rawResult
                         : [];
-            setProducts(prodList);
-        } catch (e) {
-            console.error(e);
-            showToast('Failed to load products or categories', 'error');
-        }
-    };
-
-    const loadOffers = async () => {
-        setIsLoading(true);
-        try {
-            const res = await adminApi.getOffers();
-            const list = res.data.results || res.data.result || res.data;
-            setOffers(Array.isArray(list) ? list : []);
-        } catch (e) {
-            console.error(e);
-            showToast('Failed to load offers', 'error');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+        },
+    });
 
     useEffect(() => {
-        loadMasterData();
-        loadOffers();
+        if (isCategoriesError || isProductsError) {
+            showToast('Failed to load products or categories', 'error');
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [isCategoriesError, isProductsError]);
+
+    const { data: offers = [], isLoading, isError: isOffersError } = useQuery({
+        queryKey: OFFERS_QUERY_KEY,
+        queryFn: async () => {
+            const res = await adminApi.getOffers();
+            const list = res.data.results || res.data.result || res.data;
+            return Array.isArray(list) ? list : [];
+        },
+    });
+
+    useEffect(() => {
+        if (isOffersError) showToast('Failed to load offers', 'error');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOffersError]);
+
+    const setOffers = (updater) => {
+        queryClient.setQueryData(OFFERS_QUERY_KEY, (prev) => {
+            const base = Array.isArray(prev) ? prev : [];
+            return typeof updater === 'function' ? updater(base) : updater;
+        });
+    };
 
     const resetForm = () => {
         setFormData({

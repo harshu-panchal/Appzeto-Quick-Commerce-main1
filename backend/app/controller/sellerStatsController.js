@@ -4,6 +4,7 @@ import handleResponse from "../utils/helper.js";
 import mongoose from "mongoose";
 import Wallet from "../models/wallet.js";
 import { getSellerStats as getSellerStatsFromService } from "../services/seller/sellerStatsService.js";
+import { buildKey, getOrSet, getTTL } from "../services/cacheService.js";
 
 /* ===============================
    GET SELLER DASHBOARD STATS
@@ -27,11 +28,33 @@ export const getSellerStats = async (req, res) => {
 export const getSellerEarnings = async (req, res) => {
     try {
         const sellerId = req.user.id;
+        // Perf audit BE-D4: this endpoint used to run fully uncached on
+        // every request — unlike its sibling getSellerStats (which already
+        // delegates to a 60s-cached service). Wrapped in the same
+        // short-TTL, no-explicit-invalidation cache pattern already used
+        // for seller/delivery stats throughout this codebase (see
+        // cacheService.js's "P6.2 hot read paths" TTLs) — same staleness
+        // tolerance as the dashboard stats view right next to it.
+        const cacheKey = buildKey("seller", "earnings", sellerId);
+        const result = await getOrSet(cacheKey, () => fetchSellerEarnings(sellerId), getTTL("sellerStats"));
+        return handleResponse(res, 200, "Earnings fetched successfully", result);
+    } catch (error) {
+        return handleResponse(res, 500, error.message);
+    }
+};
+
+async function fetchSellerEarnings(sellerId) {
         const sellerOid = new mongoose.Types.ObjectId(sellerId);
 
+        // Perf audit BE-D4: `.lean()` added — every field read below
+        // (`.status`, `.amount`, `.type`, `.createdAt`, `.order`, `.reference`)
+        // is a plain property access, never a Mongoose-only method, so lean
+        // documents work identically here while skipping hydration cost for
+        // what can be a seller's entire transaction history.
         const transactions = await Transaction.find({ user: sellerId, userModel: 'Seller' })
             .sort({ createdAt: -1 })
-            .populate("order", "orderId");
+            .populate("order", "orderId")
+            .lean();
 
         const settledBalance = transactions
             .filter(t => t.status === 'Settled')
@@ -103,7 +126,7 @@ export const getSellerEarnings = async (req, res) => {
             });
         }
 
-        return handleResponse(res, 200, "Earnings fetched successfully", {
+        return {
             balances: {
                 settledBalance: settledBalance,
                 pendingPayouts: pendingPayouts,
@@ -123,8 +146,5 @@ export const getSellerEarnings = async (req, res) => {
                 customer: t.type === 'Withdrawal' ? 'Bank Transfer' : 'Customer',
                 ref: t.order ? `#${t.order.orderId}` : t.reference || t._id
             }))
-        });
-    } catch (error) {
-        return handleResponse(res, 500, error.message);
-    }
-};
+        };
+}

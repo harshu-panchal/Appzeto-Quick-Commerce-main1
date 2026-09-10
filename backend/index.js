@@ -155,7 +155,20 @@ function createApp() {
   // backend/deploy/nginx-uploads.conf.example) — this mount exists so the
   // local-storage provider is fully testable without an Nginx layer in
   // front of Node, and as a functional fallback if one isn't configured.
-  app.use("/uploads", express.static(getLocalStorageRoot(), { fallthrough: true, index: false }));
+  // Perf audit BE-I6: filenames here are random UUIDs assigned once at
+  // upload time (see localProvider.js) and never reused for different
+  // content, so a long immutable cache is safe — previously had no
+  // Cache-Control at all, so every repeat image load re-validated with
+  // this Node process instead of being served from the browser cache.
+  app.use(
+    "/uploads",
+    express.static(getLocalStorageRoot(), {
+      fallthrough: true,
+      index: false,
+      maxAge: "1y",
+      immutable: true,
+    }),
+  );
 
   // Root endpoint
   app.get("/", (req, res) => {

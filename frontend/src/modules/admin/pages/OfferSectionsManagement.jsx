@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Card from "@shared/components/ui/Card";
 import Badge from "@shared/components/ui/Badge";
 import Button from "@shared/components/ui/Button";
@@ -21,13 +22,12 @@ import {
   SIDE_IMAGE_OPTIONS,
 } from "@/shared/constants/offerSectionOptions";
 
+const OFFER_SECTIONS_QUERY_KEY = ["admin", "offerSections"];
+
 const OfferSectionsManagement = () => {
   const { showToast } = useToast();
-  const [sections, setSections] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [sellers, setSellers] = useState([]);
+  const queryClient = useQueryClient();
   const [productsFiltered, setProductsFiltered] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSection, setEditingSection] = useState(null);
   const [formData, setFormData] = useState({
@@ -41,30 +41,49 @@ const OfferSectionsManagement = () => {
     status: "active",
   });
 
-  const loadCategories = async () => {
-    try {
+  const { data: categories = [], isError: isCategoriesError } = useQuery({
+    queryKey: ["admin", "categoriesForOfferSections"],
+    queryFn: async () => {
       const res = await adminApi.getCategories();
       const list = res.data.results || res.data.result || [];
-      const cats = (Array.isArray(list) ? list : []).filter(
+      return (Array.isArray(list) ? list : []).filter(
         (c) => c.type === "category"
       );
-      setCategories(cats);
-    } catch (e) {
-      console.error(e);
-      showToast("Failed to load categories", "error");
-    }
-  };
+    },
+  });
 
-  const loadSellers = async () => {
-    try {
+  const { data: sellers = [], isError: isSellersError } = useQuery({
+    queryKey: ["admin", "sellersForOfferSections"],
+    queryFn: async () => {
       const res = await adminApi.getSellers();
       const list = res.data.results || res.data.result || res.data;
-      setSellers(Array.isArray(list) ? list : []);
-    } catch (e) {
-      console.error(e);
-      showToast("Failed to load sellers", "error");
-    }
-  };
+      return Array.isArray(list) ? list : [];
+    },
+  });
+
+  const { data: sections = [], isLoading, isError: isSectionsError } = useQuery({
+    queryKey: OFFER_SECTIONS_QUERY_KEY,
+    queryFn: async () => {
+      const res = await adminApi.getOfferSections();
+      const list = res.data.results || res.data.result || res.data;
+      return Array.isArray(list) ? list : [];
+    },
+  });
+
+  useEffect(() => {
+    if (isCategoriesError) showToast("Failed to load categories", "error");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCategoriesError]);
+
+  useEffect(() => {
+    if (isSellersError) showToast("Failed to load sellers", "error");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSellersError]);
+
+  useEffect(() => {
+    if (isSectionsError) showToast("Failed to load offer sections", "error");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSectionsError]);
 
   const loadProductsByCategoryAndSellers = async (categoryIds, sellerIds) => {
     const hasCategories = Array.isArray(categoryIds) && categoryIds.length > 0;
@@ -93,26 +112,6 @@ const OfferSectionsManagement = () => {
       showToast("Failed to load products", "error");
     }
   };
-
-  const loadSections = async () => {
-    setIsLoading(true);
-    try {
-      const res = await adminApi.getOfferSections();
-      const list = res.data.results || res.data.result || res.data;
-      setSections(Array.isArray(list) ? list : []);
-    } catch (e) {
-      console.error(e);
-      showToast("Failed to load offer sections", "error");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadCategories();
-    loadSellers();
-    loadSections();
-  }, []);
 
   useEffect(() => {
     loadProductsByCategoryAndSellers(formData.categoryIds, formData.sellerIds);
@@ -194,14 +193,14 @@ const OfferSectionsManagement = () => {
       if (editingSection) {
         const res = await adminApi.updateOfferSection(editingSection._id, payload);
         const updated = res.data.result || res.data.results || res.data;
-        setSections((prev) =>
-          prev.map((s) => (s._id === editingSection._id ? updated : s))
+        queryClient.setQueryData(OFFER_SECTIONS_QUERY_KEY, (prev) =>
+          (prev || []).map((s) => (s._id === editingSection._id ? updated : s))
         );
         showToast("Section updated", "success");
       } else {
         const res = await adminApi.createOfferSection(payload);
         const created = res.data.result || res.data.results || res.data;
-        setSections((prev) => [...prev, created]);
+        queryClient.setQueryData(OFFER_SECTIONS_QUERY_KEY, (prev) => [...(prev || []), created]);
         showToast("Section created", "success");
       }
       setIsModalOpen(false);
@@ -218,7 +217,7 @@ const OfferSectionsManagement = () => {
     if (!window.confirm("Delete this offer section?")) return;
     try {
       await adminApi.deleteOfferSection(id);
-      setSections((prev) => prev.filter((s) => s._id !== id));
+      queryClient.setQueryData(OFFER_SECTIONS_QUERY_KEY, (prev) => (prev || []).filter((s) => s._id !== id));
       showToast("Section deleted", "success");
     } catch (e) {
       console.error(e);
@@ -237,7 +236,7 @@ const OfferSectionsManagement = () => {
     const items = copy.map((s, i) => ({ id: s._id, order: i }));
     try {
       await adminApi.reorderOfferSections(items);
-      setSections(copy.map((s, i) => ({ ...s, order: i })));
+      queryClient.setQueryData(OFFER_SECTIONS_QUERY_KEY, copy.map((s, i) => ({ ...s, order: i })));
     } catch (e) {
       console.error(e);
       showToast("Failed to reorder", "error");

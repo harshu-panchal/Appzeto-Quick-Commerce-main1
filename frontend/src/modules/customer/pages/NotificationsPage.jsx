@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Bell, BellRing, Check } from "lucide-react";
 import { customerApi } from "../services/customerApi";
@@ -6,44 +7,46 @@ import { toast } from "sonner";
 
 const NotificationsPage = () => {
     const navigate = useNavigate();
-    const [notifications, setNotifications] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
     const [markingRead, setMarkingRead] = useState(false);
 
-    useEffect(() => {
-        fetchNotifications();
-    }, []);
+    const notificationsQueryKey = ["customer", "notifications"];
 
-    const fetchNotifications = async () => {
-        try {
-            setLoading(true);
+    // Perf audit Phase 8: migrated to React Query. Preserved the original's
+    // "auto mark-all-as-read whenever the fetched list has any unread
+    // items" side effect exactly, via an effect keyed on the query data.
+    const { data: notifications = [], isLoading: loading, isError } = useQuery({
+        queryKey: notificationsQueryKey,
+        queryFn: async () => {
             const response = await customerApi.getNotifications();
-            const fetchedNotifications = response.data?.data?.notifications || [];
-            setNotifications(fetchedNotifications);
-            
-            // Auto mark as read if there are unread ones
-            if (fetchedNotifications.some(n => !n.isRead)) {
-                markAllAsRead();
-            }
-        } catch (error) {
-            console.error("Error fetching notifications:", error);
-            toast.error("Failed to load notifications");
-        } finally {
-            setLoading(false);
-        }
-    };
+            return response.data?.data?.notifications || [];
+        },
+    });
+
+    useEffect(() => {
+        if (isError) toast.error("Failed to load notifications");
+    }, [isError]);
 
     const markAllAsRead = async () => {
         try {
             setMarkingRead(true);
             await customerApi.markNotificationsRead();
-            setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+            queryClient.setQueryData(notificationsQueryKey, (prev) =>
+                (prev || []).map(n => ({ ...n, isRead: true }))
+            );
         } catch (error) {
             console.error("Error marking notifications as read:", error);
         } finally {
             setMarkingRead(false);
         }
     };
+
+    useEffect(() => {
+        if (notifications.some(n => !n.isRead)) {
+            markAllAsRead();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [notifications]);
 
     const timeAgo = (date) => {
         const seconds = Math.floor((new Date() - new Date(date)) / 1000);

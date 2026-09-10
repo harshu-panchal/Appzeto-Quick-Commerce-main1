@@ -28,30 +28,27 @@ import {
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
-    const [statsData, setStatsData] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
+
+    // Perf audit Phase 8: migrated to React Query.
+    const { data: statsData, isLoading: loading, isError, dataUpdatedAt } = useQuery({
+        queryKey: ['admin', 'dashboardStats'],
+        queryFn: async () => {
+            const res = await adminApi.getStats();
+            return res.data.success ? res.data.result : null;
+        },
+    });
+    const lastUpdatedAt = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
 
     useEffect(() => {
-        const fetchStats = async () => {
-            try {
-                const res = await adminApi.getStats();
-                if (res.data.success) {
-                    setStatsData(res.data.result);
-                    setLastUpdatedAt(new Date());
-                }
-            } catch (error) {
-                console.error("Dashboard Stats Error:", error);
-                toast.error("Failed to fetch dashboard data");
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchStats();
-    }, []);
+        if (isError) {
+            console.error("Dashboard Stats Error");
+            toast.error("Failed to fetch dashboard data");
+        }
+    }, [isError]);
 
     const overview = statsData?.overview || {};
     const formatLastUpdated = (value) => {

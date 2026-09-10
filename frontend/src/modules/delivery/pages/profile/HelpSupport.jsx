@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -21,15 +22,13 @@ const HelpSupport = () => {
   const navigate = useNavigate();
   const { settings } = useSettings();
   const supportPhone = settings?.supportPhone || "";
-  const [faqs, setFaqs] = useState([]);
   const [openIndex, setOpenIndex] = useState(null);
-  const [introHtml, setIntroHtml] = useState("");
-  const [introTitle, setIntroTitle] = useState("Help & Support");
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
+  // Perf audit Phase 8: migrated to React Query — one-time read-only fetch,
+  // silently logs on failure exactly like the original (no toast).
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["delivery", "helpSupport"],
+    queryFn: async () => {
       try {
         const [legalRes, faqRes] = await Promise.all([
           legalPagesApi.get("delivery", "support"),
@@ -37,27 +36,28 @@ const HelpSupport = () => {
             params: { category: "Delivery", status: "published" },
           }),
         ]);
-        if (cancelled) return;
         const legal = legalRes.data?.result ?? legalRes.data;
-        setIntroHtml(legal?.contentHtml || "");
-        setIntroTitle(legal?.title || "Help & Support");
         const faqData = faqRes.data?.result ?? faqRes.data;
         const list = Array.isArray(faqData?.items)
           ? faqData.items
           : Array.isArray(faqData?.results)
             ? faqData.results
             : [];
-        setFaqs(list);
+        return {
+          introHtml: legal?.contentHtml || "",
+          introTitle: legal?.title || "Help & Support",
+          faqs: list,
+        };
       } catch (err) {
         console.error(err);
-      } finally {
-        if (!cancelled) setLoading(false);
+        return { introHtml: "", introTitle: "Help & Support", faqs: [] };
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    },
+  });
+
+  const introHtml = data?.introHtml || "";
+  const introTitle = data?.introTitle || "Help & Support";
+  const faqs = data?.faqs || [];
 
   const toggleAccordion = (index) => {
     setOpenIndex(openIndex === index ? null : index);

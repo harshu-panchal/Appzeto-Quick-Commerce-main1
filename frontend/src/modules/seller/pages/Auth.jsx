@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@core/context/AuthContext";
@@ -27,7 +27,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Lottie from "lottie-react";
-import sellerAnimation from "../../../assets/INSTANT_6.json";
 import { sellerApi } from "../services/sellerApi";
 import MapPicker from "../../../shared/components/MapPicker";
 
@@ -49,6 +48,17 @@ const REQUIRED_DOCUMENT_CONFIG = [
 ];
 
 const Auth = () => {
+  // Perf audit FE-B6: dynamically loaded instead of statically imported —
+  // this JSON (~214KB) previously got inlined and parsed as part of this
+  // page's bundle on every load; loading it after mount lets the rest of
+  // the auth form render/become interactive first.
+  const [sellerAnimation, setSellerAnimation] = useState(null);
+  useEffect(() => {
+    import("../../../assets/INSTANT_6.json")
+      .then((m) => setSellerAnimation(m.default))
+      .catch(() => {});
+  }, []);
+
   const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -547,11 +557,13 @@ const Auth = () => {
             className="relative z-10 w-full flex flex-col items-center">
             {/* Lottie Animation for Seller */}
             <div className="w-full max-w-[350px] drop-shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
-              <Lottie
-                animationData={sellerAnimation}
-                loop={true}
-                className="w-full h-auto"
-              />
+              {sellerAnimation && (
+                <Lottie
+                  animationData={sellerAnimation}
+                  loop={true}
+                  className="w-full h-auto"
+                />
+              )}
             </div>
 
             <div className="mt-8 text-center space-y-4">

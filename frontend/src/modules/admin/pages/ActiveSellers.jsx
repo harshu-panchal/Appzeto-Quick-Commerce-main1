@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import Badge from "@shared/components/ui/Badge";
 import Button from "@shared/components/ui/Button";
 import PageHeader from "@shared/components/ui/PageHeader";
@@ -93,25 +94,18 @@ const normalizeSeller = (seller) => {
   };
 };
 
-const ActiveSellers = () => {
-  const requestSeq = useRef(0);
+const ACTIVE_SELLERS_QUERY_ROOT = ["admin", "activeSellers"];
 
-  const [sellers, setSellers] = useState([]);
-  const [stats, setStats] = useState(emptyStats);
-  const [categories, setCategories] = useState([]);
+const ActiveSellers = () => {
+  const queryClient = useQueryClient();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortBy, setSortBy] = useState("recent");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [lastSyncAt, setLastSyncAt] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [refreshTick, setRefreshTick] = useState(0);
   const [selectedSeller, setSelectedSeller] = useState(null);
 
   useEffect(() => {
@@ -127,59 +121,73 @@ const ActiveSellers = () => {
     setPage(1);
   }, [categoryFilter, sortBy, pageSize]);
 
+  const queryParams = useMemo(
+    () => ({
+      q: debouncedSearch || undefined,
+      category: categoryFilter !== "all" ? categoryFilter : undefined,
+      sort: sortBy,
+      page,
+      limit: pageSize,
+    }),
+    [debouncedSearch, categoryFilter, sortBy, page, pageSize],
+  );
+
+  // Perf audit Phase 8: migrated to React Query — the manual `requestSeq`
+  // ref used to guard against out-of-order responses is no longer needed,
+  // React Query already only ever applies the most recent query for a given
+  // key. `lastSyncAt` is derived from `dataUpdatedAt` (the timestamp of the
+  // last successful fetch) instead of being set by hand.
+  const {
+    data: queryData,
+    isLoading,
+    isFetching,
+    isError,
+    error: queryError,
+    dataUpdatedAt,
+    refetch,
+  } = useQuery({
+    queryKey: [...ACTIVE_SELLERS_QUERY_ROOT, queryParams],
+    queryFn: async () => {
+      const response = await adminApi.getActiveSellers(queryParams);
+      const payload = response.data?.result || {};
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      return {
+        sellers: items.map(normalizeSeller),
+        stats: { ...emptyStats, ...payload.stats },
+        categories: Array.isArray(payload.filters?.categories) ? payload.filters.categories : [],
+        total: safeNumber(payload.total) || items.length,
+        totalPages: safeNumber(payload.totalPages) || 1,
+      };
+    },
+    placeholderData: keepPreviousData,
+  });
+
+  const sellers = queryData?.sellers ?? [];
+  const stats = queryData?.stats ?? emptyStats;
+  const categories = queryData?.categories ?? [];
+  const total = queryData?.total ?? 0;
+  const totalPages = queryData?.totalPages ?? 1;
+  const loading = isLoading;
+  const lastSyncAt = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
+  const error = isError
+    ? (queryError?.response?.data?.message || queryError?.message || "Failed to load active sellers")
+    : "";
+
   useEffect(() => {
-    const currentSeq = ++requestSeq.current;
+    if (isError) {
+      console.error("Failed to load active sellers", queryError);
+      toast.error(error);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isError]);
 
-    const loadSellers = async () => {
-      setLoading(true);
-      setError("");
-
-      try {
-        const response = await adminApi.getActiveSellers({
-          q: debouncedSearch || undefined,
-          category: categoryFilter !== "all" ? categoryFilter : undefined,
-          sort: sortBy,
-          page,
-          limit: pageSize,
-        });
-
-        if (currentSeq !== requestSeq.current) return;
-
-        const payload = response.data?.result || {};
-        const items = Array.isArray(payload.items) ? payload.items : [];
-        const normalizedItems = items.map(normalizeSeller);
-
-        setSellers(normalizedItems);
-        setStats({
-          ...emptyStats,
-          ...payload.stats,
-        });
-        setCategories(
-          Array.isArray(payload.filters?.categories) ? payload.filters.categories : [],
-        );
-        setTotal(safeNumber(payload.total) || normalizedItems.length);
-        setTotalPages(safeNumber(payload.totalPages) || 1);
-        setLastSyncAt(new Date());
-
-        if (safeNumber(payload.totalPages) > 0 && page > payload.totalPages) {
-          setPage(payload.totalPages);
-        }
-      } catch (err) {
-        if (currentSeq !== requestSeq.current) return;
-        console.error("Failed to load active sellers", err);
-        const message =
-          err.response?.data?.message || "Failed to load active sellers";
-        setError(message);
-        toast.error(message);
-      } finally {
-        if (currentSeq === requestSeq.current) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadSellers();
-  }, [debouncedSearch, categoryFilter, sortBy, page, pageSize, refreshTick]);
+  // Same clamp-back-to-last-valid-page behavior as before, for when a
+  // filter change leaves `page` pointing past the new result set.
+  useEffect(() => {
+    if (queryData && queryData.totalPages > 0 && page > queryData.totalPages) {
+      setPage(queryData.totalPages);
+    }
+  }, [queryData, page]);
 
   const handleDeleteSeller = async (sellerId) => {
     if (!window.confirm("Are you sure you want to delete this store? This action cannot be undone.")) return;
@@ -188,7 +196,7 @@ const ActiveSellers = () => {
       await adminApi.rejectSeller(sellerId, { reason: "Deleted by Admin" });
       toast.success("Store deleted successfully");
       setSelectedSeller(null);
-      setRefreshTick((t) => t + 1);
+      queryClient.invalidateQueries({ queryKey: ACTIVE_SELLERS_QUERY_ROOT });
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to delete store");
     } finally {
@@ -240,6 +248,7 @@ const ActiveSellers = () => {
             <img
               src={seller.avatar}
               alt={seller.shopName}
+              loading="lazy"
               className="h-full w-full object-cover"
               onError={(event) => { event.currentTarget.style.display = "none"; }}
             />
@@ -337,8 +346,8 @@ const ActiveSellers = () => {
                   : "Sync pending"}
               </span>
             </div>
-            <Button onClick={() => setRefreshTick((value) => value + 1)}>
-              <HiOutlineArrowPath className={cn("h-4 w-4", loading && "animate-spin")} />
+            <Button onClick={() => refetch()}>
+              <HiOutlineArrowPath className={cn("h-4 w-4", isFetching && "animate-spin")} />
               Refresh
             </Button>
           </>
@@ -413,14 +422,14 @@ const ActiveSellers = () => {
             <EmptyState
               icon={<HiOutlineXMark className="h-6 w-6" />}
               title={error}
-              action={<Button onClick={() => setRefreshTick((v) => v + 1)}>Retry</Button>}
+              action={<Button onClick={() => refetch()}>Retry</Button>}
             />
           ) : (
             <DataTable
               columns={sellerColumns}
               data={sellers}
               rowKey={(s) => s.id}
-              loading={loading && sellers.length > 0}
+              loading={isFetching && sellers.length > 0}
               emptyState={
                 <EmptyState
                   icon={<HiOutlineBuildingOffice2 className="h-6 w-6" />}
@@ -438,7 +447,7 @@ const ActiveSellers = () => {
             pageSize={pageSize}
             onPageChange={setPage}
             onPageSizeChange={setPageSize}
-            loading={loading}
+            loading={isFetching}
           />
         </>
       )}

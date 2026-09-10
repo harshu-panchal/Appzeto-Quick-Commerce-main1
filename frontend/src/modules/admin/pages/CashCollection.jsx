@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 
 const RIDER_FALLBACK_AVATAR = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 const riderAvatar = (rider) =>
@@ -36,96 +37,108 @@ const riderAvatar = (rider) =>
         ? rider.avatar
         : RIDER_FALLBACK_AVATAR;
 
+const CASH_QUERY_ROOT = ['admin', 'cashCollection'];
+
 const CashCollection = () => {
+    const queryClient = useQueryClient();
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState('live_balances'); // live_balances or history
     const [selectedRider, setSelectedRider] = useState(null);
     const [isSettleModalOpen, setIsSettleModalOpen] = useState(false);
     const [settlementData, setSettlementData] = useState({ rider: null, amount: 0 });
     const [isProcessing, setIsProcessing] = useState(false);
 
-    const [ridersCashData, setRidersCashData] = useState([]);
-    const [historyData, setHistoryData] = useState([]);
-    const [riderDetails, setRiderDetails] = useState([]);
     const [ridersPage, setRidersPage] = useState(1);
     const [historyPage, setHistoryPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
-    const [ridersTotal, setRidersTotal] = useState(0);
-    const [historyTotal, setHistoryTotal] = useState(0);
-    const [loading, setLoading] = useState(true);
-    const [detailsLoading, setDetailsLoading] = useState(false);
 
-    const fetchData = async (cashPage = 1, histPage = 1) => {
-        try {
-            setLoading(true);
-            const commonParams = { page: 1, limit: pageSize };
-            if (searchTerm.trim()) commonParams.search = searchTerm.trim();
-
-            const [cashRes, historyRes] = await Promise.all([
-                adminApi.getDeliveryCashBalances({ ...commonParams, page: cashPage }),
-                adminApi.getCashSettlementHistory({ ...commonParams, page: histPage })
-            ]);
-
-            if (cashRes.data.success) {
-                const payload = cashRes.data.result || {};
-                const riders = Array.isArray(payload.items) ? payload.items : (payload.riders || []);
-                setRidersCashData(riders);
-                setRidersTotal(typeof payload.total === 'number' ? payload.total : riders.length);
-                setRidersPage(typeof payload.page === 'number' ? payload.page : cashPage);
-            }
-            if (historyRes.data.success) {
-                const payload = historyRes.data.result || {};
-                const history = Array.isArray(payload.items) ? payload.items : (historyRes.data.results || historyRes.data.result || []);
-                setHistoryData(Array.isArray(history) ? history : []);
-                setHistoryTotal(typeof payload.total === 'number' ? payload.total : history.length);
-                setHistoryPage(typeof payload.page === 'number' ? payload.page : histPage);
-            }
-        } catch (error) {
-            console.error("Failed to fetch cash collection data:", error);
-            toast.error("Failed to sync with backend");
-        } finally {
-            setLoading(false);
-        }
-    };
-
+    // Perf audit Phase 8: migrated to React Query — same 500ms debounce,
+    // same two-parallel-lists shape, now as two independent cached queries
+    // instead of one hand-rolled Promise.all re-run on every page change of
+    // either tab.
     useEffect(() => {
         const timer = setTimeout(() => {
-            fetchData(1, 1);
+            setDebouncedSearchTerm(searchTerm.trim());
+            setRidersPage(1);
+            setHistoryPage(1);
         }, 500);
         return () => clearTimeout(timer);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pageSize, searchTerm]);
+    }, [searchTerm]);
 
-    const fetchRidersPage = (p) => {
-        setRidersPage(p);
-        fetchData(p, historyPage);
-    };
-    const fetchHistoryPage = (p) => {
-        setHistoryPage(p);
-        fetchData(ridersPage, p);
+    useEffect(() => {
+        setRidersPage(1);
+        setHistoryPage(1);
+    }, [pageSize]);
+
+    const commonParams = useMemo(() => {
+        const params = { limit: pageSize };
+        if (debouncedSearchTerm) params.search = debouncedSearchTerm;
+        return params;
+    }, [pageSize, debouncedSearchTerm]);
+
+    const ridersQuery = useQuery({
+        queryKey: [...CASH_QUERY_ROOT, 'balances', { ...commonParams, page: ridersPage }],
+        queryFn: async () => {
+            const res = await adminApi.getDeliveryCashBalances({ ...commonParams, page: ridersPage });
+            if (!res.data.success) throw new Error('Failed to sync with backend');
+            const payload = res.data.result || {};
+            const riders = Array.isArray(payload.items) ? payload.items : (payload.riders || []);
+            return {
+                items: riders,
+                total: typeof payload.total === 'number' ? payload.total : riders.length,
+            };
+        },
+        placeholderData: keepPreviousData,
+    });
+
+    const historyQuery = useQuery({
+        queryKey: [...CASH_QUERY_ROOT, 'history', { ...commonParams, page: historyPage }],
+        queryFn: async () => {
+            const res = await adminApi.getCashSettlementHistory({ ...commonParams, page: historyPage });
+            if (!res.data.success) throw new Error('Failed to sync with backend');
+            const payload = res.data.result || {};
+            const history = Array.isArray(payload.items) ? payload.items : (res.data.results || res.data.result || []);
+            const items = Array.isArray(history) ? history : [];
+            return {
+                items,
+                total: typeof payload.total === 'number' ? payload.total : items.length,
+            };
+        },
+        placeholderData: keepPreviousData,
+    });
+
+    useEffect(() => {
+        if (ridersQuery.isError || historyQuery.isError) {
+            console.error("Failed to fetch cash collection data:", ridersQuery.error || historyQuery.error);
+            toast.error("Failed to sync with backend");
+        }
+    }, [ridersQuery.isError, historyQuery.isError, ridersQuery.error, historyQuery.error]);
+
+    const ridersCashData = ridersQuery.data?.items ?? [];
+    const historyData = historyQuery.data?.items ?? [];
+    const ridersTotal = ridersQuery.data?.total ?? 0;
+    const historyTotal = historyQuery.data?.total ?? 0;
+    const loading = ridersQuery.isFetching || historyQuery.isFetching;
+
+    const refetchBoth = () => {
+        ridersQuery.refetch();
+        historyQuery.refetch();
     };
 
     // Fetch deep dive details when a rider is selected
-    useEffect(() => {
-        const fetchRiderDetails = async () => {
-            if (!selectedRider) return;
-            try {
-                setDetailsLoading(true);
-                const res = await adminApi.getRiderCashDetails(selectedRider.id);
-                if (res.data.success) {
-                    const data = res.data.results ?? res.data.result;
-                    setRiderDetails(Array.isArray(data) ? data : []);
-                } else {
-                    setRiderDetails([]);
-                }
-            } catch (error) {
-                console.error("Failed to fetch rider details:", error);
-            } finally {
-                setDetailsLoading(false);
-            }
-        };
-        fetchRiderDetails();
-    }, [selectedRider]);
+    const riderDetailsQuery = useQuery({
+        queryKey: [...CASH_QUERY_ROOT, 'riderDetails', selectedRider?.id],
+        queryFn: async () => {
+            const res = await adminApi.getRiderCashDetails(selectedRider.id);
+            if (!res.data.success) return [];
+            const data = res.data.results ?? res.data.result;
+            return Array.isArray(data) ? data : [];
+        },
+        enabled: !!selectedRider,
+    });
+    const riderDetails = riderDetailsQuery.data ?? [];
+    const detailsLoading = riderDetailsQuery.isLoading;
 
     const stats = {
         totalInHand: (ridersCashData || []).reduce((acc, r) => acc + (r.currentCash || 0), 0),
@@ -171,7 +184,7 @@ const CashCollection = () => {
 
             if (response.data.success) {
                 toast.success(`Settlement of ₹${settlementData.amount} for ${settlementData.rider.name} processed successfully.`);
-                fetchData(ridersPage, historyPage);
+                queryClient.invalidateQueries({ queryKey: CASH_QUERY_ROOT });
                 setIsSettleModalOpen(false);
             }
         } catch (error) {
@@ -188,7 +201,7 @@ const CashCollection = () => {
             cell: (rider) => (
                 <div className="flex items-center gap-3">
                     <div className="relative shrink-0">
-                        <img src={riderAvatar(rider)} alt="" className="h-11 w-11 rounded-full bg-slate-100 object-cover" />
+                        <img src={riderAvatar(rider)} alt="" loading="lazy" width="44" height="44" className="h-11 w-11 rounded-full bg-slate-100 object-cover" />
                         <div className={cn(
                             "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white",
                             rider.status === 'safe' ? "bg-success" : rider.status === 'warning' ? "bg-warning" : "bg-danger"
@@ -357,7 +370,7 @@ const CashCollection = () => {
                 totalPages={Math.ceil((activeTab === 'live_balances' ? ridersTotal : historyTotal) / pageSize) || 1}
                 total={activeTab === 'live_balances' ? ridersTotal : historyTotal}
                 pageSize={pageSize}
-                onPageChange={activeTab === 'live_balances' ? fetchRidersPage : fetchHistoryPage}
+                onPageChange={activeTab === 'live_balances' ? setRidersPage : setHistoryPage}
                 onPageSizeChange={(newSize) => {
                     setPageSize(newSize);
                     setRidersPage(1);

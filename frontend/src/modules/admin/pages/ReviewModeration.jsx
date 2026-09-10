@@ -17,49 +17,62 @@ import {
 import { useToast } from '@shared/components/ui/Toast';
 import Modal from '@shared/components/ui/Modal';
 import { cn } from '@/lib/utils';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+
+const REVIEWS_QUERY_ROOT = ['admin', 'pendingReviews'];
 
 const ReviewModeration = () => {
     const { showToast } = useToast();
+    const queryClient = useQueryClient();
     const [isReplyModalOpen, setIsReplyModalOpen] = useState(false);
     const [selectedReview, setSelectedReview] = useState(null);
     const [replyText, setReplyText] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [reviews, setReviews] = useState([]);
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
-    const [total, setTotal] = useState(0);
 
     useEffect(() => {
-        fetchReviews(1);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        setPage(1);
     }, [pageSize]);
 
-    const fetchReviews = async (requestedPage = 1) => {
-        try {
-            setLoading(true);
-            const res = await adminApi.getPendingReviews({ page: requestedPage, limit: pageSize });
-            if (res.data.success) {
-                const payload = res.data.result || {};
-                const data = Array.isArray(payload.items) ? payload.items : (res.data.results || []);
-                setReviews(data.map(r => ({
-                    ...r,
-                    id: r._id,
-                    user: r.userId?.name || "Anonymous",
-                    item: r.productId?.name || "Deleted Product",
-                    itemImage: r.productId?.images?.[0],
-                    date: new Date(r.createdAt).toLocaleString(),
-                    tags: [] // Tags can be empty or logic-based
-                })));
-                setTotal(typeof payload.total === 'number' ? payload.total : data.length);
-                setPage(typeof payload.page === 'number' ? payload.page : requestedPage);
-            }
-        } catch (error) {
-            console.error("Fetch Reviews Error:", error);
+    const queryParams = useMemo(() => ({ page, limit: pageSize }), [page, pageSize]);
+    const queryKey = [...REVIEWS_QUERY_ROOT, queryParams];
+
+    // Perf audit Phase 8: migrated to React Query.
+    const { data: queryData, isFetching: loading, isError } = useQuery({
+        queryKey,
+        queryFn: async () => {
+            const res = await adminApi.getPendingReviews(queryParams);
+            if (!res.data.success) throw new Error('Failed to load reviews');
+            const payload = res.data.result || {};
+            const data = Array.isArray(payload.items) ? payload.items : (res.data.results || []);
+            const mapped = data.map(r => ({
+                ...r,
+                id: r._id,
+                user: r.userId?.name || "Anonymous",
+                item: r.productId?.name || "Deleted Product",
+                itemImage: r.productId?.images?.[0],
+                date: new Date(r.createdAt).toLocaleString(),
+                tags: [] // Tags can be empty or logic-based
+            }));
+            return {
+                items: mapped,
+                total: typeof payload.total === 'number' ? payload.total : mapped.length,
+                page: typeof payload.page === 'number' ? payload.page : queryParams.page,
+            };
+        },
+        placeholderData: keepPreviousData,
+    });
+
+    useEffect(() => {
+        if (isError) {
+            console.error("Fetch Reviews Error");
             showToast("Failed to load reviews", "error");
-        } finally {
-            setLoading(false);
         }
-    };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isError]);
+
+    const reviews = queryData?.items ?? [];
+    const total = queryData?.total ?? 0;
 
     // Audit fix: approving publishes the review publicly — delete already
     // gates behind a confirmation and approve didn't.
@@ -68,8 +81,10 @@ const ReviewModeration = () => {
         try {
             const res = await adminApi.updateReviewStatus(id, 'approved');
             if (res.data.success) {
-                setReviews(reviews.filter(r => r.id !== id));
-                fetchReviews(page);
+                queryClient.setQueryData(queryKey, (old) =>
+                    old ? { ...old, items: old.items.filter(r => r.id !== id) } : old,
+                );
+                queryClient.invalidateQueries({ queryKey: REVIEWS_QUERY_ROOT });
                 showToast('Review approved and published', 'success');
             }
         } catch (error) {
@@ -82,8 +97,10 @@ const ReviewModeration = () => {
         try {
             const res = await adminApi.updateReviewStatus(id, 'rejected');
             if (res.data.success) {
-                setReviews(reviews.filter(r => r.id !== id));
-                fetchReviews(page);
+                queryClient.setQueryData(queryKey, (old) =>
+                    old ? { ...old, items: old.items.filter(r => r.id !== id) } : old,
+                );
+                queryClient.invalidateQueries({ queryKey: REVIEWS_QUERY_ROOT });
                 showToast('Review rejected and removed', 'warning');
             }
         } catch (error) {
@@ -201,11 +218,11 @@ const ReviewModeration = () => {
 
             <div className="flex justify-center">
                 <Pagination
-                    page={page}
+                    page={queryData?.page ?? page}
                     totalPages={Math.ceil(total / pageSize) || 1}
                     total={total}
                     pageSize={pageSize}
-                    onPageChange={(p) => fetchReviews(p)}
+                    onPageChange={(p) => setPage(p)}
                     onPageSizeChange={(newSize) => {
                         setPageSize(newSize);
                         setPage(1);

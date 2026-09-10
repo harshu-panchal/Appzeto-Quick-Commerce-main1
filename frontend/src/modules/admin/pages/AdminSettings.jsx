@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Card from '@shared/components/ui/Card';
 import Button from '@shared/components/ui/Button';
 import PageHeader from '@shared/components/ui/PageHeader';
@@ -42,7 +43,6 @@ const AdminSettings = () => {
     const { refetch } = useSettings();
     const { showToast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('general');
     const [logoUploading, setLogoUploading] = useState(false);
     const [faviconUploading, setFaviconUploading] = useState(false);
@@ -51,7 +51,6 @@ const AdminSettings = () => {
 
     const [storageProvider, setStorageProvider] = useState(null);
     const [selectedStorageProvider, setSelectedStorageProvider] = useState(null);
-    const [storageProviderLoading, setStorageProviderLoading] = useState(true);
     const [storageProviderSaving, setStorageProviderSaving] = useState(false);
 
     const [settings, setSettings] = useState({
@@ -88,46 +87,59 @@ const AdminSettings = () => {
         },
     });
 
-    useEffect(() => {
-        const fetchSettings = async () => {
-            try {
-                const res = await adminApi.getSettings();
-                const data = res.data?.result ?? res.data;
-                if (data) {
-                    setSettings(prev => ({
-                        ...prev,
-                        ...data,
-                        productApproval: normalizeProductApprovalConfig(data || {}),
-                        keywords: Array.isArray(data.keywords) ? data.keywords : (data.metaKeywords ? data.metaKeywords.split(',').map(k => k.trim()).filter(Boolean) : []),
-                        returnDeliveryCommission: data.returnDeliveryCommission ?? 0,
-                    }));
-                }
-            } catch (error) {
-                console.error("Failed to load settings", error);
-                showToast('Failed to load settings', 'error');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchSettings();
-    }, [showToast]);
+    // Perf audit Phase 8: migrated both one-time fetches (general settings,
+    // storage provider) to React Query. Both feed editable local form
+    // state, so each uses the same seed-once-via-ref guard as the other
+    // migrated settings forms — a background refetch must not clobber
+    // in-progress edits, and saves already push their response directly
+    // into local state without needing a refetch.
+    const { data: settingsQueryData, isLoading, isError: isSettingsError } = useQuery({
+        queryKey: ['admin', 'platformSettingsForm'],
+        queryFn: async () => {
+            const res = await adminApi.getSettings();
+            return res.data?.result ?? res.data;
+        },
+    });
 
     useEffect(() => {
-        const fetchStorageSettings = async () => {
-            try {
-                const res = await adminApi.getStorageSettings();
-                const provider = res.data?.result?.provider ?? res.data?.provider ?? 'cloudinary';
-                setStorageProvider(provider);
-                setSelectedStorageProvider(provider);
-            } catch (error) {
-                console.error('Failed to load storage settings', error);
-                showToast('Failed to load media storage settings', 'error');
-            } finally {
-                setStorageProviderLoading(false);
-            }
-        };
-        fetchStorageSettings();
-    }, [showToast]);
+        if (isSettingsError) showToast('Failed to load settings', 'error');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isSettingsError]);
+
+    const settingsSeededRef = useRef(false);
+    useEffect(() => {
+        if (!settingsQueryData || settingsSeededRef.current) return;
+        settingsSeededRef.current = true;
+        const data = settingsQueryData;
+        setSettings(prev => ({
+            ...prev,
+            ...data,
+            productApproval: normalizeProductApprovalConfig(data || {}),
+            keywords: Array.isArray(data.keywords) ? data.keywords : (data.metaKeywords ? data.metaKeywords.split(',').map(k => k.trim()).filter(Boolean) : []),
+            returnDeliveryCommission: data.returnDeliveryCommission ?? 0,
+        }));
+    }, [settingsQueryData]);
+
+    const { data: storageQueryData, isLoading: storageProviderLoading, isError: isStorageError } = useQuery({
+        queryKey: ['admin', 'storageSettingsForm'],
+        queryFn: async () => {
+            const res = await adminApi.getStorageSettings();
+            return res.data?.result?.provider ?? res.data?.provider ?? 'cloudinary';
+        },
+    });
+
+    useEffect(() => {
+        if (isStorageError) showToast('Failed to load media storage settings', 'error');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isStorageError]);
+
+    const storageSeededRef = useRef(false);
+    useEffect(() => {
+        if (!storageQueryData || storageSeededRef.current) return;
+        storageSeededRef.current = true;
+        setStorageProvider(storageQueryData);
+        setSelectedStorageProvider(storageQueryData);
+    }, [storageQueryData]);
 
     const handleStorageProviderSave = async () => {
         if (!selectedStorageProvider || selectedStorageProvider === storageProvider) return;

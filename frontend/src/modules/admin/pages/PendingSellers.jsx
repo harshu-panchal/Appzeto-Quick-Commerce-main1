@@ -29,47 +29,58 @@ import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { adminApi } from '../services/adminApi';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+
+const PENDING_SELLERS_QUERY_KEY = ['admin', 'pendingSellers'];
+const DEFAULT_PENDING_SELLERS_STATS = {
+    totalApplications: 0,
+    receivedToday: 0,
+    missingInfo: 0,
+    avgReviewTimeHours: 24
+};
 
 const PendingSellers = () => {
     const navigate = useNavigate();
-    const [pendingSellers, setPendingSellers] = useState([]);
-    const [summaryStats, setSummaryStats] = useState({
-        totalApplications: 0,
-        receivedToday: 0,
-        missingInfo: 0,
-        avgReviewTimeHours: 24
-    });
+    const queryClient = useQueryClient();
     const [searchTerm, setSearchTerm] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
     const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
     const [viewingSeller, setViewingSeller] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
 
-    const fetchPendingSellers = async () => {
-        setIsLoading(true);
-        try {
-            const response = await adminApi.getPendingSellers({ q: searchTerm || undefined });
+    // Perf audit Phase 8: migrated to React Query. Preserved exactly as
+    // before: this only ever fetches once on mount (the original effect
+    // had an empty dependency array, so `searchTerm` was captured at
+    // mount time only and never re-sent to the server — all live filtering
+    // happens client-side in `filteredSellers` below) — not "fixing" that
+    // quirk here, just caching the same one-time fetch.
+    const { data: queryData, isLoading, isError, error } = useQuery({
+        queryKey: PENDING_SELLERS_QUERY_KEY,
+        queryFn: async () => {
+            const response = await adminApi.getPendingSellers({});
             const payload = response.data.result || {};
             const items = Array.isArray(payload.items) ? payload.items : [];
-            setPendingSellers(items);
-            setSummaryStats({
-                totalApplications: payload.stats?.totalApplications ?? items.length,
-                receivedToday: payload.stats?.receivedToday ?? 0,
-                missingInfo: payload.stats?.missingInfo ?? items.filter((s) => (s.documents || []).length < 3).length,
-                avgReviewTimeHours: payload.stats?.avgReviewTimeHours ?? 24
-            });
-        } catch (error) {
-            console.error('Failed to fetch pending sellers', error);
-            toast.error(error.response?.data?.message || 'Failed to load seller applications');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+            return {
+                items,
+                stats: {
+                    totalApplications: payload.stats?.totalApplications ?? items.length,
+                    receivedToday: payload.stats?.receivedToday ?? 0,
+                    missingInfo: payload.stats?.missingInfo ?? items.filter((s) => (s.documents || []).length < 3).length,
+                    avgReviewTimeHours: payload.stats?.avgReviewTimeHours ?? 24
+                },
+            };
+        },
+    });
 
     useEffect(() => {
-        fetchPendingSellers();
+        if (isError) {
+            console.error('Failed to fetch pending sellers', error);
+            toast.error(error?.response?.data?.message || 'Failed to load seller applications');
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [isError]);
+
+    const pendingSellers = queryData?.items ?? [];
+    const summaryStats = queryData?.stats ?? DEFAULT_PENDING_SELLERS_STATS;
 
     const stats = useMemo(() => ({
         total: summaryStats.totalApplications,
@@ -153,7 +164,7 @@ const PendingSellers = () => {
             setIsReviewModalOpen(false);
             setViewingSeller(null);
             toast.success('Seller approved successfully');
-            await fetchPendingSellers();
+            await queryClient.invalidateQueries({ queryKey: PENDING_SELLERS_QUERY_KEY });
         } catch (error) {
             console.error('Failed to approve seller', error);
             toast.error(error.response?.data?.message || 'Failed to approve seller');
@@ -171,7 +182,7 @@ const PendingSellers = () => {
                 setIsReviewModalOpen(false);
                 setViewingSeller(null);
                 toast.success('Seller application rejected');
-                await fetchPendingSellers();
+                await queryClient.invalidateQueries({ queryKey: PENDING_SELLERS_QUERY_KEY });
             } catch (error) {
                 console.error('Failed to reject seller', error);
                 toast.error(error.response?.data?.message || 'Failed to reject seller');

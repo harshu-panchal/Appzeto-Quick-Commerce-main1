@@ -205,7 +205,16 @@ export async function upload(input, { entityType = "other", mimeType = "", resou
       finalExt = "webp";
       relativeFilePath = path.posix.join(relativeDir, `${fileId}.${finalExt}`);
       absoluteFilePath = resolveContainedPath(relativeFilePath);
-      const pipeline = sharp(sourcePath || buffer, { failOn: "none" }).webp({ quality: 80 });
+      // Perf audit BE-I1 (P6-2): also cap the longest edge — previously
+      // only format/quality were optimized here, so a raw multi-thousand-
+      // pixel phone-camera original kept its full dimensions even after
+      // WebP conversion. `fit: "inside"` mirrors Cloudinary's "limit" crop
+      // mode: only shrinks images that exceed the cap, never upscales or
+      // crops a smaller image. New uploads only.
+      const maxDimension = parseInt(process.env.CLOUDINARY_IMAGE_MAX_DIMENSION || "2000", 10) || 2000;
+      const pipeline = sharp(sourcePath || buffer, { failOn: "none" })
+        .resize({ width: maxDimension, height: maxDimension, fit: "inside", withoutEnlargement: true })
+        .webp({ quality: 80 });
       const info = await pipeline.toFile(absoluteFilePath);
       width = info.width || null;
       height = info.height || null;

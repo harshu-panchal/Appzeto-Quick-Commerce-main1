@@ -5,6 +5,14 @@ import mongoose from "mongoose";
 import { invalidateSellerName } from "../services/entityNameCache.js";
 import { getSellerSidebarBadges } from "../services/sidebarBadgesService.js";
 import { withLock } from "../utils/distributedLock.js";
+import { buildKey, getOrSet, getTTL, invalidate } from "../services/cacheService.js";
+
+// Cache key grid resolution: rounding to 2 decimal places (~1.1km at the
+// equator) so nearby-but-distinct customer locations can share one cache
+// entry without ever serving a genuinely different area's sellers.
+const NEARBY_SELLERS_GRID_PRECISION = 2;
+
+export const NEARBY_SELLERS_CACHE_PATTERN = buildKey("seller", "nearby", "*");
 
 /* ===============================
    GET NEARBY SELLERS
@@ -20,39 +28,49 @@ export const getNearbySellers = async (req, res) => {
     const customerLat = Number(lat);
     const customerLng = Number(lng);
 
-    // Fetch all active/verified sellers
-    // We could use $geoNear, but to strictly follow the requirement of individual radii,
-    // we'll fetch sellers within a reasonable max distance (e.g. 100km) and then filter.
-    const sellers = await Seller.find({
-      isActive: true,
-      isVerified: true,
-      location: {
-        $near: {
-          $geometry: {
-            type: "Point",
-            coordinates: [customerLng, customerLat],
+    const gridLat = customerLat.toFixed(NEARBY_SELLERS_GRID_PRECISION);
+    const gridLng = customerLng.toFixed(NEARBY_SELLERS_GRID_PRECISION);
+    const cacheKey = buildKey("seller", "nearby", `${gridLat}:${gridLng}`);
+
+    const nearbySellers = await getOrSet(
+      cacheKey,
+      async () => {
+        // Fetch all active/verified sellers
+        // We could use $geoNear, but to strictly follow the requirement of individual radii,
+        // we'll fetch sellers within a reasonable max distance (e.g. 100km) and then filter.
+        const sellers = await Seller.find({
+          isActive: true,
+          isVerified: true,
+          location: {
+            $near: {
+              $geometry: {
+                type: "Point",
+                coordinates: [customerLng, customerLat],
+              },
+              $maxDistance: 100000, // 100km max search area for performance
+            },
           },
-          $maxDistance: 100000, // 100km max search area for performance
-        },
+        }).lean();
+
+        // Filter based on individual service radius
+        return sellers.filter((seller) => {
+          const sellerLng = seller.location.coordinates[0];
+          const sellerLat = seller.location.coordinates[1];
+          const distance = calculateDistance(
+            customerLat,
+            customerLng,
+            sellerLat,
+            sellerLng,
+          );
+
+          // Add distance to seller object for frontend
+          seller.distance = distance;
+
+          return distance <= (seller.serviceRadius || 5);
+        });
       },
-    }).lean();
-
-    // Filter based on individual service radius
-    const nearbySellers = sellers.filter((seller) => {
-      const sellerLng = seller.location.coordinates[0];
-      const sellerLat = seller.location.coordinates[1];
-      const distance = calculateDistance(
-        customerLat,
-        customerLng,
-        sellerLat,
-        sellerLng,
-      );
-
-      // Add distance to seller object for frontend
-      seller.distance = distance;
-
-      return distance <= (seller.serviceRadius || 5);
-    });
+      getTTL("nearbySellers"),
+    );
 
     return handleResponse(
       res,
@@ -212,6 +230,13 @@ export const updateSellerProfile = async (req, res) => {
     invalidateSellerName(req.user.id).catch((err) => {
       console.warn("[Seller] Name cache invalidation failed:", err.message);
     });
+
+    // Location/radius changes affect the customer-facing nearby-sellers cache
+    if ((lat !== undefined && lng !== undefined) || radius !== undefined) {
+      invalidate(NEARBY_SELLERS_CACHE_PATTERN).catch((err) => {
+        console.warn("[Seller] Nearby-sellers cache invalidation failed:", err.message);
+      });
+    }
 
     return handleResponse(
       res,

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     IndianRupee,
     Clock,
@@ -19,48 +20,53 @@ import { deliveryApi } from "../../services/deliveryApi";
 
 const Withdrawals = () => {
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const [amount, setAmount] = useState("");
     const [loading, setLoading] = useState(false);
-    const [fetching, setFetching] = useState(true);
-    const [stats, setStats] = useState({
+
+    const statsQueryKey = ["delivery", "withdrawalStats"];
+    const DEFAULT_STATS = {
         availableBalance: 0,
         pendingWithdrawals: 0,
         history: []
-    });
-
-    const fetchData = async () => {
-        try {
-            setFetching(true);
-            const res = await deliveryApi.getEarnings();
-            if (res.data.success) {
-                setStats({
-                    availableBalance: res.data.result.totalEarnings || 0,
-                    pendingWithdrawals: (res.data.result.recentTransactions || [])
-                        .filter(t => t.type.includes('Withdrawal') && (t.status === 'Pending' || t.status === 'Processing'))
-                        .reduce((acc, t) => acc + Math.abs(t.amount), 0),
-                    history: (res.data.result.recentTransactions || [])
-                        .filter(t => t.type.includes('Withdrawal'))
-                });
-            }
-        } catch (error) {
-            console.error("Fetch Error:", error);
-            // Fallback with mock data for frontend demo if API fails
-            setStats({
-                availableBalance: 1250,
-                pendingWithdrawals: 0,
-                history: [
-                    { id: 'WDR123', amount: 500, status: 'Settled', date: '2024-03-20', type: 'Withdrawal' },
-                    { id: 'WDR124', amount: 300, status: 'Pending', date: '2024-03-21', type: 'Withdrawal' }
-                ]
-            });
-        } finally {
-            setFetching(false);
-        }
     };
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+    // Perf audit Phase 8: migrated to React Query. Original silently fell
+    // back to mock demo data if the API call failed — preserved exactly.
+    const { data: stats = DEFAULT_STATS, isFetching: fetching } = useQuery({
+        queryKey: statsQueryKey,
+        queryFn: async () => {
+            try {
+                const res = await deliveryApi.getEarnings();
+                if (res.data.success) {
+                    return {
+                        availableBalance: res.data.result.totalEarnings || 0,
+                        pendingWithdrawals: (res.data.result.recentTransactions || [])
+                            .filter(t => t.type.includes('Withdrawal') && (t.status === 'Pending' || t.status === 'Processing'))
+                            .reduce((acc, t) => acc + Math.abs(t.amount), 0),
+                        history: (res.data.result.recentTransactions || [])
+                            .filter(t => t.type.includes('Withdrawal'))
+                    };
+                }
+                return DEFAULT_STATS;
+            } catch (error) {
+                console.error("Fetch Error:", error);
+                // Fallback with mock data for frontend demo if API fails
+                return {
+                    availableBalance: 1250,
+                    pendingWithdrawals: 0,
+                    history: [
+                        { id: 'WDR123', amount: 500, status: 'Settled', date: '2024-03-20', type: 'Withdrawal' },
+                        { id: 'WDR124', amount: 300, status: 'Pending', date: '2024-03-21', type: 'Withdrawal' }
+                    ]
+                };
+            }
+        },
+    });
+
+    const fetchData = () => {
+        queryClient.invalidateQueries({ queryKey: statsQueryKey });
+    };
 
     const handleRequest = async () => {
         if (!amount || isNaN(amount) || Number(amount) <= 0) {

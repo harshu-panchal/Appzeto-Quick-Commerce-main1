@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight, ArrowDownLeft, ChevronLeft, Wallet } from 'lucide-react';
 import { customerApi } from '../services/customerApi';
@@ -17,13 +18,10 @@ const formatDate = (d) => {
 
 const WalletPage = () => {
     const navigate = useNavigate();
-    const [balance, setBalance] = useState(0);
-    const [transactions, setTransactions] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
+    // Perf audit Phase 8: migrated to React Query.
+    const { data, isLoading: loading } = useQuery({
+        queryKey: ['customer', 'walletSummary'],
+        queryFn: async () => {
             try {
                 const [profileRes, ordersRes] = await Promise.all([
                     customerApi.getProfile(),
@@ -32,7 +30,6 @@ const WalletPage = () => {
                 const profile = profileRes.data?.result ?? profileRes.data?.data ?? profileRes.data;
                 const rawOrders = ordersRes.data?.results ?? ordersRes.data?.result ?? [];
                 const orders = Array.isArray(rawOrders) ? rawOrders : [];
-                setBalance(profile?.walletBalance ?? 0);
                 // Only orders purchased using wallet
                 const walletOrders = orders.filter(
                     (o) => (o.payment?.method || '').toLowerCase() === 'wallet'
@@ -45,17 +42,15 @@ const WalletPage = () => {
                     date: o.createdAt,
                     orderId: o.orderId,
                 }));
-                setTransactions(items);
+                return { balance: profile?.walletBalance ?? 0, transactions: items };
             } catch (err) {
                 console.error('Wallet fetch error:', err);
-                setBalance(0);
-                setTransactions([]);
-            } finally {
-                setLoading(false);
+                return { balance: 0, transactions: [] };
             }
-        };
-        fetchData();
-    }, []);
+        },
+    });
+    const balance = data?.balance ?? 0;
+    const transactions = data?.transactions ?? [];
 
     return (
         <div className="min-h-screen bg-slate-50 pb-24 font-sans">

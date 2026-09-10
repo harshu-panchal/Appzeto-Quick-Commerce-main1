@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Card from "@shared/components/ui/Card";
 import Badge from "@shared/components/ui/Badge";
 import PageHeader from "@shared/components/ui/PageHeader";
@@ -21,21 +22,18 @@ import { useToast } from "@shared/components/ui/Toast";
 import Pagination from "@shared/components/ui/Pagination";
 
 const DeliveryTracking = () => {
-  const [deliveries, setDeliveries] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("Active");
   const { showToast } = useToast();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  useEffect(() => {
-    fetchDeliveries();
-  }, []);
-
-  const fetchDeliveries = async () => {
-    try {
-      setLoading(true);
+  // Perf audit Phase 8: migrated to React Query. This fetches every page
+  // of the seller's orders up front (existing pre-migration behavior,
+  // unchanged) and filters/paginates client-side.
+  const { data: deliveries = [], isLoading: loading, isError } = useQuery({
+    queryKey: ["seller", "deliveryTracking"],
+    queryFn: async () => {
       const requestLimit = 100;
       const maxPages = 50;
       let requestedPage = 1;
@@ -105,14 +103,17 @@ const DeliveryTracking = () => {
           };
         });
 
-      setDeliveries(formattedDeliveries);
-    } catch (error) {
-      console.error("Tracking Error:", error);
+      return formattedDeliveries;
+    },
+  });
+
+  useEffect(() => {
+    if (isError) {
+      console.error("Tracking Error");
       showToast("Failed to fetch tracking data", "error");
-    } finally {
-      setLoading(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isError]);
 
   const tabs = ["Active", "Completed", "All"];
 

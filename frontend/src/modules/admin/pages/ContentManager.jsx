@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Card from '@shared/components/ui/Card';
 import Badge from '@shared/components/ui/Badge';
 import Button from '@shared/components/ui/Button';
@@ -30,12 +31,10 @@ const DISPLAY_TYPES = [
 
 const ContentManager = () => {
     const { showToast } = useToast();
+    const queryClient = useQueryClient();
     const [searchParams] = useSearchParams();
     const [pageType, setPageType] = useState('header');
-    const [headerCategories, setHeaderCategories] = useState([]);
     const [selectedHeaderId, setSelectedHeaderId] = useState('');
-    const [sections, setSections] = useState([]);
-    const [isLoading, setIsLoading] = useState(false);
 
     const [activeTab, setActiveTab] = useState('banners');
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -77,48 +76,62 @@ const ContentManager = () => {
         return selectedHeader?.children || [];
     }, [headerCategories, pageType, selectedHeader]);
 
-    const loadHeaderCategories = async () => {
-        try {
-            // Use category tree so that header -> category -> subcategory hierarchy is available
+    // Perf audit Phase 8: migrated `headerCategories` and `sections` to
+    // React Query. `headerCategories` is a one-time tree fetch; `sections`
+    // is parameterized by pageType/selectedHeaderId, matching the original
+    // effect's re-fetch-on-change behavior via the query key.
+    const { data: headerCategories = [], isError: isHeaderCategoriesError } = useQuery({
+        queryKey: ['admin', 'headerCategoryTree'],
+        queryFn: async () => {
             const res = await adminApi.getCategoryTree();
             if (res.data.success) {
                 const tree = res.data.results || res.data.result || [];
-                const headers = Array.isArray(tree) ? tree : [];
-                setHeaderCategories(headers);
-                if (!selectedHeaderId && headers.length) {
-                    setSelectedHeaderId(headers[0]._id);
-                }
+                return Array.isArray(tree) ? tree : [];
             }
-        } catch (e) {
-            console.error(e);
-            showToast('Failed to load header categories', 'error');
-        }
-    };
+            return [];
+        },
+    });
 
-    const loadSections = async () => {
-        if (pageType === 'header' && !selectedHeaderId) return;
-        setIsLoading(true);
-        try {
+    useEffect(() => {
+        if (isHeaderCategoriesError) showToast('Failed to load header categories', 'error');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isHeaderCategoriesError]);
+
+    useEffect(() => {
+        if (!selectedHeaderId && headerCategories.length) {
+            setSelectedHeaderId(headerCategories[0]._id);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [headerCategories]);
+
+    const sectionsQueryKey = useMemo(
+        () => ['admin', 'experienceSections', pageType, selectedHeaderId],
+        [pageType, selectedHeaderId]
+    );
+
+    const {
+        data: sections = [],
+        isLoading,
+        isError: isSectionsError,
+    } = useQuery({
+        queryKey: sectionsQueryKey,
+        queryFn: async () => {
             const params = { pageType };
             if (pageType === 'header') params.headerId = selectedHeaderId;
             const res = await adminApi.getExperienceSections(params);
             if (res.data.success) {
                 const list = res.data.results || res.data.result || res.data;
-                setSections(Array.isArray(list) ? list : []);
-            } else {
-                setSections([]);
+                return Array.isArray(list) ? list : [];
             }
-        } catch (e) {
-            console.error(e);
-            showToast('Failed to load experience sections', 'error');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+            return [];
+        },
+        enabled: !(pageType === 'header' && !selectedHeaderId),
+    });
 
     useEffect(() => {
-        loadHeaderCategories();
-    }, []);
+        if (isSectionsError) showToast('Failed to load experience sections', 'error');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isSectionsError]);
 
     // Apply deep-link from Hero & categories per page (?pageType=home | ?pageType=header&headerId=xxx)
     useEffect(() => {
@@ -131,11 +144,6 @@ const ContentManager = () => {
             setSelectedHeaderId(headerIdFromUrl);
         }
     }, [searchParams]);
-
-    useEffect(() => {
-        loadSections();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pageType, selectedHeaderId]);
 
     const resetForm = () => {
         setFormData({
@@ -198,7 +206,7 @@ const ContentManager = () => {
         try {
             await adminApi.deleteExperienceSection(id);
             showToast('Section deleted', 'success');
-            setSections(prev => prev.filter(s => s._id !== id));
+            queryClient.setQueryData(sectionsQueryKey, prev => (prev || []).filter(s => s._id !== id));
         } catch (e) {
             console.error(e);
             showToast('Failed to delete section', 'error');
@@ -285,12 +293,12 @@ const ContentManager = () => {
             if (editingItem) {
                 const res = await adminApi.updateExperienceSection(editingItem._id, payload);
                 const updated = res.data.result || res.data.results || res.data;
-                setSections(prev => prev.map(s => (s._id === editingItem._id ? updated : s)));
+                queryClient.setQueryData(sectionsQueryKey, prev => (prev || []).map(s => (s._id === editingItem._id ? updated : s)));
                 showToast('Section updated', 'success');
             } else {
                 const res = await adminApi.createExperienceSection(payload);
                 const created = res.data.result || res.data.results || res.data;
-                setSections(prev => [...prev, created]);
+                queryClient.setQueryData(sectionsQueryKey, prev => [...(prev || []), created]);
                 showToast('Section created', 'success');
             }
             setIsModalOpen(false);
@@ -313,7 +321,7 @@ const ContentManager = () => {
         const items = copy.map((s, idx) => ({ id: s._id, order: idx }));
         try {
             await adminApi.reorderExperienceSections(items);
-            setSections(copy.map((s, idx) => ({ ...s, order: idx })));
+            queryClient.setQueryData(sectionsQueryKey, copy.map((s, idx) => ({ ...s, order: idx })));
         } catch (e) {
             console.error(e);
             showToast('Failed to reorder sections', 'error');

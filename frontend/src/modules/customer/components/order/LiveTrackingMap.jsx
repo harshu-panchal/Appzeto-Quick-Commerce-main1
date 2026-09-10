@@ -63,7 +63,6 @@ const LiveTrackingMap = memo(({
   const mapRef = useRef(null);
   const [mapInstance, setMapInstance] = useState(null);
   const isSearching = SEARCHING_STATUSES.includes(status?.toLowerCase());
-  const [progress, setProgress] = useState(0);
   const [dots, setDots] = useState("");
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
@@ -208,13 +207,15 @@ const LiveTrackingMap = memo(({
     return () => clearInterval(intervalId);
   }, [isLoaded, riderLocation?.lat, riderLocation?.lng, focusOnRider500m]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setProgress((prev) => (prev + 0.5) % 100);
-    }, 100);
-    return () => clearInterval(interval);
-  }, []);
-
+  // Perf audit FE-R1: an unconditional, unused `progress` state used to be
+  // updated here every 100ms (10x/second) for the entire time this map was
+  // mounted, forcing 10 re-renders/second of the GoogleMap+Marker+Polyline
+  // tree below. It was never actually read anywhere — no element in this
+  // component's render output referenced `progress` — so removing it is a
+  // pure dead-code/perf fix with zero visible change. This dot-animation
+  // effect right below it is the one real "still searching" pulse, and it
+  // was already correctly gated to only run while `isSearching` — kept
+  // as-is.
   useEffect(() => {
     if (!isSearching) return;
     const interval = setInterval(() => {

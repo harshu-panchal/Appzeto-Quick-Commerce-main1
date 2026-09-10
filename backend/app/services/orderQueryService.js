@@ -260,26 +260,33 @@ export async function fetchAvailableOrdersForDelivery({
   const showDeliveries = type === "delivery" || type === "all";
   const showReturns = type === "return" || type === "all";
 
-  let assignedReturnPickups = [];
-  if (showReturns) {
-    const assignedReturnPickupsRaw = await Order.find({
-      returnStatus: "return_pickup_assigned",
-      returnDeliveryBoy: userId,
-      skippedBy: { $nin: [userId] },
-    })
-      .sort({ createdAt: -1, _id: -1 })
-      .limit(limit)
-      .populate("customer", "name phone")
-      .populate("seller", "shopName address name location")
-      .lean();
+  // Perf audit BE-D5: this function backs the delivery app's
+  // available-orders feed, which is polled repeatedly by every online
+  // rider. The assigned-return-pickup lookup and the rider lookup below are
+  // independent of each other (neither reads the other's result), so they
+  // run concurrently instead of as two sequential round-trips. Output is
+  // identical — only the timing changes.
+  const [assignedReturnPickupsRaw, deliveryPartner] = await Promise.all([
+    showReturns
+      ? Order.find({
+          returnStatus: "return_pickup_assigned",
+          returnDeliveryBoy: userId,
+          skippedBy: { $nin: [userId] },
+        })
+          .sort({ createdAt: -1, _id: -1 })
+          .limit(limit)
+          .populate("customer", "name phone")
+          .populate("seller", "shopName address name location")
+          .lean()
+      : Promise.resolve([]),
+    Delivery.findById(userId),
+  ]);
 
-    assignedReturnPickups = assignedReturnPickupsRaw.map((rp) => ({
-      ...rp,
-      isReturnPickup: true,
-    }));
-  }
+  const assignedReturnPickups = assignedReturnPickupsRaw.map((rp) => ({
+    ...rp,
+    isReturnPickup: true,
+  }));
 
-  const deliveryPartner = await Delivery.findById(userId);
   if (
     !deliveryPartner ||
     !deliveryPartner.location ||
@@ -294,90 +301,90 @@ export async function fetchAvailableOrdersForDelivery({
 
   const { sellerIds } = await resolveNearbySellerIds(deliveryPartner, userId);
 
-  let v2Orders = [];
-  if (showDeliveries) {
-    const v2OrdersRaw = await Order.find({
-      workflowVersion: { $gte: 2 },
-      workflowStatus: WORKFLOW_STATUS.DELIVERY_SEARCH,
-      deliveryBoy: null,
-      seller: { $in: sellerIds },
-      skippedBy: { $nin: [userId] },
-    })
-      .sort({ createdAt: -1, _id: -1 })
-      .limit(limit)
-      .populate("customer", "name phone")
-      .populate("seller", "shopName address name location serviceRadius")
-      .lean();
-
-    v2Orders = filterV2OrdersByRadius(
-      v2OrdersRaw,
-      deliveryPartner.location.coordinates,
-    );
-  }
-
-  let legacyOrders = [];
-  if (showDeliveries) {
-    legacyOrders = await Order.find({
-      $or: [
-        { workflowVersion: { $exists: false } },
-        { workflowVersion: { $lt: 2 } },
-      ],
-      status: { $in: ["confirmed", "packed"] },
-      deliveryBoy: null,
-      seller: { $in: sellerIds },
-      skippedBy: { $nin: [userId] },
-    })
-      .sort({ createdAt: -1, _id: -1 })
-      .limit(limit)
-      .populate("customer", "name phone")
-      .populate("seller", "shopName address name location")
-      .lean();
-  }
-
-  let returnPickups = [];
-  if (showReturns) {
-    const now = new Date();
-    const returnPickupsRaw = await Order.find({
-      skippedBy: { $nin: [userId] },
-      $or: [
-        // Manual reassign queue — seller picked "no specific rider" but
-        // the broadcast loop hasn't been kicked off yet (or it expired
-        // out). These stay visible until a seller re-assigns.
-        {
-          returnStatus: "return_approved",
-          returnDeliveryBoy: null,
+  // Perf audit BE-D5: these three queries all depend only on `sellerIds`
+  // resolved above — none of them depends on either of the others' results
+  // — so they run concurrently instead of sequentially. Same queries, same
+  // results, just no longer waiting on each other's round-trip.
+  const now = new Date();
+  const [v2OrdersRaw, legacyOrders, returnPickupsRaw] = await Promise.all([
+    showDeliveries
+      ? Order.find({
+          workflowVersion: { $gte: 2 },
+          workflowStatus: WORKFLOW_STATUS.DELIVERY_SEARCH,
+          deliveryBoy: null,
           seller: { $in: sellerIds },
-        },
-        // Active broadcast — only show while the assignment window is
-        // still open. Legacy rows without a stored expiry stay visible
-        // for backwards compatibility.
-        {
-          returnStatus: "return_pickup_assigned",
-          returnDeliveryBoy: null,
-          seller: { $in: sellerIds },
+          skippedBy: { $nin: [userId] },
+        })
+          .sort({ createdAt: -1, _id: -1 })
+          .limit(limit)
+          .populate("customer", "name phone")
+          .populate("seller", "shopName address name location serviceRadius")
+          .lean()
+      : Promise.resolve([]),
+    showDeliveries
+      ? Order.find({
           $or: [
-            { returnSearchExpiresAt: { $exists: false } },
-            { returnSearchExpiresAt: null },
-            { returnSearchExpiresAt: { $gt: now } },
+            { workflowVersion: { $exists: false } },
+            { workflowVersion: { $lt: 2 } },
           ],
-        },
-        // Mine to handle right now — always show, regardless of expiry.
-        {
-          returnDeliveryBoy: userId,
-        },
-      ],
-    })
-      .sort({ createdAt: -1, _id: -1 })
-      .limit(limit)
-      .populate("customer", "name phone")
-      .populate("seller", "shopName address name location")
-      .lean();
+          status: { $in: ["confirmed", "packed"] },
+          deliveryBoy: null,
+          seller: { $in: sellerIds },
+          skippedBy: { $nin: [userId] },
+        })
+          .sort({ createdAt: -1, _id: -1 })
+          .limit(limit)
+          .populate("customer", "name phone")
+          .populate("seller", "shopName address name location")
+          .lean()
+      : Promise.resolve([]),
+    showReturns
+      ? Order.find({
+          skippedBy: { $nin: [userId] },
+          $or: [
+            // Manual reassign queue — seller picked "no specific rider" but
+            // the broadcast loop hasn't been kicked off yet (or it expired
+            // out). These stay visible until a seller re-assigns.
+            {
+              returnStatus: "return_approved",
+              returnDeliveryBoy: null,
+              seller: { $in: sellerIds },
+            },
+            // Active broadcast — only show while the assignment window is
+            // still open. Legacy rows without a stored expiry stay visible
+            // for backwards compatibility.
+            {
+              returnStatus: "return_pickup_assigned",
+              returnDeliveryBoy: null,
+              seller: { $in: sellerIds },
+              $or: [
+                { returnSearchExpiresAt: { $exists: false } },
+                { returnSearchExpiresAt: null },
+                { returnSearchExpiresAt: { $gt: now } },
+              ],
+            },
+            // Mine to handle right now — always show, regardless of expiry.
+            {
+              returnDeliveryBoy: userId,
+            },
+          ],
+        })
+          .sort({ createdAt: -1, _id: -1 })
+          .limit(limit)
+          .populate("customer", "name phone")
+          .populate("seller", "shopName address name location")
+          .lean()
+      : Promise.resolve([]),
+  ]);
 
-    returnPickups = returnPickupsRaw.map((rp) => ({
-      ...rp,
-      isReturnPickup: true,
-    }));
-  }
+  const v2Orders = showDeliveries
+    ? filterV2OrdersByRadius(v2OrdersRaw, deliveryPartner.location.coordinates)
+    : [];
+
+  const returnPickups = returnPickupsRaw.map((rp) => ({
+    ...rp,
+    isReturnPickup: true,
+  }));
 
   const orders = mergeAvailableOrders(
     v2Orders,

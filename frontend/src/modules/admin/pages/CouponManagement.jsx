@@ -22,19 +22,21 @@ import {
     HiOutlineCheckCircle,
 } from 'react-icons/hi2';
 import { adminApi } from '../services/adminApi';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+
+const COUPONS_QUERY_ROOT = ['admin', 'coupons'];
 
 const CouponManagement = () => {
     const { showToast } = useToast();
+    const queryClient = useQueryClient();
     const today = new Date().toISOString().split('T')[0];
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [editingCoupon, setEditingCoupon] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
-    const [isLoading, setIsLoading] = useState(false);
-
-    const [coupons, setCoupons] = useState([]);
 
     const [formData, setFormData] = useState({
         code: '',
@@ -51,30 +53,33 @@ const CouponManagement = () => {
         description: '',
     });
 
+    // Perf audit Phase 8: migrated to React Query — same 500ms debounce.
     useEffect(() => {
         const timer = setTimeout(() => {
-            fetchCoupons();
+            setDebouncedSearchTerm(searchTerm.trim());
         }, 500);
         return () => clearTimeout(timer);
-    }, [statusFilter, searchTerm]);
+    }, [searchTerm]);
 
-    const fetchCoupons = async () => {
-        try {
-            setIsLoading(true);
-            const res = await adminApi.getCoupons({
-                status: statusFilter === 'all' ? undefined : statusFilter,
-                search: searchTerm.trim() || undefined,
-            });
-            if (res.data.success) {
-                const list = res.data.result || res.data.results || [];
-                setCoupons(list);
-            }
-        } catch (error) {
-            showToast('Failed to load coupons', 'error');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    const couponsQueryParams = useMemo(() => ({
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        search: debouncedSearchTerm || undefined,
+    }), [statusFilter, debouncedSearchTerm]);
+    const couponsQueryKey = [...COUPONS_QUERY_ROOT, couponsQueryParams];
+
+    const { data: coupons = [], isLoading, isFetching, isError } = useQuery({
+        queryKey: couponsQueryKey,
+        queryFn: async () => {
+            const res = await adminApi.getCoupons(couponsQueryParams);
+            if (!res.data.success) throw new Error('Failed to load coupons');
+            return res.data.result || res.data.results || [];
+        },
+    });
+
+    useEffect(() => {
+        if (isError) showToast('Failed to load coupons', 'error');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isError]);
 
     const stats = useMemo(() => {
         const now = new Date();
@@ -159,10 +164,19 @@ const CouponManagement = () => {
             }
             setIsModalOpen(false);
             setEditingCoupon(null);
+            // Perf audit Phase 8: matches the original exactly — it always
+            // re-fetched the full, unfiltered coupon list after a
+            // create/update (not a re-fetch with the currently active
+            // status/search filters), then rendered it straight into the
+            // still-filtered-looking UI. Replicated by writing that
+            // unfiltered result directly into the *currently active* query
+            // cache entry, same as the original writing it into the same
+            // page-local `coupons` state regardless of what filters were
+            // selected.
             const res = await adminApi.getCoupons();
             if (res.data.success) {
                 const list = res.data.result || res.data.results || [];
-                setCoupons(list);
+                queryClient.setQueryData(couponsQueryKey, list);
             }
         } catch (error) {
             showToast(error.response?.data?.message || 'Failed to save coupon', 'error');
@@ -173,7 +187,9 @@ const CouponManagement = () => {
         try {
             setIsDeleting(true);
             await adminApi.deleteCoupon(id);
-            setCoupons(coupons.filter(c => c._id !== id));
+            queryClient.setQueryData(couponsQueryKey, (old) =>
+                Array.isArray(old) ? old.filter((c) => c._id !== id) : old,
+            );
             setDeleteTarget(null);
             showToast('Coupon removed', 'warning');
         } catch (error) {
@@ -347,7 +363,7 @@ const CouponManagement = () => {
                         columns={columns}
                         data={filteredCoupons}
                         rowKey={(c) => c._id}
-                        loading={isLoading && coupons.length > 0}
+                        loading={isFetching && coupons.length > 0}
                         emptyState={
                             <EmptyState
                                 icon={<HiOutlineTicket className="h-6 w-6" />}

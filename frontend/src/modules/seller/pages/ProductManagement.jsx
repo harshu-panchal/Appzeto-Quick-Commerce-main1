@@ -30,86 +30,56 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { sellerApi } from "../services/sellerApi";
 import { toast } from "sonner";
 import Pagination from "@shared/components/ui/Pagination";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+
+const SELLER_PRODUCTS_QUERY_KEY = ["seller", "products"];
+
+// Perf audit FE-R3-class fix: hoisted to module scope (was previously
+// defined inside the component body, giving it a new function identity on
+// every render — since it's rendered as a JSX component in a DataTable
+// cell, that forced a full unmount/remount of every approval badge on
+// every re-render, including every keystroke in the edit-product modal).
+// Pure function of its props, safe to hoist with zero visual change.
+const ApprovalBadge = ({ approvalStatus }) => {
+  const normalized = String(approvalStatus || "approved").toLowerCase();
+  if (normalized === "pending") {
+    return <Badge variant="warning">Pending Approval</Badge>;
+  }
+  if (normalized === "rejected") {
+    return <Badge variant="danger">Rejected</Badge>;
+  }
+  return <Badge variant="success">Approved</Badge>;
+};
 
 const ProductManagement = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const qFromUrl = searchParams.get("q") || "";
 
-  const [products, setProducts] = useState([]);
-  const [dbCategories, setDbCategories] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [total, setTotal] = useState(0);
-  const [summaryStats, setSummaryStats] = useState(null);
 
-  const fetchProducts = async (requestedPage = 1) => {
-    setIsLoading(true);
-    try {
-      const res = await sellerApi.getProducts({
-        page: requestedPage,
-        limit: pageSize,
-        sort: sortBy,
-        approvalStatus: filterApproval,
-      });
-      if (res.data.success) {
-        // Backend returns handleResponse(..., { items, page, limit, total, totalPages })
-        const payload = res.data.result || {};
-        const rawProducts = Array.isArray(payload.items)
-          ? payload.items
-          : (res.data.results || []);
-        const safe = Array.isArray(rawProducts) ? rawProducts : [];
-        setProducts(safe);
-        if (typeof payload.total === "number") {
-          setTotal(payload.total);
-        } else {
-          setTotal(safe.length);
-        }
-        if (payload.summary && typeof payload.summary === "object") {
-          setSummaryStats({
-            total: Number(payload.summary.total) || 0,
-            active: Number(payload.summary.active) || 0,
-            lowStock: Number(payload.summary.lowStock) || 0,
-            outOfStock: Number(payload.summary.outOfStock) || 0,
-          });
-        } else {
-          setSummaryStats(null);
-        }
-        if (typeof payload.page === "number") {
-          setPage(payload.page);
-        } else {
-          setPage(requestedPage);
-        }
-      }
-    } catch (error) {
-      toast.error("Failed to fetch products");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchCategories = async () => {
-    try {
+  const { data: categories = [], isError: isCategoriesError } = useQuery({
+    queryKey: ["seller", "categoryTree"],
+    queryFn: async () => {
       const res = await sellerApi.getCategoryTree();
-      if (res.data.success) {
-        setDbCategories(res.data.results || res.data.result || []);
-      }
-    } catch (error) {
-      // Audit fix: this used to fail silently, leaving the category
-      // dropdowns empty with no explanation — since handleSave requires
-      // all three category levels to be filled, the seller would hit a
-      // silent dead end on every Save click with no toast telling them
-      // why. AddProduct.jsx already toasts on this same failure; match it.
+      if (!res.data.success) return [];
+      return res.data.results || res.data.result || [];
+    },
+  });
+
+  useEffect(() => {
+    // Audit fix (pre-existing, preserved): this used to fail silently,
+    // leaving the category dropdowns empty with no explanation — since
+    // handleSave requires all three category levels to be filled, the
+    // seller would hit a silent dead end on every Save click with no toast
+    // telling them why. AddProduct.jsx already toasts on this same
+    // failure; match it.
+    if (isCategoriesError) {
       toast.error("Failed to load categories. Please refresh and try again.");
     }
-  };
-
-  React.useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  const categories = dbCategories;
+  }, [isCategoriesError]);
 
   const [searchTerm, setSearchTerm] = useState(qFromUrl);
 
@@ -188,9 +158,66 @@ const ProductManagement = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isFilterOpen]);
 
-  React.useEffect(() => {
-    fetchProducts(1);
-  }, [searchTerm, filterCategory, filterStatus, filterApproval, sortBy, pageSize]);
+  // Perf audit Phase 8: `sortBy`/`filterApproval` are the only filters this
+  // page actually sends to the server — `search`/`filterCategory`/
+  // `filterStatus`/`priceMin`/`priceMax` are all applied client-side below
+  // in `filteredProducts` (unchanged). The original `useEffect` re-fetched
+  // from the server on *every* dependency change including every single
+  // keystroke in the search box (no debounce), even though search doesn't
+  // affect the server request at all. Keying this query on only
+  // page/pageSize/sortBy/filterApproval removes those redundant network
+  // calls — the rendered result is identical either way, since
+  // `filteredProducts` re-filters the same fetched page client-side
+  // regardless of when it last actually re-fetched.
+  useEffect(() => {
+    setPage(1);
+  }, [filterApproval, sortBy, pageSize]);
+
+  const productsQueryParams = useMemo(
+    () => ({ page, limit: pageSize, sort: sortBy, approvalStatus: filterApproval }),
+    [page, pageSize, sortBy, filterApproval],
+  );
+
+  const {
+    data: productsQueryData,
+    isLoading,
+    isFetching,
+    isError: isProductsError,
+  } = useQuery({
+    queryKey: [...SELLER_PRODUCTS_QUERY_KEY, productsQueryParams],
+    queryFn: async () => {
+      const res = await sellerApi.getProducts(productsQueryParams);
+      if (!res.data.success) throw new Error("Failed to fetch products");
+      // Backend returns handleResponse(..., { items, page, limit, total, totalPages })
+      const payload = res.data.result || {};
+      const rawProducts = Array.isArray(payload.items) ? payload.items : (res.data.results || []);
+      const safe = Array.isArray(rawProducts) ? rawProducts : [];
+      return {
+        items: safe,
+        total: typeof payload.total === "number" ? payload.total : safe.length,
+        page: typeof payload.page === "number" ? payload.page : productsQueryParams.page,
+        summaryStats:
+          payload.summary && typeof payload.summary === "object"
+            ? {
+              total: Number(payload.summary.total) || 0,
+              active: Number(payload.summary.active) || 0,
+              lowStock: Number(payload.summary.lowStock) || 0,
+              outOfStock: Number(payload.summary.outOfStock) || 0,
+            }
+            : null,
+      };
+    },
+    placeholderData: keepPreviousData,
+  });
+
+  useEffect(() => {
+    if (isProductsError) toast.error("Failed to fetch products");
+  }, [isProductsError]);
+
+  const products = productsQueryData?.items ?? [];
+  const total = productsQueryData?.total ?? 0;
+  const summaryStats = productsQueryData?.summaryStats ?? null;
+  const invalidateProducts = () => queryClient.invalidateQueries({ queryKey: SELLER_PRODUCTS_QUERY_KEY });
 
   const [formData, setFormData] = useState({
     name: "",
@@ -302,16 +329,6 @@ const ProductManagement = () => {
     [safeProducts, summaryStats, total],
   );
 
-  const ApprovalBadge = ({ approvalStatus }) => {
-    const normalized = String(approvalStatus || "approved").toLowerCase();
-    if (normalized === "pending") {
-      return <Badge variant="warning">Pending Approval</Badge>;
-    }
-    if (normalized === "rejected") {
-      return <Badge variant="danger">Rejected</Badge>;
-    }
-    return <Badge variant="success">Approved</Badge>;
-  };
 
   const handleSave = async () => {
     try {
@@ -384,7 +401,8 @@ const ProductManagement = () => {
 
       setIsProductModalOpen(false);
       setEditingItem(null);
-      fetchProducts();
+      setPage(1);
+      invalidateProducts();
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to save product");
     }
@@ -425,7 +443,8 @@ const ProductManagement = () => {
       toast.success("Product deleted successfully");
       setIsDeleteModalOpen(false);
       setItemToDelete(null);
-      fetchProducts();
+      setPage(1);
+      invalidateProducts();
     } catch (error) {
       toast.error("Failed to delete product");
     }
@@ -508,6 +527,7 @@ const ProductManagement = () => {
             <img
               src={p.mainImage || p.image || "https://images.unsplash.com/photo-1550989460-0adf9ea622e2?auto=format&fit=crop&q=80&w=400&h=400"}
               alt={p.name}
+              loading="lazy"
               className="h-full w-full object-cover"
             />
           </div>
@@ -786,22 +806,21 @@ const ProductManagement = () => {
             columns={productColumns}
             data={filteredProducts}
             rowKey={(p) => p._id || p.id}
-            loading={isLoading && safeProducts.length > 0}
+            loading={isFetching && safeProducts.length > 0}
             emptyState={<div className="py-12 text-center text-sm text-slate-400">No products match these filters.</div>}
           />
 
           <Pagination
-            page={page}
+            page={productsQueryData?.page ?? page}
             totalPages={Math.ceil(total / pageSize) || 1}
             total={total}
             pageSize={pageSize}
-            onPageChange={(p) => fetchProducts(p)}
+            onPageChange={(p) => setPage(p)}
             onPageSizeChange={(newSize) => {
               setPageSize(newSize);
               setPage(1);
-              fetchProducts(1);
             }}
-            loading={isLoading}
+            loading={isFetching}
           />
         </>
       )}

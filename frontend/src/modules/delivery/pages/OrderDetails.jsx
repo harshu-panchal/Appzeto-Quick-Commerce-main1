@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/core/context/AuthContext";
 import {
@@ -165,8 +166,8 @@ const OrderDetails = () => {
   const { user } = useAuth();
   const [accepting, setAccepting] = useState(false);
   const navigate = useNavigate();
-  const [order, setOrder] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const orderQueryKey = ["delivery", "orderWorkflowDetail", orderId];
   const [step, setStep] = useState(1); // Internal rider flow: 1 pickup, 2 at store, 3 delivery, 4 delivered
   const [itemsExpanded, setItemsExpanded] = useState(false);
   const [isSlideComplete, setIsSlideComplete] = useState(false);
@@ -177,28 +178,34 @@ const OrderDetails = () => {
   const [routeStats, setRouteStats] = useState(null);
   const [clockTick, setClockTick] = useState(Date.now());
 
-  const isReturn = order?.returnStatus && order.returnStatus !== "none";
+  // Perf audit Phase 8: migrated the initial fetch to React Query. `order`
+  // is heavily mutated afterward by rider-action responses and a live
+  // socket listener, so every prior `setOrder(...)` call becomes
+  // `queryClient.setQueryData(orderQueryKey, ...)` with the exact same
+  // patch logic, rather than switching this page to a read-only cache.
+  const { data: order, isLoading: loading, isError } = useQuery({
+    queryKey: orderQueryKey,
+    queryFn: async () => {
+      const response = await deliveryApi.getOrderDetails(orderId);
+      return response.data.result;
+    },
+    enabled: !!orderId,
+  });
 
   useEffect(() => {
-    const fetchOrderDetails = async () => {
-      try {
-        const response = await deliveryApi.getOrderDetails(orderId);
-        const ord = response.data.result;
-        setOrder(ord);
-
-        setStep(getPersistedRiderStep(ord));
-      } catch (error) {
-        toast.error("Failed to fetch order details");
-        navigate("/delivery/dashboard");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (orderId) {
-      fetchOrderDetails();
+    if (isError) {
+      toast.error("Failed to fetch order details");
+      navigate("/delivery/dashboard");
     }
-  }, [orderId, navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isError]);
+
+  useEffect(() => {
+    if (order) setStep(getPersistedRiderStep(order));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?._id]);
+
+  const isReturn = order?.returnStatus && order.returnStatus !== "none";
 
   useEffect(() => {
     const iv = setInterval(() => setClockTick(Date.now()), 30000);
@@ -216,7 +223,7 @@ const OrderDetails = () => {
       const ws = String(payload?.workflowStatus || "").toUpperCase();
       if (ws === "DELIVERED") {
         setStep(4);
-        setOrder((prev) => prev ? { ...prev, status: "delivered", workflowStatus: "DELIVERED" } : prev);
+        queryClient.setQueryData(orderQueryKey, (prev) => prev ? { ...prev, status: "delivered", workflowStatus: "DELIVERED" } : prev);
       }
     });
 
@@ -432,7 +439,7 @@ const OrderDetails = () => {
             lng: location.lng,
           });
           const updated = res.data.result;
-          setOrder((prev) => ({ ...(prev || {}), ...updated }));
+          queryClient.setQueryData(orderQueryKey, (prev) => ({ ...(prev || {}), ...updated }));
           setStep(2);
           toast.success(`${currentStep.action} Confirmed!`);
         } else if (step === 2) {
@@ -441,7 +448,7 @@ const OrderDetails = () => {
             lng: location.lng,
           });
           const updated = res.data.result;
-          setOrder((prev) => ({ ...(prev || {}), ...updated }));
+          queryClient.setQueryData(orderQueryKey, (prev) => ({ ...(prev || {}), ...updated }));
           setStep(3);
           toast.success(`${currentStep.action} Confirmed!`);
         } else if (step === 3) {
@@ -521,16 +528,16 @@ const OrderDetails = () => {
     if (isReturn) {
       // Return pickup OTP → navigate to seller for drop-off
       setStep(3);
-      if (updatedOrder) setOrder(updatedOrder);
+      if (updatedOrder) queryClient.setQueryData(orderQueryKey, updatedOrder);
       window.scrollTo({ top: 0, behavior: "smooth" });
       toast.success("✅ Pickup verified! Navigate to seller for drop-off.");
     } else {
       // Standard delivery OTP → order is delivered, hide map immediately
       setStep(4);
       if (updatedOrder) {
-        setOrder({ ...updatedOrder, status: "delivered", workflowStatus: "DELIVERED" });
+        queryClient.setQueryData(orderQueryKey, { ...updatedOrder, status: "delivered", workflowStatus: "DELIVERED" });
       } else {
-        setOrder((prev) => prev ? { ...prev, status: "delivered", workflowStatus: "DELIVERED" } : prev);
+        queryClient.setQueryData(orderQueryKey, (prev) => prev ? { ...prev, status: "delivered", workflowStatus: "DELIVERED" } : prev);
       }
       window.scrollTo({ top: 0, behavior: "smooth" });
       toast.success("✅ Order delivered successfully!");
@@ -546,7 +553,7 @@ const OrderDetails = () => {
       setAccepting(true);
       const res = await deliveryApi.acceptReturnPickup(order.orderId);
       const updated = res.data.result;
-      setOrder(updated);
+      queryClient.setQueryData(orderQueryKey, updated);
       toast.success("Return pickup task accepted!");
       setStep(1);
     } catch (error) {
@@ -1193,7 +1200,7 @@ const OrderDetails = () => {
                 isReturnDrop={true}
                 onSuccess={(data) => {
                   const updatedOrder = data?.result || data?.data?.result;
-                  if (updatedOrder) setOrder(updatedOrder);
+                  if (updatedOrder) queryClient.setQueryData(orderQueryKey, updatedOrder);
                   setStep(5);
                   toast.success("✅ Return complete! Commission credited to your wallet.");
                   setTimeout(() => navigate("/delivery/dashboard"), 1800);

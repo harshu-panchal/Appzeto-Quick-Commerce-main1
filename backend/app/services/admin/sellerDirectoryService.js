@@ -13,8 +13,25 @@ import {
   resolveSellerLifecycleStatus,
   sortActiveSellerRows,
 } from "./shared/sellerAdminUtils.js";
+import { buildKey, getOrSet, getTTL } from "../cacheService.js";
 
-export async function getSellerLocationsData({
+// Perf audit BE-D3: both endpoints below have to sort/aggregate across
+// *every* seller matching the current filters before they can page the
+// result (the city/lifecycle filters and the orders_desc/revenue_desc
+// sorts are all computed fields, so pagination can't be pushed below them
+// — the same structural constraint as the admin customer list, BE-D2).
+// What *is* fixable: re-running that full computation on every single
+// request. Wrapped both in the same short-TTL, no-explicit-invalidation
+// cache pattern already used for the admin customer list / seller
+// earnings / seller stats elsewhere in this codebase — same staleness
+// tolerance, and it removes the "recompute for everyone on every page
+// view" cost.
+export async function getSellerLocationsData(params) {
+  const cacheKey = buildKey("admin", "sellerLocations", JSON.stringify(params));
+  return getOrSet(cacheKey, () => fetchSellerLocationsData(params), getTTL("dashboard"));
+}
+
+async function fetchSellerLocationsData({
   q = "",
   category = "all",
   city = "all",
@@ -56,13 +73,30 @@ export async function getSellerLocationsData({
     });
   }
 
+  // Audit fix (found while implementing BE-D3): this previously referenced
+  // an undefined `baseQuery` variable — `filters` was built above but never
+  // assembled into an actual query, so this `Seller.find(baseQuery)` threw
+  // a ReferenceError on every call, and even once fixed to not throw, the
+  // `q`/`category` filters were never actually applied at the DB level.
+  const query = filters.length > 0 ? { $and: filters } : {};
+
+  // Perf audit BE-D3: the filter-dropdown-options list (all distinct
+  // cities/categories) doesn't depend on `q`/`category`/`city`/`lifecycle`
+  // at all, so it's cached separately with a longer TTL — it's the same
+  // full-collection scan on every request regardless of what the admin is
+  // currently filtering by, and rarely changes.
+  const allSellersBaseCacheKey = buildKey("admin", "sellerFilterOptions");
   const [sellers, allSellersBase] = await Promise.all([
-    Seller.find(baseQuery)
+    Seller.find(query)
       .select(
         "_id name shopName email phone category address location serviceRadius isActive isVerified applicationStatus reviewedAt createdAt rejectionReason",
       )
       .lean(),
-    Seller.find({}).select("address category").lean()
+    getOrSet(
+      allSellersBaseCacheKey,
+      () => Seller.find({}).select("address category").lean(),
+      getTTL("categories"),
+    ),
   ]);
 
   const filteredByStatus = sellers.filter((seller) =>
@@ -266,7 +300,12 @@ export async function getSellerLocationsData({
   };
 }
 
-export async function getActiveSellersData({
+export async function getActiveSellersData(params) {
+  const cacheKey = buildKey("admin", "activeSellersDirectory", JSON.stringify(params));
+  return getOrSet(cacheKey, () => fetchActiveSellersData(params), getTTL("dashboard"));
+}
+
+async function fetchActiveSellersData({
   q = "",
   category = "all",
   sort = "recent",
@@ -507,8 +546,13 @@ export async function getActiveSellersData({
 }
 
 export async function getSellerOptions() {
-  return Seller.find({})
-    .select("_id shopName name email phone")
-    .sort({ shopName: 1 })
-    .lean();
+  return getOrSet(
+    buildKey("admin", "sellerOptions"),
+    () =>
+      Seller.find({})
+        .select("_id shopName name email phone")
+        .sort({ shopName: 1 })
+        .lean(),
+    getTTL("categories"),
+  );
 }

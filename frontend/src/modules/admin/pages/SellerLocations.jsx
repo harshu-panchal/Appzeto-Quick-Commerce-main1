@@ -25,6 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { adminApi } from "../services/adminApi";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 
 const MAP_LIBRARIES = ["geometry"];
 const DEFAULT_CENTER = { lat: 20.5937, lng: 78.9629 };
@@ -240,9 +241,19 @@ const ActiveSellerMap = ({
   );
 };
 
-const SellerLocations = () => {
-  const requestSeq = useRef(0);
+const DEFAULT_SELLER_LOCATIONS_STATS = {
+  totalSellers: 0,
+  mappedSellers: 0,
+  unmappedSellers: 0,
+  citiesCovered: 0,
+  totalActiveOrders: 0,
+  averageRadiusKm: 0,
+  maxRadiusKm: 0,
+};
+const DEFAULT_FILTERS_META = { categories: [], cities: [] };
+const DEFAULT_MAP_META = { center: DEFAULT_CENTER, bounds: null };
 
+const SellerLocations = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [lifecycle, setLifecycle] = useState("all");
@@ -252,35 +263,16 @@ const SellerLocations = () => {
   const [mapView, setMapView] = useState("coverage");
   const [page, setPage] = useState(1);
   const [selectedSellerId, setSelectedSellerId] = useState(null);
-  const [refreshTick, setRefreshTick] = useState(0);
   const [mapUnlocked, setMapUnlocked] = useState(false);
-
-  const [items, setItems] = useState([]);
-  const [mapItems, setMapItems] = useState([]);
-  const [stats, setStats] = useState({
-    totalSellers: 0,
-    mappedSellers: 0,
-    unmappedSellers: 0,
-    citiesCovered: 0,
-    totalActiveOrders: 0,
-    averageRadiusKm: 0,
-    maxRadiusKm: 0,
-  });
-  const [filtersMeta, setFiltersMeta] = useState({
-    categories: [],
-    cities: [],
-  });
-  const [mapMeta, setMapMeta] = useState({
-    center: DEFAULT_CENTER,
-    bounds: null,
-  });
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   const googleMapApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 
+  // Perf audit Phase 8: migrated to React Query — same 300ms debounce and
+  // page-reset-on-filter-change behavior. The old `requestSeq` ref guard
+  // against out-of-order responses is no longer needed (React Query only
+  // ever applies the latest request for a given query key). `refreshTick`
+  // was dropped entirely — it was declared but never incremented anywhere
+  // in this file, so it never affected anything.
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchTerm.trim());
@@ -293,34 +285,37 @@ const SellerLocations = () => {
     setPage(1);
   }, [lifecycle, category, city, sort]);
 
-  useEffect(() => {
-    const currentSeq = ++requestSeq.current;
-    const loadData = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const response = await adminApi.getSellerLocations({
-          q: debouncedSearch || undefined,
-          lifecycle,
-          category: category !== "all" ? category : undefined,
-          city: city !== "all" ? city : undefined,
-          sort,
-          page,
-          limit: PAGE_SIZE,
-          mapLimit: mapUnlocked ? 300 : 0,
-        });
+  const queryParams = useMemo(
+    () => ({
+      q: debouncedSearch || undefined,
+      lifecycle,
+      category: category !== "all" ? category : undefined,
+      city: city !== "all" ? city : undefined,
+      sort,
+      page,
+      limit: PAGE_SIZE,
+      mapLimit: mapUnlocked ? 300 : 0,
+    }),
+    [debouncedSearch, lifecycle, category, city, sort, page, mapUnlocked],
+  );
 
-        if (currentSeq !== requestSeq.current) return;
+  const {
+    data: queryData,
+    isLoading: loading,
+    isError,
+    error: queryError,
+  } = useQuery({
+    queryKey: ["admin", "sellerLocations", queryParams],
+    queryFn: async () => {
+      const response = await adminApi.getSellerLocations(queryParams);
+      const payload = response.data?.result || {};
+      const listItems = Array.isArray(payload.items) ? payload.items : [];
+      const fullMapItems = Array.isArray(payload.mapItems) ? payload.mapItems : [];
 
-        const payload = response.data?.result || {};
-        const listItems = Array.isArray(payload.items) ? payload.items : [];
-        const fullMapItems = Array.isArray(payload.mapItems)
-          ? payload.mapItems
-          : [];
-
-        setItems(listItems);
-        setMapItems(fullMapItems);
-        setStats({
+      return {
+        items: listItems,
+        mapItems: fullMapItems,
+        stats: {
           totalSellers: Number(payload.stats?.totalSellers || 0),
           mappedSellers: Number(payload.stats?.mappedSellers || 0),
           unmappedSellers: Number(payload.stats?.unmappedSellers || 0),
@@ -328,55 +323,53 @@ const SellerLocations = () => {
           totalActiveOrders: Number(payload.stats?.totalActiveOrders || 0),
           averageRadiusKm: Number(payload.stats?.averageRadiusKm || 0),
           maxRadiusKm: Number(payload.stats?.maxRadiusKm || 0),
-        });
-        setFiltersMeta({
-          categories: Array.isArray(payload.filters?.categories)
-            ? payload.filters.categories
-            : [],
-          cities: Array.isArray(payload.filters?.cities)
-            ? payload.filters.cities
-            : [],
-        });
-        setMapMeta({
+        },
+        filtersMeta: {
+          categories: Array.isArray(payload.filters?.categories) ? payload.filters.categories : [],
+          cities: Array.isArray(payload.filters?.cities) ? payload.filters.cities : [],
+        },
+        mapMeta: {
           center: payload.map?.center || DEFAULT_CENTER,
           bounds: payload.map?.bounds || null,
-        });
-        setTotal(Number(payload.total || listItems.length));
-        setTotalPages(Number(payload.totalPages || 1));
+        },
+        total: Number(payload.total || listItems.length),
+        totalPages: Number(payload.totalPages || 1),
+      };
+    },
+    placeholderData: keepPreviousData,
+  });
 
-        setSelectedSellerId((previous) => {
-          if (!listItems.length) return null;
-          if (!previous) return listItems[0].id;
-          const stillExists = listItems.some(
-            (seller) => seller.id === previous,
-          );
-          return stillExists ? previous : listItems[0].id;
-        });
-      } catch (err) {
-        if (currentSeq !== requestSeq.current) return;
-        console.error("Failed to load seller locations", err);
-        const message =
-          err.response?.data?.message || "Failed to load seller locations.";
-        setError(message);
-        toast.error(message);
-      } finally {
-        if (currentSeq === requestSeq.current) {
-          setLoading(false);
-        }
-      }
-    };
+  const items = queryData?.items ?? [];
+  const mapItems = queryData?.mapItems ?? [];
+  const stats = queryData?.stats ?? DEFAULT_SELLER_LOCATIONS_STATS;
+  const filtersMeta = queryData?.filtersMeta ?? DEFAULT_FILTERS_META;
+  const mapMeta = queryData?.mapMeta ?? DEFAULT_MAP_META;
+  const total = queryData?.total ?? 0;
+  const totalPages = queryData?.totalPages ?? 1;
+  const error = isError
+    ? (queryError?.response?.data?.message || "Failed to load seller locations.")
+    : "";
 
-    loadData();
-  }, [
-    debouncedSearch,
-    lifecycle,
-    category,
-    city,
-    sort,
-    page,
-    refreshTick,
-    mapUnlocked,
-  ]);
+  useEffect(() => {
+    if (isError) {
+      console.error("Failed to load seller locations", queryError);
+      toast.error(error);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isError]);
+
+  // Auto-select a seller from the freshly loaded list — same logic as
+  // before, now reacting to the query's `items` instead of running inline
+  // inside the fetch.
+  useEffect(() => {
+    setSelectedSellerId((previous) => {
+      if (!items.length) return null;
+      if (!previous) return items[0].id;
+      const stillExists = items.some((seller) => seller.id === previous);
+      return stillExists ? previous : items[0].id;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
 
   const selectedSeller = useMemo(
     () =>

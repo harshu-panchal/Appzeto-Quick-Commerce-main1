@@ -1,18 +1,32 @@
 import Offer from "../models/offer.js";
 import handleResponse from "../utils/helper.js";
+import { buildKey, getOrSet, getTTL, invalidate } from "../services/cacheService.js";
+
+const PUBLIC_OFFERS_CACHE_KEY = buildKey("catalog", "offers", "public");
 
 export const getPublicOffers = async (req, res) => {
   try {
-    const offers = await Offer.find({ status: "active" })
-      .sort({ order: 1, createdAt: 1 })
-      .populate("categoryIds", "name")
-      .lean();
+    const offers = await getOrSet(
+      PUBLIC_OFFERS_CACHE_KEY,
+      async () =>
+        Offer.find({ status: "active" })
+          .sort({ order: 1, createdAt: 1 })
+          .populate("categoryIds", "name")
+          .lean(),
+      getTTL("homepage"),
+    );
 
     return handleResponse(res, 200, "Offers fetched successfully", offers);
   } catch (error) {
     return handleResponse(res, 500, error.message);
   }
 };
+
+function invalidatePublicOffersCache() {
+  invalidate(PUBLIC_OFFERS_CACHE_KEY).catch((err) => {
+    console.warn("[Offers] Public offers cache invalidation failed:", err.message);
+  });
+}
 
 export const getAdminOffers = async (req, res) => {
   try {
@@ -74,6 +88,8 @@ export const createOffer = async (req, res) => {
       validTo,
     });
 
+    invalidatePublicOffersCache();
+
     return handleResponse(res, 201, "Offer created", offer);
   } catch (error) {
     return handleResponse(res, 400, error.message);
@@ -101,6 +117,8 @@ export const updateOffer = async (req, res) => {
 
     await existing.save();
 
+    invalidatePublicOffersCache();
+
     return handleResponse(res, 200, "Offer updated", existing);
   } catch (error) {
     return handleResponse(res, 400, error.message);
@@ -114,6 +132,8 @@ export const deleteOffer = async (req, res) => {
     if (!deleted) {
       return handleResponse(res, 404, "Offer not found");
     }
+
+    invalidatePublicOffersCache();
 
     return handleResponse(res, 200, "Offer deleted");
   } catch (error) {
@@ -142,6 +162,8 @@ export const reorderOffers = async (req, res) => {
     }
 
     await Offer.bulkWrite(bulkOps);
+
+    invalidatePublicOffersCache();
 
     return handleResponse(res, 200, "Offers reordered");
   } catch (error) {

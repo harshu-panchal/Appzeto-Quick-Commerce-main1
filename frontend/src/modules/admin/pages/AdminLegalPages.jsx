@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { FileText, Loader2, Save, ScrollText } from "lucide-react";
 import Card from "@shared/components/ui/Card";
 import Button from "@shared/components/ui/Button";
@@ -28,31 +29,48 @@ const AdminLegalPages = () => {
   const [title, setTitle] = useState("");
   const [contentHtml, setContentHtml] = useState("");
   const [updatedAt, setUpdatedAt] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const loadPage = useCallback(async () => {
-    setLoading(true);
-    try {
+  // Perf audit Phase 8: migrated the per-(audience,pageType) fetch to React
+  // Query. The result seeds editable local form state (title/contentHtml)
+  // rather than being rendered directly, so a background refetch (e.g. on
+  // window refocus) must not clobber in-progress edits — the seededKeyRef
+  // guard below applies the fetched data into form state only once per
+  // audience/pageType tab, exactly matching the original "load on tab
+  // switch" behavior.
+  const legalPageQueryKey = ["admin", "legalPage", audience, pageType];
+  const { data: pageData, isLoading: loading, isError } = useQuery({
+    queryKey: legalPageQueryKey,
+    queryFn: async () => {
       const res = await adminApi.getLegalPage(audience, pageType);
       const data = res.data?.result ?? res.data;
-      setTitle(data?.title || "");
-      setContentHtml(data?.contentHtml || "");
-      setUpdatedAt(data?.updatedAt || null);
-    } catch (err) {
-      console.error(err);
-      showToast("Failed to load legal page", "error");
-      setTitle("");
-      setContentHtml("");
-      setUpdatedAt(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [audience, pageType, showToast]);
+      return {
+        title: data?.title || "",
+        contentHtml: data?.contentHtml || "",
+        updatedAt: data?.updatedAt || null,
+      };
+    },
+  });
+
+  const seededKeyRef = useRef(null);
+  useEffect(() => {
+    if (!isError) return;
+    showToast("Failed to load legal page", "error");
+    seededKeyRef.current = `${audience}-${pageType}`;
+    setTitle("");
+    setContentHtml("");
+    setUpdatedAt(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isError]);
 
   useEffect(() => {
-    loadPage();
-  }, [loadPage]);
+    const key = `${audience}-${pageType}`;
+    if (!pageData || seededKeyRef.current === key) return;
+    seededKeyRef.current = key;
+    setTitle(pageData.title);
+    setContentHtml(pageData.contentHtml);
+    setUpdatedAt(pageData.updatedAt);
+  }, [pageData, audience, pageType]);
 
   const handleSave = async () => {
     if (!title.trim()) {

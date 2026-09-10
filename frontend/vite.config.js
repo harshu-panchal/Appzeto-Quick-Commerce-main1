@@ -71,18 +71,32 @@ export default defineConfig({
         manualChunks(id) {
           if (!id.includes('node_modules')) return
 
+          // Perf audit FE-B3: keep only vendor buckets that measurably stay
+          // lazy in the real build output (verified via dist/index.html's
+          // <link rel="modulepreload"> list after each change — that's the
+          // ground truth for "is this actually eager", not just what the
+          // manualChunks function says). react/react-dom get their own
+          // chunk since nearly everything needs them anyway. MUI and
+          // Recharts are deliberately NOT force-merged into one monolithic
+          // chunk each: doing so previously made each into a single shared
+          // dependency of dozens of unrelated lazy-loaded admin/seller
+          // pages, which made Rollup's own chunk graph hoist that whole
+          // monolith into a static (eager) import of the entry point —
+          // exactly the "every portal downloads MUI+Recharts up front"
+          // problem this fix is for. Leaving MUI/Recharts to Rollup's
+          // automatic chunking lets each lazy page that needs them pull in
+          // only what it needs, without creating one grep-me-everywhere
+          // shared chunk that tempts that hoisting behavior.
           if (
-            id.includes('@mui/material') ||
-            id.includes('@mui/icons-material') ||
-            id.includes('@emotion/react') ||
-            id.includes('@emotion/styled')
+            id.includes('/react/') ||
+            id.includes('/react-dom/') ||
+            id.includes('/scheduler/')
           ) {
-            return 'vendor-mui'
+            return 'vendor-react'
           }
 
           if (id.includes('framer-motion')) return 'vendor-motion'
           if (id.includes('firebase')) return 'vendor-firebase'
-          if (id.includes('recharts')) return 'vendor-charts'
         },
       },
     },

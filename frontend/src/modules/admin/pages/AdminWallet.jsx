@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import Card from '@shared/components/ui/Card';
 import Badge from '@shared/components/ui/Badge';
 import Button from '@shared/components/ui/Button';
@@ -39,30 +40,58 @@ const TABS = ['all', 'earnings', 'payouts', 'seller_requests'];
 
 const AdminWallet = () => {
     const navigate = useNavigate();
-    const [loading, setLoading] = useState(true);
-    const [walletData, setWalletData] = useState({ stats: {}, transactions: {} });
+    const queryClient = useQueryClient();
     const [txnPage, setTxnPage] = useState(1);
     const [txnPageSize, setTxnPageSize] = useState(25);
-    const [sellerRequests, setSellerRequests] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState('all'); // all, earnings, payouts, seller_requests
     const [selectedTransaction, setSelectedTransaction] = useState(null);
     const [isExporting, setIsExporting] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [loadingId, setLoadingId] = useState(null);
 
-    const fetchData = async (page = 1) => {
-        try {
-            setLoading(true);
-            const params = { page, limit: txnPageSize };
-            if (searchTerm.trim()) params.search = searchTerm.trim();
+    // Perf audit Phase 8: migrated to React Query — same 500ms debounce
+    // before a search change triggers a refetch (page-size change now
+    // applies instantly instead of also waiting on the debounce timer,
+    // which is a strict improvement, not a behavior change users would
+    // notice). Summary + ledger + pending seller payouts were always
+    // fetched together as one unit, so they stay one query.
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm);
+            setTxnPage(1);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
 
+    useEffect(() => {
+        setTxnPage(1);
+    }, [txnPageSize]);
+
+    const queryParams = useMemo(() => {
+        const params = { page: txnPage, limit: txnPageSize };
+        if (debouncedSearchTerm.trim()) params.search = debouncedSearchTerm.trim();
+        return params;
+    }, [txnPage, txnPageSize, debouncedSearchTerm]);
+
+    const walletQueryKey = ['admin', 'walletFinance', queryParams];
+
+    const {
+        data: walletQueryData,
+        isLoading: loading,
+        isFetching: isRefetching,
+        isError,
+    } = useQuery({
+        queryKey: walletQueryKey,
+        queryFn: async () => {
             const [summaryRes, ledgerRes, requestsRes] = await Promise.all([
                 adminApi.getFinanceSummary(),
-                adminApi.getFinanceLedger(params),
+                adminApi.getFinanceLedger(queryParams),
                 adminApi.getFinancePayouts({ seller: true, status: "PENDING", page: 1, limit: 100 })
             ]);
 
+            let walletData = { stats: {}, transactions: {} };
             if (summaryRes.data.success || ledgerRes.data.success) {
                 const summary = summaryRes.data.result || {};
                 const ledger = ledgerRes.data.result || {};
@@ -79,7 +108,7 @@ const AdminWallet = () => {
                     method: entry.paymentMode || "N/A",
                 }));
 
-                setWalletData({
+                walletData = {
                     stats: {
                         totalPlatformEarning: summary.totalPlatformEarning || 0,
                         totalAdminEarning: summary.totalAdminEarning || 0,
@@ -90,40 +119,46 @@ const AdminWallet = () => {
                     },
                     transactions: {
                         items: mappedTransactions,
-                        page: ledger.page || page,
+                        page: ledger.page || queryParams.page,
                         limit: ledger.limit || txnPageSize,
                         total: ledger.total || mappedTransactions.length,
                         totalPages: ledger.totalPages || 1,
                     },
-                });
-                if (ledger && typeof ledger.page === "number") setTxnPage(ledger.page);
+                };
             }
+
+            let sellerRequests = [];
             if (requestsRes.data.success) {
                 const payload = requestsRes.data.result || {};
-                const list = Array.isArray(payload.items) ? payload.items : (requestsRes.data.results || []);
-                setSellerRequests(list);
+                sellerRequests = Array.isArray(payload.items) ? payload.items : (requestsRes.data.results || []);
             }
-        } catch (error) {
-            console.error("Admin Wallet Fetch Error:", error);
+
+            return { walletData, sellerRequests };
+        },
+        placeholderData: keepPreviousData,
+    });
+
+    useEffect(() => {
+        if (isError) {
+            console.error("Admin Wallet Fetch Error");
             toast.error("Failed to load finance data");
-        } finally {
-            setLoading(false);
         }
+    }, [isError]);
+
+    const walletData = walletQueryData?.walletData ?? { stats: {}, transactions: {} };
+    const sellerRequests = walletQueryData?.sellerRequests ?? [];
+
+    useEffect(() => {
+        const returnedPage = walletData.transactions?.page;
+        if (typeof returnedPage === "number" && returnedPage !== txnPage) {
+            setTxnPage(returnedPage);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [walletData.transactions?.page]);
+
+    const fetchData = () => {
+        queryClient.invalidateQueries({ queryKey: ['admin', 'walletFinance'] });
     };
-
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            fetchData(1);
-        }, 500);
-        return () => clearTimeout(timer);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [txnPageSize, searchTerm]);
-
-    // Track the actual page change separately (no debounce needed for clicking next)
-    useEffect(() => {
-        fetchData(txnPage);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [txnPage]);
 
     const handleUpdateStatus = async (id, status, reason = "") => {
         try {
@@ -138,7 +173,7 @@ const AdminWallet = () => {
             });
             if (res.data.success) {
                 toast.success(`Request processed successfully`);
-                fetchData(txnPage);
+                fetchData();
             }
         } catch (error) {
             toast.error(error.response?.data?.message || "Action failed");
@@ -284,7 +319,7 @@ const AdminWallet = () => {
             if (res.data.success) {
                 const result = res.data.result || {};
                 toast.success(`Processed ${result.completed || 0} payouts`);
-                fetchData(txnPage);
+                fetchData();
             }
         } catch (error) {
             toast.error(error.response?.data?.message || "Failed to process payouts");
@@ -508,7 +543,7 @@ const AdminWallet = () => {
                                         data={filteredTransactions}
                                         rowKey={(txn) => txn.id}
                                         onRowClick={(txn) => setSelectedTransaction(txn)}
-                                        loading={loading && transactionsList.length > 0}
+                                        loading={isRefetching && transactionsList.length > 0}
                                         emptyState={
                                             <EmptyState
                                                 icon={<Search className="h-6 w-6" />}
@@ -523,12 +558,12 @@ const AdminWallet = () => {
                                             totalPages={Math.ceil(txnTotal / txnPageSize) || 1}
                                             total={txnTotal}
                                             pageSize={txnPageSize}
-                                            onPageChange={(p) => { setTxnPage(p); fetchData(p); }}
+                                            onPageChange={(p) => setTxnPage(p)}
                                             onPageSizeChange={(newSize) => {
                                                 setTxnPageSize(newSize);
                                                 setTxnPage(1);
                                             }}
-                                            loading={loading}
+                                            loading={isRefetching}
                                         />
                                     )}
                                 </>

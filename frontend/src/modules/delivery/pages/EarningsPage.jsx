@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import Button from "@/shared/components/ui/Button";
 import Card from "@/shared/components/ui/Card";
 import { deliveryApi } from "../services/deliveryApi";
+import { useQuery } from "@tanstack/react-query";
 
 const RUPEE = "\u20B9";
 const DOT = "\u2022";
@@ -24,44 +25,45 @@ const resolveTipAmount = (txn) =>
       0,
   );
 
+const DEFAULT_EARNINGS_DATA = {
+  totalEarnings: 0,
+  incentives: 0,
+  bonuses: 0,
+  tipsReceived: 0,
+  chartData: [],
+  recentTransactions: [],
+};
+
 const EarningsPage = () => {
   const [activeTab, setActiveTab] = useState("weekly");
-  const [loading, setLoading] = useState(true);
-  const [earningsData, setEarningsData] = useState({
-    totalEarnings: 0,
-    incentives: 0,
-    bonuses: 0,
-    tipsReceived: 0,
-    chartData: [],
-    recentTransactions: [],
-  });
 
-  const fetchEarnings = async () => {
-    try {
-      setLoading(true);
+  // Perf audit Phase 8: migrated to React Query. `activeTab` was never
+  // actually sent to the API (the fetch only ever ran once on mount,
+  // independent of the tab) — preserved exactly as-is, this is purely a
+  // caching migration, not a behavior change.
+  const { data, isLoading: loading, isError } = useQuery({
+    queryKey: ["delivery", "earnings"],
+    queryFn: async () => {
       const response = await deliveryApi.getEarnings();
-      if (response.data.success && response.data.result) {
-        const result = response.data.result;
-        setEarningsData({
-          totalEarnings: result.totalEarnings || 0,
-          incentives: result.incentives || 0,
-          bonuses: result.bonuses || 0,
-          tipsReceived: result.tipsReceived || 0,
-          chartData: result.chartData || [],
-          recentTransactions: result.transactions || result.recentTransactions || [],
-        });
+      if (!response.data.success || !response.data.result) {
+        return DEFAULT_EARNINGS_DATA;
       }
-    } catch {
-      toast.error("Failed to fetch earnings data");
-    } finally {
-      setLoading(false);
-    }
-  };
+      const result = response.data.result;
+      return {
+        totalEarnings: result.totalEarnings || 0,
+        incentives: result.incentives || 0,
+        bonuses: result.bonuses || 0,
+        tipsReceived: result.tipsReceived || 0,
+        chartData: result.chartData || [],
+        recentTransactions: result.transactions || result.recentTransactions || [],
+      };
+    },
+  });
+  const earningsData = data ?? DEFAULT_EARNINGS_DATA;
 
   React.useEffect(() => {
-    fetchEarnings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (isError) toast.error("Failed to fetch earnings data");
+  }, [isError]);
 
   const containerVariants = {
     hidden: { opacity: 0 },

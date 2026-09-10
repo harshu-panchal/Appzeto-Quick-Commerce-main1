@@ -4,6 +4,8 @@ import {
   formatSellerApplication,
   formatSellerDocuments,
 } from "./shared/sellerAdminUtils.js";
+import { NEARBY_SELLERS_CACHE_PATTERN } from "../../controller/sellerController.js";
+import { invalidate } from "../cacheService.js";
 
 export async function getPendingSellerApplications({
   q = "",
@@ -114,6 +116,10 @@ export async function approveSellerApplicationById({ sellerId, reviewedBy }) {
   if (!seller) {
     return null;
   }
+
+  invalidate(NEARBY_SELLERS_CACHE_PATTERN).catch((err) => {
+    console.warn("[SellerApplication] Nearby-sellers cache invalidation failed:", err.message);
+  });
 
   return formatSellerApplication(seller);
 }

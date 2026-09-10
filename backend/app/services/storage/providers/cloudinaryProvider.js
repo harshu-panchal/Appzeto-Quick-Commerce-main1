@@ -15,19 +15,38 @@ import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
 import logger from "../../logger.js";
 
+// Perf audit BE-I1 (P6-2): same defaults/reasoning as the mirrored copy of
+// these functions in ../../mediaService.js — default to "auto"/auto-quality
+// and a generous max-dimension cap instead of the previous
+// empty-string-means-disabled defaults, so new uploads through this
+// provider get resized/compressed without requiring manual env
+// configuration. New uploads only; never touches already-stored media.
 function getOptimizedImageFormat() {
-  return String(process.env.CLOUDINARY_IMAGE_UPLOAD_FORMAT || "").trim().toLowerCase();
+  return String(process.env.CLOUDINARY_IMAGE_UPLOAD_FORMAT ?? "auto").trim().toLowerCase();
 }
 
 function getOptimizedImageQuality() {
-  const raw = String(process.env.CLOUDINARY_IMAGE_UPLOAD_QUALITY || "").trim();
+  const raw = String(process.env.CLOUDINARY_IMAGE_UPLOAD_QUALITY ?? "auto").trim();
   return raw.startsWith("q_") ? raw.slice(2) : raw;
+}
+
+function getOptimizedImageMaxDimension() {
+  const raw = parseInt(process.env.CLOUDINARY_IMAGE_MAX_DIMENSION || "2000", 10);
+  return Number.isFinite(raw) && raw > 0 ? raw : 2000;
 }
 
 function buildImageUploadTransformation() {
   const quality = getOptimizedImageQuality();
-  if (!quality) return null;
-  return [{ quality }];
+  const maxDimension = getOptimizedImageMaxDimension();
+  const transformation = {};
+  if (quality) transformation.quality = quality;
+  if (maxDimension) {
+    transformation.width = maxDimension;
+    transformation.height = maxDimension;
+    transformation.crop = "limit";
+  }
+  if (Object.keys(transformation).length === 0) return null;
+  return [transformation];
 }
 
 function getImageUploadOptions() {

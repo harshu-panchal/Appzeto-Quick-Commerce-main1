@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import MainLocationHeader from '../components/shared/MainLocationHeader';
 import { customerApi } from '../services/customerApi';
@@ -10,23 +11,14 @@ const COLORS = [
 ];
 
 const CategoriesPage = () => {
-    const [groups, setGroups] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [columnsPerRow, setColumnsPerRow] = useState(() => {
-        if (typeof window === 'undefined') return 4;
-        if (window.innerWidth >= 1024) return 8;
-        if (window.innerWidth >= 768) return 6;
-        return 4;
-    });
-    const [flippedCategoryId, setFlippedCategoryId] = useState(null);
-
-    const fetchCategories = async () => {
-        setIsLoading(true);
-        try {
+    // Perf audit Phase 8: migrated to React Query.
+    const { data: groups = [] } = useQuery({
+        queryKey: ['customer', 'categoriesTree'],
+        queryFn: async () => {
             const res = await customerApi.getCategories({ tree: true });
             if (res.data.success) {
                 const tree = res.data.results || res.data.result || [];
-                const formattedGroups = tree
+                return tree
                     .filter((header) => (header.name || '').trim().toLowerCase() !== 'all')
                     .map((header, idx) => {
                         const categories = (header.children || []).map((cat, cIdx) => ({
@@ -42,18 +34,17 @@ const CategoriesPage = () => {
                         };
                     })
                     .filter((group) => group.categories.length > 0);
-                setGroups(formattedGroups);
             }
-        } catch (error) {
-            console.error("Error fetching categories:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchCategories();
-    }, []);
+            return [];
+        },
+    });
+    const [columnsPerRow, setColumnsPerRow] = useState(() => {
+        if (typeof window === 'undefined') return 4;
+        if (window.innerWidth >= 1024) return 8;
+        if (window.innerWidth >= 768) return 6;
+        return 4;
+    });
+    const [flippedCategoryId, setFlippedCategoryId] = useState(null);
 
     useEffect(() => {
         const updateColumnsPerRow = () => {

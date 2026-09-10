@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import Card from "@shared/components/ui/Card";
 import Badge from "@shared/components/ui/Badge";
@@ -44,56 +45,54 @@ import { toast } from "sonner";
 
 const Analytics = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [statsData, setStatsData] = useState(null);
   const [activeTab, setActiveTab] = useState("Overview");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [chartRange, setChartRange] = useState("Daily");
-  const hasFetchedOnce = useRef(false);
+
+  const DEFAULT_STATS_SHAPE = {
+    overview: {},
+    salesTrend: [],
+    categoryMix: [],
+    topProducts: [],
+    trafficSources: [],
+    insights: {},
+  };
+
+  // Perf audit Phase 8: migrated to React Query. `placeholderData:
+  // keepPreviousData` matches the original's "only show the loading state
+  // on the very first fetch, keep the old chart data visible while
+  // switching ranges" behavior — `loading` below is `isLoading` (true only
+  // when there's no data yet at all), not `isFetching`.
+  const { data: statsData, isLoading: loading, isError } = useQuery({
+    queryKey: ["seller", "analyticsStats", chartRange],
+    queryFn: async () => {
+      const response = await sellerApi.getStats(chartRange.toLowerCase());
+      const raw = response?.data?.result ?? response?.data?.data ?? null;
+      if (response?.data?.success && raw && typeof raw === "object") {
+        return {
+          overview: raw.overview ?? {},
+          salesTrend: Array.isArray(raw.salesTrend) ? raw.salesTrend : [],
+          categoryMix: Array.isArray(raw.categoryMix) ? raw.categoryMix : [],
+          topProducts: Array.isArray(raw.topProducts) ? raw.topProducts : [],
+          trafficSources: Array.isArray(raw.trafficSources) ? raw.trafficSources : [],
+          insights: raw.insights ?? {},
+        };
+      } else if (response?.data?.success && raw) {
+        return raw;
+      }
+      return DEFAULT_STATS_SHAPE;
+    },
+    placeholderData: keepPreviousData,
+  });
 
   useEffect(() => {
-    const fetchAnalytics = async () => {
-      const isInitialLoad = !hasFetchedOnce.current;
-      if (isInitialLoad) {
-        setLoading(true);
-      }
-      try {
-        const response = await sellerApi.getStats(chartRange.toLowerCase());
-        const raw = response?.data?.result ?? response?.data?.data ?? null;
-        if (response?.data?.success && raw && typeof raw === "object") {
-          setStatsData({
-            overview: raw.overview ?? {},
-            salesTrend: Array.isArray(raw.salesTrend) ? raw.salesTrend : [],
-            categoryMix: Array.isArray(raw.categoryMix) ? raw.categoryMix : [],
-            topProducts: Array.isArray(raw.topProducts) ? raw.topProducts : [],
-            trafficSources: Array.isArray(raw.trafficSources) ? raw.trafficSources : [],
-            insights: raw.insights ?? {},
-          });
-        } else if (response?.data?.success && raw) {
-          setStatsData(raw);
-        }
-      } catch (error) {
-        console.error("Analytics Fetch Error:", error);
-        toast.error("Failed to load analytics data");
-        setStatsData((prev) => prev ?? {
-          overview: {},
-          salesTrend: [],
-          categoryMix: [],
-          topProducts: [],
-          trafficSources: [],
-          insights: {},
-        });
-      } finally {
-        if (isInitialLoad) {
-          hasFetchedOnce.current = true;
-        }
-        setLoading(false);
-      }
-    };
-    fetchAnalytics();
-  }, [chartRange]);
+    if (isError) {
+      console.error("Analytics Fetch Error");
+      toast.error("Failed to load analytics data");
+    }
+  }, [isError]);
 
   const stats = [
     {

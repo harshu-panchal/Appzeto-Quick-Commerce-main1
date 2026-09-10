@@ -1,5 +1,6 @@
 // Comprehensive Order Management System
 import React, { useState, useMemo, useEffect } from 'react';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import Badge from '@shared/components/ui/Badge';
 import Button from '@shared/components/ui/Button';
@@ -43,110 +44,132 @@ const STATUS_SELECT_STYLES = {
     returned: 'bg-slate-100 text-slate-600',
 };
 
+const DEFAULT_SUMMARY = {
+    totalOrders: 0,
+    totalAmount: 0,
+    pending: 0,
+    confirmed: 0,
+    packed: 0,
+    outForDelivery: 0,
+    delivered: 0,
+    cancelled: 0,
+    returned: 0,
+    activeOrders: 0,
+};
+
+function formatOrdersResponse(payload, fallbackResults, requestedPage) {
+    const dbOrders = Array.isArray(payload.items) ? payload.items : (fallbackResults || []);
+    const formatted = dbOrders.map(o => ({
+        id: o.orderId || 'UNSET',
+        _id: o._id,
+        customer: o.customer?.name || 'Unknown',
+        seller: o.seller?.shopName || 'Unknown',
+        items: o.items?.length || 0,
+        amount: o.pricing?.total || 0,
+        status: getLegacyStatusFromOrder(o),
+        workflowStatus: o.workflowStatus,
+        workflowVersion: o.workflowVersion,
+        returnStatus: o.returnStatus,
+        date: new Date(o.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+        payment: o.payment?.method === 'cod' ? 'COD' : 'Digital',
+    }));
+    return {
+        orders: formatted,
+        summary: {
+            totalOrders: Number(payload.summary?.totalOrders || payload.total || formatted.length || 0),
+            totalAmount: Number(payload.summary?.totalAmount || 0),
+            pending: Number(payload.summary?.pending || 0),
+            confirmed: Number(payload.summary?.confirmed || 0),
+            packed: Number(payload.summary?.packed || 0),
+            outForDelivery: Number(payload.summary?.outForDelivery || 0),
+            delivered: Number(payload.summary?.delivered || 0),
+            cancelled: Number(payload.summary?.cancelled || 0),
+            returned: Number(payload.summary?.returned || 0),
+            activeOrders: Number(payload.summary?.activeOrders || 0),
+        },
+        total: typeof payload.total === 'number' ? payload.total : formatted.length,
+        page: typeof payload.page === 'number' ? payload.page : requestedPage,
+    };
+}
+
 const OrdersList = () => {
     const { status = 'all' } = useParams();
     const navigate = useNavigate();
     const { showToast } = useToast();
+    const queryClient = useQueryClient();
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [dateRange, setDateRange] = useState('All Time');
-    const [orders, setOrders] = useState([]);
-    const [summary, setSummary] = useState({
-        totalOrders: 0,
-        totalAmount: 0,
-        pending: 0,
-        confirmed: 0,
-        packed: 0,
-        outForDelivery: 0,
-        delivered: 0,
-        cancelled: 0,
-        returned: 0,
-        activeOrders: 0,
-    });
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
-    const [total, setTotal] = useState(0);
-    const [isLoading, setIsLoading] = useState(true);
     const [isDateMenuOpen, setIsDateMenuOpen] = useState(false);
     const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
     const [paymentFilter, setPaymentFilter] = useState('All');
 
-    const fetchOrders = async (requestedPage = 1) => {
-        setIsLoading(true);
-        try {
-            const params = { page: requestedPage, limit: pageSize };
-            if (status !== 'all') params.status = status;
-            if (searchTerm.trim()) params.search = searchTerm.trim();
-            if (dateRange !== 'All Time') {
-                params.dateFilter = dateRange.toLowerCase().replace(/ /g, '_');
-            }
-            const response = await adminApi.getOrders(params);
-            if (response.data.success) {
-                const payload = response.data.result || {};
-                const dbOrders = Array.isArray(payload.items) ? payload.items : (response.data.results || []);
-                const formatted = dbOrders.map(o => ({
-                    id: o.orderId || 'UNSET',
-                    _id: o._id,
-                    customer: o.customer?.name || 'Unknown',
-                    seller: o.seller?.shopName || 'Unknown',
-                    items: o.items?.length || 0,
-                    amount: o.pricing?.total || 0,
-                    status: getLegacyStatusFromOrder(o),
-                    workflowStatus: o.workflowStatus,
-                    workflowVersion: o.workflowVersion,
-                    returnStatus: o.returnStatus,
-                    date: new Date(o.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-                    payment: o.payment?.method === 'cod' ? 'COD' : 'Digital',
-                }));
-                setOrders(formatted);
-                setSummary({
-                    totalOrders: Number(payload.summary?.totalOrders || payload.total || formatted.length || 0),
-                    totalAmount: Number(payload.summary?.totalAmount || 0),
-                    pending: Number(payload.summary?.pending || 0),
-                    confirmed: Number(payload.summary?.confirmed || 0),
-                    packed: Number(payload.summary?.packed || 0),
-                    outForDelivery: Number(payload.summary?.outForDelivery || 0),
-                    delivered: Number(payload.summary?.delivered || 0),
-                    cancelled: Number(payload.summary?.cancelled || 0),
-                    returned: Number(payload.summary?.returned || 0),
-                    activeOrders: Number(payload.summary?.activeOrders || 0),
-                });
-                if (typeof payload.total === 'number') {
-                    setTotal(payload.total);
-                } else {
-                    setTotal(formatted.length);
-                }
-                if (typeof payload.page === 'number') {
-                    setPage(payload.page);
-                } else {
-                    setPage(requestedPage);
-                }
-            }
-        } catch (error) {
-            console.error("Fetch orders error:", error);
-            showToast("Failed to load orders", "error");
-        } finally {
-            setIsLoading(false);
+    // Perf audit Phase 8: migrated to React Query — same 500ms debounce
+    // before a filter/search change triggers a refetch, same "any filter
+    // change resets to page 1" behavior, now backed by the shared cache
+    // instead of a page-local fetch.
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm);
+            setPage(1);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    useEffect(() => {
+        setPage(1);
+    }, [pageSize, status, dateRange]);
+
+    const queryParams = useMemo(() => {
+        const params = { page, limit: pageSize };
+        if (status !== 'all') params.status = status;
+        if (debouncedSearchTerm.trim()) params.search = debouncedSearchTerm.trim();
+        if (dateRange !== 'All Time') {
+            params.dateFilter = dateRange.toLowerCase().replace(/ /g, '_');
         }
-    };
+        return params;
+    }, [page, pageSize, status, debouncedSearchTerm, dateRange]);
+
+    const queryKey = ['admin', 'orders', queryParams];
+
+    const { data: queryData, isLoading, isFetching, isError } = useQuery({
+        queryKey,
+        queryFn: async () => {
+            const response = await adminApi.getOrders(queryParams);
+            if (!response.data.success) {
+                throw new Error(response.data.message || 'Failed to load orders');
+            }
+            const payload = response.data.result || {};
+            return formatOrdersResponse(payload, response.data.results, queryParams.page);
+        },
+        placeholderData: keepPreviousData,
+    });
+
+    useEffect(() => {
+        if (isError) showToast('Failed to load orders', 'error');
+    }, [isError, showToast]);
+
+    const orders = queryData?.orders ?? [];
+    const summary = queryData?.summary ?? DEFAULT_SUMMARY;
+    const total = queryData?.total ?? 0;
 
     const handleStatusUpdate = async (orderId, newStatus) => {
         try {
             await adminApi.updateOrderStatus(orderId, { status: newStatus });
             showToast(`Order status updated to ${newStatus}`, "success");
-            fetchOrders(); // Refresh table
+            // Matches the previous behavior of this handler exactly: any
+            // status update jumps the list back to page 1 (fetchOrders()
+            // used to default its page argument to 1). Changing `page`
+            // here changes the query key, which triggers the refetch.
+            setPage(1);
+            queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
         } catch (error) {
             console.error("Failed to update status:", error);
             showToast("Failed to update status", "error");
         }
     };
-
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            fetchOrders(1);
-        }, 500);
-        return () => clearTimeout(timer);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pageSize, status, searchTerm, dateRange]);
 
     const safeOrders = useMemo(
         () => (Array.isArray(orders) ? orders : []),
@@ -438,7 +461,7 @@ const OrdersList = () => {
                 columns={orderColumns}
                 data={filteredOrders}
                 rowKey={(o) => o.id}
-                loading={isLoading}
+                loading={isFetching}
                 onRowClick={(order) => navigate(`/admin/orders/view/${order.id}`)}
                 emptyState={
                     <EmptyState
@@ -450,16 +473,16 @@ const OrdersList = () => {
             />
 
             <Pagination
-                page={page}
+                page={queryData?.page ?? page}
                 totalPages={Math.ceil(total / pageSize) || 1}
                 total={total}
                 pageSize={pageSize}
-                onPageChange={(p) => fetchOrders(p)}
+                onPageChange={(p) => setPage(p)}
                 onPageSizeChange={(newSize) => {
                     setPageSize(newSize);
                     setPage(1);
                 }}
-                loading={isLoading}
+                loading={isFetching}
             />
         </div>
     );

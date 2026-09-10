@@ -18,6 +18,9 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { adminApi } from "../../services/adminApi";
 import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+const LEVEL2_CATEGORIES_QUERY_KEY = ["admin", "allCategories"];
 
 const makeSlug = (value) =>
   String(value || "")
@@ -28,9 +31,7 @@ const makeSlug = (value) =>
     .replace(/-+/g, "-");
 
 const Level2Categories = () => {
-  const [categories, setCategories] = useState([]);
-  const [headerCategories, setHeaderCategories] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterHeader, setFilterHeader] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
@@ -56,33 +57,37 @@ const Level2Categories = () => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const fileInputRef = useRef(null);
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  const fetchCategories = async () => {
-    setIsLoading(true);
-    try {
+  // Perf audit Phase 8: migrated to React Query — this page always fetched
+  // the entire category list unparameterized and filtered/sorted/paginated
+  // it client-side, so there's no debounce/params concern here, just a
+  // cached single fetch instead of a page-local one.
+  const { data: allCategoriesData, isFetching, isError: isCategoriesError } = useQuery({
+    queryKey: LEVEL2_CATEGORIES_QUERY_KEY,
+    queryFn: async () => {
       const res = await adminApi.getCategories();
-      if (res.data.success) {
-        const payload = res.data.result;
-        const results = res.data.results;
-        const allCats = Array.isArray(results)
-          ? results
-          : Array.isArray(payload)
-            ? payload
-            : Array.isArray(payload?.items)
-              ? payload.items
-              : [];
-        setCategories(allCats.filter((c) => c.type === "category"));
-        setHeaderCategories(allCats.filter((c) => c.type === "header"));
-      }
-    } catch (error) {
-      toast.error("Failed to fetch categories");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      if (!res.data.success) throw new Error("Failed to fetch categories");
+      const payload = res.data.result;
+      const results = res.data.results;
+      const allCats = Array.isArray(results)
+        ? results
+        : Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.items)
+            ? payload.items
+            : [];
+      return allCats;
+    },
+  });
+
+  useEffect(() => {
+    if (isCategoriesError) toast.error("Failed to fetch categories");
+  }, [isCategoriesError]);
+
+  const allCategories = allCategoriesData ?? [];
+  const categories = useMemo(() => allCategories.filter((c) => c.type === "category"), [allCategories]);
+  const headerCategories = useMemo(() => allCategories.filter((c) => c.type === "header"), [allCategories]);
+  const invalidateCategories = () =>
+    queryClient.invalidateQueries({ queryKey: LEVEL2_CATEGORIES_QUERY_KEY });
 
   const filteredCategories = useMemo(() => {
     const filtered = categories.filter((cat) => {
@@ -175,7 +180,7 @@ const Level2Categories = () => {
       }
       setIsAddModalOpen(false);
       setEditingItem(null);
-      fetchCategories();
+      invalidateCategories();
     } catch (error) {
       console.error(error);
       const errorMsg = error.response?.data?.message || (editingItem ? "Failed to update" : "Failed to create");
@@ -193,7 +198,7 @@ const Level2Categories = () => {
       toast.success("Category deleted");
       setIsDeleteModalOpen(false);
       setDeleteTarget(null);
-      fetchCategories();
+      invalidateCategories();
     } catch (error) {
       toast.error("Failed to delete category");
     }
@@ -267,7 +272,7 @@ const Level2Categories = () => {
         );
         toast.success("Categories deleted");
         setSelectedItems([]);
-        fetchCategories();
+        invalidateCategories();
       } catch (error) {
         console.error("Bulk delete error:", error);
         toast.error("Failed to delete some categories");
@@ -416,7 +421,7 @@ const Level2Categories = () => {
         columns={categoryColumns}
         data={paginatedCategories}
         rowKey={(c) => c._id || c.id}
-        loading={isLoading}
+        loading={isFetching}
         emptyState={<div className="py-12 text-center text-sm text-slate-400">No categories found.</div>}
       />
 
@@ -427,7 +432,7 @@ const Level2Categories = () => {
         pageSize={pageSize}
         onPageChange={setPage}
         onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
-        loading={isLoading}
+        loading={isFetching}
       />
 
       {/* Add/Edit Modal */}

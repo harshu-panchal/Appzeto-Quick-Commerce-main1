@@ -29,60 +29,82 @@ import {
 import { cn } from '@/lib/utils';
 import { adminApi } from '../services/adminApi';
 import { toast } from 'sonner';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+
+const DELIVERY_FUNDS_QUERY_KEY = ['admin', 'deliveryFunds'];
+
+function mapDeliveryTransfer(tx) {
+    return {
+        id: tx.reference?.length > 16 ? tx.reference.slice(0, 8) + '...' + tx.reference.slice(-5) : (tx.reference || 'N/A'),
+        _id: tx._id,
+        riderName: tx.user?.name || 'Unknown',
+        riderId: tx.user?._id?.slice(-6).toUpperCase() || 'N/A',
+        amount: Math.abs(tx.amount),
+        status: tx.status?.toLowerCase() || 'pending',
+        paymentMethod: 'Bank Transfer',
+        accountInfo: tx.user?.documents?.bankDetails || 'No details',
+        dateTime: new Date(tx.createdAt || tx.date).toLocaleString(),
+        referenceId: tx.reference,
+        type: tx.type
+    };
+}
 
 const DeliveryFunds = () => {
-    const [transfers, setTransfers] = useState([]);
+    const queryClient = useQueryClient();
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
-    const [total, setTotal] = useState(0);
-    const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
     const [viewingTxn, setViewingTxn] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
 
-    const fetchTransactions = async (requestedPage = 1) => {
-        setIsLoading(true);
-        try {
-            const params = { page: requestedPage, limit: pageSize };
-            if (searchTerm.trim()) params.search = searchTerm.trim();
-            if (filterStatus !== 'all') params.status = filterStatus;
-
-            const response = await adminApi.getDeliveryTransactions(params);
-            const payload = response.data.result || {};
-            const data = Array.isArray(payload.items) ? payload.items : (response.data.results || []);
-
-            const mapped = data.map(tx => ({
-                id: tx.reference?.length > 16 ? tx.reference.slice(0, 8) + '...' + tx.reference.slice(-5) : (tx.reference || 'N/A'),
-                _id: tx._id,
-                riderName: tx.user?.name || 'Unknown',
-                riderId: tx.user?._id?.slice(-6).toUpperCase() || 'N/A',
-                amount: Math.abs(tx.amount),
-                status: tx.status?.toLowerCase() || 'pending',
-                paymentMethod: 'Bank Transfer',
-                accountInfo: tx.user?.documents?.bankDetails || 'No details',
-                dateTime: new Date(tx.createdAt || tx.date).toLocaleString(),
-                referenceId: tx.reference,
-                type: tx.type
-            }));
-            setTransfers(mapped);
-            setTotal(typeof payload.total === 'number' ? payload.total : mapped.length);
-            setPage(typeof payload.page === 'number' ? payload.page : requestedPage);
-        } catch (error) {
-            console.error("Fetch Transactions Error:", error);
-            toast.error("Failed to load transactions");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
+    // Perf audit Phase 8: migrated to React Query — same 500ms debounce and
+    // page-reset-on-filter-change behavior as before.
     useEffect(() => {
         const timer = setTimeout(() => {
-            fetchTransactions(1);
+            setDebouncedSearchTerm(searchTerm.trim());
+            setPage(1);
         }, 500);
         return () => clearTimeout(timer);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pageSize, searchTerm, filterStatus]);
+    }, [searchTerm]);
+
+    useEffect(() => {
+        setPage(1);
+    }, [pageSize, filterStatus]);
+
+    const queryParams = useMemo(() => {
+        const params = { page, limit: pageSize };
+        if (debouncedSearchTerm) params.search = debouncedSearchTerm;
+        if (filterStatus !== 'all') params.status = filterStatus;
+        return params;
+    }, [page, pageSize, debouncedSearchTerm, filterStatus]);
+
+    const { data: queryData, isLoading, isFetching, isError } = useQuery({
+        queryKey: [...DELIVERY_FUNDS_QUERY_KEY, queryParams],
+        queryFn: async () => {
+            const response = await adminApi.getDeliveryTransactions(queryParams);
+            const payload = response.data.result || {};
+            const data = Array.isArray(payload.items) ? payload.items : (response.data.results || []);
+            const mapped = data.map(mapDeliveryTransfer);
+            return {
+                items: mapped,
+                total: typeof payload.total === 'number' ? payload.total : mapped.length,
+                page: typeof payload.page === 'number' ? payload.page : queryParams.page,
+            };
+        },
+        placeholderData: keepPreviousData,
+    });
+
+    useEffect(() => {
+        if (isError) {
+            console.error("Fetch Transactions Error");
+            toast.error("Failed to load transactions");
+        }
+    }, [isError]);
+
+    const transfers = queryData?.items ?? [];
+    const total = queryData?.total ?? 0;
 
     const handleBulkSettle = async () => {
         if (!window.confirm("Are you sure you want to settle all pending transactions?")) return;
@@ -90,7 +112,7 @@ const DeliveryFunds = () => {
         try {
             await adminApi.bulkSettleDelivery();
             toast.success("Bulk settlement processed");
-            fetchTransactions(page);
+            queryClient.invalidateQueries({ queryKey: DELIVERY_FUNDS_QUERY_KEY });
         } catch (error) {
             toast.error("Bulk settlement failed");
         } finally {
@@ -102,7 +124,7 @@ const DeliveryFunds = () => {
         try {
             await adminApi.settleTransaction(id);
             toast.success("Transaction settled");
-            fetchTransactions(page);
+            queryClient.invalidateQueries({ queryKey: DELIVERY_FUNDS_QUERY_KEY });
         } catch (error) {
             toast.error("Settlement failed");
         }
@@ -269,7 +291,7 @@ const DeliveryFunds = () => {
                         columns={columns}
                         data={filteredTransfers}
                         rowKey={(tx) => tx._id}
-                        loading={isLoading && transfers.length > 0}
+                        loading={isFetching && transfers.length > 0}
                         emptyState={
                             <EmptyState
                                 icon={<FileText className="h-6 w-6" />}
@@ -280,16 +302,16 @@ const DeliveryFunds = () => {
                     />
 
                     <Pagination
-                        page={page}
+                        page={queryData?.page ?? page}
                         totalPages={Math.ceil(total / pageSize) || 1}
                         total={total}
                         pageSize={pageSize}
-                        onPageChange={(p) => fetchTransactions(p)}
+                        onPageChange={(p) => setPage(p)}
                         onPageSizeChange={(newSize) => {
                             setPageSize(newSize);
                             setPage(1);
                         }}
-                        loading={isLoading}
+                        loading={isFetching}
                     />
                 </>
             )}

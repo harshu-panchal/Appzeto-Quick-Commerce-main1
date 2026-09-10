@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Badge from "@shared/components/ui/Badge";
 import Button from "@shared/components/ui/Button";
 import PageHeader from "@shared/components/ui/PageHeader";
@@ -26,8 +27,7 @@ import { STORAGE_KEYS } from "@core/utils/storage";
 
 const Returns = () => {
     const { showToast } = useToast();
-    const [returns, setReturns] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState("All");
     const [selectedReturn, setSelectedReturn] = useState(null);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -99,26 +99,29 @@ const Returns = () => {
         }
     };
 
-    const fetchReturns = async () => {
-        try {
-            setLoading(true);
+    const returnsQueryKey = ["seller", "returns"];
+    const { data: returns = [], isLoading: loading, isError } = useQuery({
+        queryKey: returnsQueryKey,
+        queryFn: async () => {
             const res = await sellerApi.getReturns();
             const payload = res.data.result || {};
             const items = Array.isArray(payload.items)
                 ? payload.items
                 : res.data.results || [];
-            setReturns(items || []);
-        } catch (error) {
-            console.error("Failed to fetch returns", error);
-            showToast("Failed to fetch return requests", "error");
-        } finally {
-            setLoading(false);
-        }
+            return items || [];
+        },
+    });
+
+    useEffect(() => {
+        if (isError) showToast("Failed to fetch return requests", "error");
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isError]);
+
+    const fetchReturns = () => {
+        queryClient.invalidateQueries({ queryKey: returnsQueryKey });
     };
 
     useEffect(() => {
-        fetchReturns();
-
         // Listen for return drop OTPs (when rider arrives at seller)
         const getToken = createSocketTokenReader(STORAGE_KEYS.AUTH_SELLER);
         const unsubscribe = onReturnDropOtp(getToken, (payload) => {

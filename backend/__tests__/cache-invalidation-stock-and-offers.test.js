@@ -14,6 +14,10 @@ const mockProductFindOneAndUpdate = jest.fn();
 const mockProductUpdateOne = jest.fn();
 const mockProductFindOne = jest.fn();
 const mockStockHistoryCreate = jest.fn().mockResolvedValue([{}]);
+// Perf audit BE-D7: stockService now batches the per-item StockHistory
+// writes into a single insertMany() after the loop instead of one create()
+// call per item — mock needs both.
+const mockStockHistoryInsertMany = jest.fn().mockResolvedValue([{}]);
 
 jest.unstable_mockModule("../app/services/cacheService.js", () => ({
   invalidate: mockInvalidate,
@@ -31,7 +35,7 @@ jest.unstable_mockModule("../app/models/product.js", () => ({
 }));
 
 jest.unstable_mockModule("../app/models/stockHistory.js", () => ({
-  default: { create: mockStockHistoryCreate },
+  default: { create: mockStockHistoryCreate, insertMany: mockStockHistoryInsertMany },
 }));
 
 jest.unstable_mockModule("../app/services/lowStockAlertService.js", () => ({

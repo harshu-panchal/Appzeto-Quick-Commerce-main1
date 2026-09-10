@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import {
   Bell,
   ArrowLeft,
@@ -20,29 +20,31 @@ import {
 } from "@/core/services/orderSocket";
 import { createSocketTokenReader } from "@core/utils/authStorage";
 import { STORAGE_KEYS } from "@core/utils/storage";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+const NOTIFICATIONS_QUERY_KEY = ["delivery", "notificationsList"];
 
 const Notifications = () => {
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchNotifications = async () => {
-    try {
-      setLoading(true);
+  // Perf audit Phase 8: migrated to React Query. The socket listener and
+  // both mark-as-read actions used to mutate page-local state directly
+  // (optimistic, no refetch) — replicated exactly via `setQueryData`
+  // instead of a page-local setter, so the same instant-update UX (no
+  // loading flash) is preserved.
+  const { data: notifications = [], isLoading: loading, isError } = useQuery({
+    queryKey: NOTIFICATIONS_QUERY_KEY,
+    queryFn: async () => {
       const response = await deliveryApi.getNotifications();
-      if (response.data.success) {
-        setNotifications(response.data.result.notifications);
-      }
-    } catch (error) {
-      toast.error("Failed to fetch notifications");
-    } finally {
-      setLoading(false);
-    }
-  };
+      if (!response.data.success) return [];
+      return response.data.result.notifications;
+    },
+  });
 
   useEffect(() => {
-    fetchNotifications();
-  }, []);
+    if (isError) toast.error("Failed to fetch notifications");
+  }, [isError]);
 
   useEffect(() => {
     const getToken = createSocketTokenReader(STORAGE_KEYS.AUTH_DELIVERY);
@@ -50,17 +52,23 @@ const Notifications = () => {
     return onDeliveryBroadcastWithdrawn(getToken, (payload) => {
       const orderId = payload?.orderId;
       if (!orderId) return;
-      setNotifications((current) =>
-        current.filter((notification) => notification?.data?.orderId !== orderId),
+      queryClient.setQueryData(NOTIFICATIONS_QUERY_KEY, (current) =>
+        Array.isArray(current)
+          ? current.filter((notification) => notification?.data?.orderId !== orderId)
+          : current,
       );
       toast.info("An order request was accepted by another partner.");
     });
-  }, []);
+  }, [queryClient]);
 
   const handleMarkAsRead = async (id) => {
     try {
       await deliveryApi.markNotificationRead(id);
-      setNotifications(notifications.map(n => n._id === id ? { ...n, isRead: true } : n));
+      queryClient.setQueryData(NOTIFICATIONS_QUERY_KEY, (current) =>
+        Array.isArray(current)
+          ? current.map((n) => (n._id === id ? { ...n, isRead: true } : n))
+          : current,
+      );
     } catch (error) {
       toast.error("Failed to update status");
     }
@@ -69,7 +77,9 @@ const Notifications = () => {
   const handleMarkAllAsRead = async () => {
     try {
       await deliveryApi.markAllNotificationsRead();
-      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+      queryClient.setQueryData(NOTIFICATIONS_QUERY_KEY, (current) =>
+        Array.isArray(current) ? current.map((n) => ({ ...n, isRead: true })) : current,
+      );
       toast.success("Marked all as read");
     } catch (error) {
       toast.error("Failed to update status");

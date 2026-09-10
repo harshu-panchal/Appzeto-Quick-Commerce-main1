@@ -29,8 +29,12 @@ import { useToast } from '@shared/components/ui/Toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import Pagination from '@shared/components/ui/Pagination';
 import { adminApi } from '../services/adminApi';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+
+const FAQ_QUERY_KEY = ['admin', 'faqs'];
 
 const FAQManagement = () => {
+    const queryClient = useQueryClient();
     const { showToast } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
     const [activeCategory, setActiveCategory] = useState('All');
@@ -48,7 +52,6 @@ const FAQManagement = () => {
         status: 'published'
     });
 
-    const [isLoading, setIsLoading] = useState(true);
     const [newCategoryName, setNewCategoryName] = useState('');
 
     // Categories State
@@ -59,40 +62,54 @@ const FAQManagement = () => {
         { id: 4, name: 'Orders', color: 'emerald' },
     ]);
 
-    const [faqs, setFaqs] = useState([]);
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
-    const [total, setTotal] = useState(0);
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
 
+    // Perf audit Phase 8: migrated to React Query — same 500ms debounce,
+    // same page-reset-on-filter-change behavior.
     useEffect(() => {
         const timer = setTimeout(() => {
-            fetchFaqs(1);
+            setDebouncedSearchTerm(searchTerm.trim());
+            setPage(1);
         }, 500);
         return () => clearTimeout(timer);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pageSize, searchTerm, activeCategory]);
+    }, [searchTerm]);
 
-    const fetchFaqs = async (requestedPage = 1) => {
-        setIsLoading(true);
-        try {
-            const params = {
-                page: requestedPage,
-                limit: pageSize,
-                search: searchTerm.trim() || undefined,
-                category: activeCategory !== 'All' ? activeCategory : undefined
-            };
-            const response = await adminApi.getFAQs(params);
+    useEffect(() => {
+        setPage(1);
+    }, [activeCategory, pageSize]);
+
+    const queryParams = useMemo(() => ({
+        page,
+        limit: pageSize,
+        search: debouncedSearchTerm || undefined,
+        category: activeCategory !== 'All' ? activeCategory : undefined,
+    }), [page, pageSize, debouncedSearchTerm, activeCategory]);
+
+    const { data: queryData, isFetching, isError } = useQuery({
+        queryKey: [...FAQ_QUERY_KEY, queryParams],
+        queryFn: async () => {
+            const response = await adminApi.getFAQs(queryParams);
             const payload = response.data.result || {};
             const data = Array.isArray(payload.items) ? payload.items : (response.data.results || []);
-            setFaqs(data);
-            setTotal(typeof payload.total === 'number' ? payload.total : data.length);
-            setPage(typeof payload.page === 'number' ? payload.page : requestedPage);
-        } catch (error) {
-            showToast('Failed to fetch FAQs', 'error');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+            return {
+                items: data,
+                total: typeof payload.total === 'number' ? payload.total : data.length,
+                page: typeof payload.page === 'number' ? payload.page : queryParams.page,
+            };
+        },
+        placeholderData: keepPreviousData,
+    });
+
+    useEffect(() => {
+        if (isError) showToast('Failed to fetch FAQs', 'error');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isError]);
+
+    const faqs = queryData?.items ?? [];
+    const total = queryData?.total ?? 0;
+    const invalidateFaqs = () => queryClient.invalidateQueries({ queryKey: FAQ_QUERY_KEY });
 
     // Computed Categories with Counts
     const categoriesWithCounts = useMemo(() => {
@@ -136,7 +153,7 @@ const FAQManagement = () => {
                 await adminApi.createFAQ(newFaq);
                 showToast(`FAQ created successfully`, 'success');
             }
-            fetchFaqs(page);
+            invalidateFaqs();
             setIsAddModalOpen(false);
             setEditingFaqId(null);
             setNewFaq({ question: '', answer: '', category: 'Customer', status: 'published' });
@@ -159,7 +176,7 @@ const FAQManagement = () => {
     const handleDeleteFaq = async (id) => {
         try {
             await adminApi.deleteFAQ(id);
-            fetchFaqs(page);
+            invalidateFaqs();
             showToast('FAQ deleted successfully', 'warning');
         } catch (error) {
             showToast('Failed to delete FAQ', 'error');
@@ -170,7 +187,7 @@ const FAQManagement = () => {
         try {
             const newStatus = faq.status === 'published' ? 'draft' : 'published';
             await adminApi.updateFAQ(faq._id, { status: newStatus });
-            fetchFaqs(page);
+            invalidateFaqs();
             showToast('Visibility state updated', 'info');
         } catch (error) {
             showToast('Failed to update status', 'error');
@@ -391,16 +408,16 @@ const FAQManagement = () => {
             </div>
             <div className="flex justify-center">
                 <Pagination
-                    page={page}
+                    page={queryData?.page ?? page}
                     totalPages={Math.ceil(total / pageSize) || 1}
                     total={total}
                     pageSize={pageSize}
-                    onPageChange={(p) => fetchFaqs(p)}
+                    onPageChange={(p) => setPage(p)}
                     onPageSizeChange={(newSize) => {
                         setPageSize(newSize);
                         setPage(1);
                     }}
-                    loading={isLoading}
+                    loading={isFetching}
                 />
             </div>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Badge from "@shared/components/ui/Badge";
 import Button from "@shared/components/ui/Button";
 import PageHeader from "@shared/components/ui/PageHeader";
@@ -19,6 +19,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Pagination from "@shared/components/ui/Pagination";
 import { adminApi } from "../services/adminApi";
 import { toast } from "sonner";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 
 const formatTimeDistance = (date) => {
   if (!date) return "N/A";
@@ -30,46 +31,45 @@ const formatTimeDistance = (date) => {
 };
 
 const FleetTrackingTable = () => {
-  const [fleet, setFleet] = useState([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
-  const [total, setTotal] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBoy, setSelectedBoy] = useState(null);
 
-  const fetchFleet = async (requestedPage = 1) => {
-    setIsLoading(true);
-    try {
-      const response = await adminApi.getActiveFleet({
-        page: requestedPage,
-        limit: pageSize,
-      });
-      const payload = response.data.result || {};
-      const data = Array.isArray(payload.items)
-        ? payload.items
-        : response.data.results || [];
-      setFleet(data);
-      setTotal(typeof payload.total === "number" ? payload.total : data.length);
-      setPage(typeof payload.page === "number" ? payload.page : requestedPage);
-    } catch (error) {
-      console.error("Fetch Fleet Error:", error);
-      toast.error("Failed to fetch live fleet data");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchFleet(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setPage(1);
   }, [pageSize]);
 
+  const queryParams = useMemo(() => ({ page, limit: pageSize }), [page, pageSize]);
+
+  // Perf audit Phase 8: migrated to React Query — same 30s poll interval,
+  // preserved exactly as-is (not gated on tab visibility here, matching
+  // the original; that's a separate, not-yet-done Phase 9 item).
+  const { data: queryData, isLoading, isFetching, isError } = useQuery({
+    queryKey: ["admin", "activeFleet", queryParams],
+    queryFn: async () => {
+      const response = await adminApi.getActiveFleet(queryParams);
+      const payload = response.data.result || {};
+      const data = Array.isArray(payload.items) ? payload.items : response.data.results || [];
+      return {
+        items: data,
+        total: typeof payload.total === "number" ? payload.total : data.length,
+        page: typeof payload.page === "number" ? payload.page : queryParams.page,
+      };
+    },
+    placeholderData: keepPreviousData,
+    refetchInterval: 30000,
+  });
+
   useEffect(() => {
-    const interval = setInterval(() => fetchFleet(page), 30000);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+    if (isError) {
+      console.error("Fetch Fleet Error");
+      toast.error("Failed to fetch live fleet data");
+    }
+  }, [isError]);
+
+  const fleet = queryData?.items ?? [];
+  const total = queryData?.total ?? 0;
 
   const filteredFleet = fleet.filter(
     (item) =>
@@ -171,7 +171,7 @@ const FleetTrackingTable = () => {
         columns={columns}
         data={filteredFleet}
         rowKey={(item) => item.id}
-        loading={isLoading}
+        loading={isFetching}
         emptyState={
           <EmptyState
             icon={<HiOutlineTruck className="h-6 w-6" />}
@@ -182,16 +182,16 @@ const FleetTrackingTable = () => {
       />
 
       <Pagination
-        page={page}
+        page={queryData?.page ?? page}
         totalPages={Math.ceil(total / pageSize) || 1}
         total={total}
         pageSize={pageSize}
-        onPageChange={(p) => fetchFleet(p)}
+        onPageChange={(p) => setPage(p)}
         onPageSizeChange={(newSize) => {
           setPageSize(newSize);
           setPage(1);
         }}
-        loading={isLoading}
+        loading={isFetching}
       />
 
       {/* Delivery Boy Detail Modal */}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useNavigate, useLocation as useRouterLocation } from 'react-router-dom';
 import { Search, Mic, ArrowLeft, X, TrendingUp, ChevronRight, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -24,8 +25,6 @@ const SearchPage = () => {
 
     const [query, setQuery] = useState(initialQuery);
     const [results, setResults] = useState([]);
-    const [allProducts, setAllProducts] = useState([]);
-    const [isLoading, setIsLoading] = useState(false);
     const [isListening, setIsListening] = useState(false);
     const [debouncedQuery, setDebouncedQuery] = useState(initialQuery);
     const [noServiceData, setNoServiceData] = useState(null);
@@ -106,55 +105,50 @@ const SearchPage = () => {
         }
     };
 
-    // Fetch products
-    useEffect(() => {
-        const fetchProducts = async () => {
-            const hasValidLocation =
-                Number.isFinite(currentLocation?.latitude) &&
-                Number.isFinite(currentLocation?.longitude);
-            if (!hasValidLocation) {
-                setAllProducts([]);
-                setIsLoading(false);
-                return;
+    // Perf audit Phase 8: migrated to React Query. `placeholderData:
+    // keepPreviousData` keeps the previous location's product list visible
+    // while a location change silently refetches (matches the original's
+    // no-blocking-spinner-on-refetch behavior; the empty-state-only
+    // skeleton grid below still checks isLoading, same as before).
+    const hasValidLocation =
+        Number.isFinite(currentLocation?.latitude) &&
+        Number.isFinite(currentLocation?.longitude);
+
+    const { data: allProducts = [], isLoading } = useQuery({
+        queryKey: ['customer', 'searchAllProducts', hasValidLocation ? currentLocation.latitude : null, hasValidLocation ? currentLocation.longitude : null],
+        queryFn: async () => {
+            const response = await customerApi.getProducts({
+                limit: 100,
+                lat: currentLocation.latitude,
+                lng: currentLocation.longitude,
+            });
+            if (response.data.success) {
+                const rawResult = response.data.result;
+                const dbProds = Array.isArray(response.data.results)
+                    ? response.data.results
+                    : Array.isArray(rawResult?.items)
+                    ? rawResult.items
+                    : Array.isArray(rawResult)
+                    ? rawResult
+                    : [];
+                return dbProds.map(p => ({
+                    ...p,
+                    id: p._id,
+                    image:
+                      p.mainImage ||
+                      p.image ||
+                      "https://images.unsplash.com/photo-1550989460-0adf9ea622e2?auto=format&fit=crop&q=80&w=400&h=400",
+                    price: p.salePrice || p.price,
+                    originalPrice: p.price,
+                    weight: p.weight || '1 unit',
+                    deliveryTime: '8-15 mins'
+                }));
             }
-            setIsLoading(true);
-            try {
-                const response = await customerApi.getProducts({
-                    limit: 100,
-                    lat: currentLocation.latitude,
-                    lng: currentLocation.longitude,
-                });
-                if (response.data.success) {
-                    const rawResult = response.data.result;
-                    const dbProds = Array.isArray(response.data.results)
-                        ? response.data.results
-                        : Array.isArray(rawResult?.items)
-                        ? rawResult.items
-                        : Array.isArray(rawResult)
-                        ? rawResult
-                        : [];
-                    const formattedProds = dbProds.map(p => ({
-                        ...p,
-                        id: p._id,
-                        image:
-                          p.mainImage ||
-                          p.image ||
-                          "https://images.unsplash.com/photo-1550989460-0adf9ea622e2?auto=format&fit=crop&q=80&w=400&h=400",
-                        price: p.salePrice || p.price,
-                        originalPrice: p.price,
-                        weight: p.weight || '1 unit',
-                        deliveryTime: '8-15 mins'
-                    }));
-                    setAllProducts(formattedProds);
-                }
-            } catch (error) {
-                console.error('Error fetching products:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchProducts();
-    }, [currentLocation?.latitude, currentLocation?.longitude]);
+            return [];
+        },
+        enabled: hasValidLocation,
+        placeholderData: keepPreviousData,
+    });
 
     // Save search term to history
     const saveSearch = (term) => {

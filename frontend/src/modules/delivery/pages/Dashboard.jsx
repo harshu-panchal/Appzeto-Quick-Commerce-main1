@@ -19,20 +19,14 @@ import Card from "@/shared/components/ui/Card";
 
 import { useAuth } from "@core/context/AuthContext";
 import { deliveryApi } from "../services/deliveryApi";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, refreshUser } = useAuth();
   const [isOnline, setIsOnline] = useState(user?.isOnline || false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [activeTab, setActiveTab] = useState("delivery"); // 'delivery' or 'return'
-  const [availableOrders, setAvailableOrders] = useState([]);
-  const [earnings, setEarnings] = useState({
-    today: 0,
-    deliveries: 0,
-    incentives: 0,
-    cashCollected: 0,
-  });
 
   // Sync isOnline with user profile from context
   useEffect(() => {
@@ -58,49 +52,41 @@ const Dashboard = () => {
     .slice(-6)
     .toUpperCase() || "------";
 
-  const fetchStats = async () => {
-    try {
+  // Perf audit Phase 8: migrated the three independent fetches to React
+  // Query. Same trigger conditions as before (stats/notifications always,
+  // available-orders only while online) — just cached now, so returning to
+  // this screen (the delivery app's home tab) within the cache window
+  // shows data instantly instead of every field starting from its default.
+  const DEFAULT_EARNINGS = { today: 0, deliveries: 0, incentives: 0, cashCollected: 0 };
+
+  const { data: statsData } = useQuery({
+    queryKey: ["delivery", "stats"],
+    queryFn: async () => {
       const response = await deliveryApi.getStats();
-      if (response.data.success) {
-        console.log("Stats Fetched:", response.data.result);
-        setEarnings((prev) => ({
-          ...prev,
-          ...response.data.result,
-        }));
-      }
-    } catch (error) {
-      console.error("Failed to fetch statistics:", error);
-    }
-  };
+      return response.data.success ? response.data.result : null;
+    },
+  });
+  const earnings = { ...DEFAULT_EARNINGS, ...(statsData || {}) };
 
-  const fetchNotifications = async () => {
-    try {
+  const { data: notificationsData } = useQuery({
+    queryKey: ["delivery", "notificationsSummary"],
+    queryFn: async () => {
       const response = await deliveryApi.getNotifications();
-      if (response.data.success && response.data.result) {
-        setUnreadCount(response.data.result.unreadCount || 0);
-      }
-    } catch (error) {
-      console.error("Failed to fetch notifications");
-    }
-  };
+      return response.data.success ? response.data.result : null;
+    },
+  });
+  const unreadCount = notificationsData?.unreadCount || 0;
 
-  const fetchAvailableOrders = async () => {
-    try {
+  const availableOrdersQueryKey = ["delivery", "availableOrders", activeTab];
+  const { data: availableOrders = [] } = useQuery({
+    queryKey: availableOrdersQueryKey,
+    queryFn: async () => {
       const response = await deliveryApi.getAvailableOrders({ type: activeTab });
-      if (response.data.success) {
-        const orders = response.data.results || response.data.result || [];
-        setAvailableOrders(orders);
-      }
-    } catch (error) {
-      console.error("Failed to fetch available orders:", error);
-    }
-  };
-
-  useEffect(() => {
-    fetchStats();
-    fetchNotifications();
-    if (isOnline) fetchAvailableOrders();
-  }, [isOnline, activeTab]);
+      if (!response.data.success) return [];
+      return response.data.results || response.data.result || [];
+    },
+    enabled: isOnline,
+  });
 
   const handleOnlineToggle = async () => {
     const newStatus = !isOnline;
@@ -123,7 +109,7 @@ const Dashboard = () => {
       const response = await deliveryApi.acceptReturnPickup(orderId);
       if (response.data.success) {
         toast.success("Return pickup accepted!");
-        fetchAvailableOrders();
+        queryClient.invalidateQueries({ queryKey: ["delivery", "availableOrders"] });
         // Option: navigate to details
         navigate(`/delivery/order-details/${orderId}`);
       }

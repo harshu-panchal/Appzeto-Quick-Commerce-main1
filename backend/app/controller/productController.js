@@ -34,6 +34,7 @@ import {
   resolveProductApprovalStatus,
 } from "../services/productModerationService.js";
 import { buildSearchRegex } from "../utils/regex.js";
+import { transformImageUrl, transformImageUrlList } from "../utils/cloudinaryImageUrl.js";
 
 // Phase 3 P3-5: when search term is reasonably specific and the env flag
 // is enabled, prefer Mongo's `name + tags` text index over case-insensitive
@@ -157,14 +158,31 @@ function stripRestrictedModerationFields(payload = {}) {
   }
 }
 
-function normalizeProductDocumentModeration(product) {
+// Perf audit BE-I1: apply a Cloudinary delivery-time resize/compress
+// transform to outbound image URLs only — never touches what's stored on
+// the document. `preset` defaults to "thumbnail" (grid/table contexts,
+// which is the overwhelming majority of these call sites); the single
+// customer-facing product-detail endpoint explicitly passes "detail" for a
+// larger hero-sized image. Every product response (list, detail, seller
+// list, moderation queue, create/update confirmations) funnels through this
+// one function, so this is a single, low-risk insertion point.
+function applyProductImageTransforms(product, preset = "thumbnail") {
   if (!product) return product;
-  return normalizeProductModerationFields(product);
+  return {
+    ...product,
+    mainImage: transformImageUrl(product.mainImage, preset),
+    galleryImages: transformImageUrlList(product.galleryImages, preset),
+  };
 }
 
-function normalizeProductListModeration(items = []) {
+function normalizeProductDocumentModeration(product, preset = "thumbnail") {
+  if (!product) return product;
+  return applyProductImageTransforms(normalizeProductModerationFields(product), preset);
+}
+
+function normalizeProductListModeration(items = [], preset = "thumbnail") {
   if (!Array.isArray(items)) return [];
-  return items.map((item) => normalizeProductDocumentModeration(item));
+  return items.map((item) => normalizeProductDocumentModeration(item, preset));
 }
 
 function buildSellerPendingModerationUpdate() {
@@ -1075,7 +1093,7 @@ export const getProductById = async (req, res) => {
       }
     }
 
-    const payload = normalizeProductDocumentModeration(product);
+    const payload = normalizeProductDocumentModeration(product, "detail");
     
     if (req.user) {
         const userId = req.user.id;

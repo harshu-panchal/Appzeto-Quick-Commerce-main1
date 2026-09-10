@@ -48,6 +48,15 @@ export async function reserveStockForItems({
 }) {
   const stockType = String(paymentMode || "").toUpperCase() === "ONLINE" ? "Reservation" : "Sale";
   const lowStockAlerts = [];
+  // Perf audit BE-D7: the per-item `Product.findOneAndUpdate` calls above
+  // can't be batched — each is a conditional atomic stock decrement that
+  // must run in order within this transaction session (a session only
+  // allows one in-flight operation at a time, so even independent products
+  // can't run concurrently here). What *can* be batched is the audit-trail
+  // write below: collect entries during the loop and write them all in one
+  // `insertMany` after it, instead of one `StockHistory.create()` round
+  // trip per line item.
+  const stockHistoryEntries = [];
 
   for (const item of items) {
     const variantSku = String(item.variantSku || "").trim();
@@ -94,18 +103,13 @@ export async function reserveStockForItems({
       throw err;
     }
 
-    await StockHistory.create(
-      [
-        {
-          product: item.productId,
-          seller: sellerId,
-          type: stockType,
-          quantity: -item.quantity,
-          note: `Order #${orderId} ${stockType.toLowerCase()}${variantSku ? ` [variant: ${variantSku}]` : ""}`,
-        },
-      ],
-      { session },
-    );
+    stockHistoryEntries.push({
+      product: item.productId,
+      seller: sellerId,
+      type: stockType,
+      quantity: -item.quantity,
+      note: `Order #${orderId} ${stockType.toLowerCase()}${variantSku ? ` [variant: ${variantSku}]` : ""}`,
+    });
 
     const previousStock = Number(updated.stock || 0) + Number(item.quantity || 0);
     let previousVariantStock = null;
@@ -137,6 +141,10 @@ export async function reserveStockForItems({
     }
   }
 
+  if (stockHistoryEntries.length > 0) {
+    await StockHistory.insertMany(stockHistoryEntries, { session });
+  }
+
   await invalidateProductStockCache(items.map((item) => item.productId));
 
   return lowStockAlerts;
@@ -151,6 +159,11 @@ export async function releaseReservedStockForOrder(order, { session = null, reas
   if (reservation.status === "RELEASED") {
     return false;
   }
+
+  // Perf audit BE-D7: same reasoning as reserveStockForItems above — the
+  // per-item stock updates can't be batched under one session, but the
+  // StockHistory audit-trail writes can be collected and inserted once.
+  const releaseHistoryEntries = [];
 
   for (const item of order.items) {
     const variantSku = String(item.variantSku || item.variantSlot || "").trim();
@@ -174,19 +187,18 @@ export async function releaseReservedStockForOrder(order, { session = null, reas
       );
     }
 
-    await StockHistory.create(
-      [
-        {
-          product: item.product,
-          seller: order.seller,
-          type: "Release",
-          quantity: item.quantity,
-          note: `Order #${order.orderId} ${reason}${variantSku ? ` [variant: ${variantSku}]` : ""}`,
-          order: order._id,
-        },
-      ],
-      session ? { session } : {},
-    );
+    releaseHistoryEntries.push({
+      product: item.product,
+      seller: order.seller,
+      type: "Release",
+      quantity: item.quantity,
+      note: `Order #${order.orderId} ${reason}${variantSku ? ` [variant: ${variantSku}]` : ""}`,
+      order: order._id,
+    });
+  }
+
+  if (releaseHistoryEntries.length > 0) {
+    await StockHistory.insertMany(releaseHistoryEntries, session ? { session } : {});
   }
 
   order.stockReservation = {

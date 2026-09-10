@@ -24,15 +24,60 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { sellerApi } from '../services/sellerApi';
 import { toast } from 'sonner';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+
+async function fetchAllInventoryPages(stockStatus) {
+    // Preserved exactly as before: this page needs the seller's *entire*
+    // catalog to compute stats/search/low-stock filtering client-side, so
+    // it internally paginates through the products endpoint (up to 50
+    // pages of 100) and concatenates the results.
+    const requestLimit = 100;
+    const maxPages = 50;
+    let requestedPage = 1;
+    let totalPages = 1;
+    const collected = [];
+
+    while (requestedPage <= totalPages && requestedPage <= maxPages) {
+        const params = { page: requestedPage, limit: requestLimit };
+        if (stockStatus === 'in') params.stockStatus = 'in';
+        if (stockStatus === 'out') params.stockStatus = 'out';
+
+        const res = await sellerApi.getProducts(params);
+        if (!res.data.success) break;
+
+        // Backend returns handleResponse(..., { items, page, limit, total, totalPages })
+        const payload = res.data.result || {};
+        const rawProducts = Array.isArray(payload.items)
+            ? payload.items
+            : (res.data.results || []);
+
+        collected.push(...rawProducts);
+        totalPages = Number(payload.totalPages || 1);
+
+        if (!rawProducts.length || requestedPage >= totalPages) {
+            break;
+        }
+        requestedPage += 1;
+    }
+
+    const safeProducts = Array.isArray(collected) ? collected : [];
+    return safeProducts.map(p => ({
+        ...p,
+        id: p._id,
+        threshold: p.lowStockAlert || 5,
+        status:
+            p.stock === 0
+                ? 'Out of Stock'
+                : (p.stock <= (p.lowStockAlert || 5) ? 'Low Stock' : 'In Stock')
+    }));
+}
 
 const StockManagement = () => {
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const [activeView] = useState('inventory'); // 'inventory' or 'history' — history view has no reachable toggle today, kept as-is
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('All');
-    const [inventory, setInventory] = useState([]);
-    const [history, setHistory] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
     const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState(null);
     const [adjustType, setAdjustType] = useState('Restock');
@@ -42,83 +87,31 @@ const StockManagement = () => {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(20);
 
-    const fetchInventory = async (silent = false, stockStatus) => {
-        if (!silent) setIsLoading(true);
-        try {
-            const requestLimit = 100;
-            const maxPages = 50;
-            let requestedPage = 1;
-            let totalPages = 1;
-            const collected = [];
+    const stockStatusParam = useMemo(() => {
+        if (filterStatus === 'In Stock') return 'in';
+        if (filterStatus === 'Out of Stock') return 'out';
+        return undefined; // All / Low Stock -> no backend filter
+    }, [filterStatus]);
 
-            while (requestedPage <= totalPages && requestedPage <= maxPages) {
-                const params = { page: requestedPage, limit: requestLimit };
-                if (stockStatus === 'in') params.stockStatus = 'in';
-                if (stockStatus === 'out') params.stockStatus = 'out';
-
-                const res = await sellerApi.getProducts(params);
-                if (!res.data.success) break;
-
-                // Backend returns handleResponse(..., { items, page, limit, total, totalPages })
-                const payload = res.data.result || {};
-                const rawProducts = Array.isArray(payload.items)
-                    ? payload.items
-                    : (res.data.results || []);
-
-                collected.push(...rawProducts);
-                totalPages = Number(payload.totalPages || 1);
-
-                if (!rawProducts.length || requestedPage >= totalPages) {
-                    break;
-                }
-                requestedPage += 1;
-            }
-
-            const safeProducts = Array.isArray(collected) ? collected : [];
-
-            setInventory(
-                safeProducts.map(p => ({
-                    ...p,
-                    id: p._id,
-                    threshold: p.lowStockAlert || 5,
-                    status:
-                        p.stock === 0
-                            ? 'Out of Stock'
-                            : (p.stock <= (p.lowStockAlert || 5) ? 'Low Stock' : 'In Stock')
-                }))
-            );
-        } catch (error) {
-            toast.error("Failed to load inventory");
-        } finally {
-            if (!silent) setIsLoading(false);
-        }
-    };
-
-    const fetchHistory = async (silent = false) => {
-        if (!silent) setIsLoading(true);
-        try {
-            const res = await sellerApi.getStockHistory();
-            if (res.data.success) {
-                setHistory(res.data.result || []);
-            }
-        } catch (error) {
-            toast.error("Failed to load stock history");
-        } finally {
-            if (!silent) setIsLoading(false);
-        }
-    };
+    // Perf audit Phase 8: migrated to React Query. `fetchInventory(true)`'s
+    // "silent" refresh (no loading flicker after a stock adjustment) is
+    // preserved automatically — a query `refetch()` sets `isFetching`, not
+    // `isLoading`, and this page's skeleton only ever gated on `isLoading`.
+    const inventoryQueryKey = ['seller', 'stockInventory', stockStatusParam];
+    const { data: inventory = [], isLoading, isError } = useQuery({
+        queryKey: inventoryQueryKey,
+        queryFn: () => fetchAllInventoryPages(stockStatusParam),
+        enabled: activeView === 'inventory',
+    });
 
     useEffect(() => {
-        if (activeView === 'inventory') {
-            let stockStatusParam;
-            if (filterStatus === 'In Stock') stockStatusParam = 'in';
-            else if (filterStatus === 'Out of Stock') stockStatusParam = 'out';
-            else stockStatusParam = undefined; // All / Low Stock -> no backend filter
-            fetchInventory(false, stockStatusParam);
-        } else {
-            fetchHistory();
-        }
-    }, [activeView, filterStatus]);
+        if (isError) toast.error("Failed to load inventory");
+    }, [isError]);
+
+    // `history` view has no reachable UI toggle (see comment above) — left
+    // as page-local dead-code state exactly as it was, not worth migrating
+    // an unreachable path.
+    const [history] = useState([]);
 
     const stats = useMemo(() => [
         { label: 'Total Inventory', value: inventory.reduce((acc, item) => acc + item.stock, 0), icon: HiOutlineCube, color: 'text-primary', bg: 'bg-primary/10', status: 'All' },
@@ -156,7 +149,15 @@ const StockManagement = () => {
             if (res.data.success) {
                 toast.success("Stock adjusted successfully");
                 setIsAdjustModalOpen(false);
-                fetchInventory(true);
+                // Perf audit Phase 8: refreshes whichever stock-status
+                // filter the seller currently has selected (the original
+                // single-array implementation always re-fetched the full
+                // unfiltered catalog here and relied on client-side
+                // re-filtering to show the right subset either way — since
+                // this migration caches each filter value separately,
+                // invalidating all of them keeps every cached view correct
+                // without leaving a differently-filtered tab stale).
+                queryClient.invalidateQueries({ queryKey: ['seller', 'stockInventory'] });
             }
         } catch (error) {
             toast.error(error.response?.data?.message || "Failed to adjust stock");
@@ -180,7 +181,7 @@ const StockManagement = () => {
                 <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-slate-100 text-slate-500">
                         {item.mainImage ? (
-                            <img src={item.mainImage} alt={item.name} className="h-full w-full object-cover" />
+                            <img src={item.mainImage} alt={item.name} loading="lazy" className="h-full w-full object-cover" />
                         ) : (
                             <HiOutlineCube className="h-5 w-5" />
                         )}

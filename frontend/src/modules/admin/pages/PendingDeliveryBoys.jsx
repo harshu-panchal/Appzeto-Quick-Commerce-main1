@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Badge from '@shared/components/ui/Badge';
 import Button from '@shared/components/ui/Button';
 import PageHeader from '@shared/components/ui/PageHeader';
@@ -70,80 +71,105 @@ function formatDocumentEntries(documents = {}) {
         });
 }
 
+const PENDING_RIDERS_QUERY_KEY = ['admin', 'pendingDeliveryBoys'];
+
+function mapPendingRider(r) {
+    const documentFiles = formatDocumentEntries(r.documents);
+    const display = (value, fallback = 'Not provided') => {
+        const text = String(value ?? '').trim();
+        return text || fallback;
+    };
+    return {
+        id: r._id,
+        name: display(r.name, 'Unknown'),
+        phone: display(r.phone),
+        email: display(r.email),
+        address: display(r.address),
+        dob: display(r.dob),
+        bloodGroup: display(r.bloodGroup),
+        preferredArea: display(r.currentArea, display(r.address)),
+        avatar: isHttpUrl(r.profileImage) ? r.profileImage : '',
+        appliedDate: r.createdAt
+            ? new Date(r.createdAt).toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+              })
+            : '—',
+        location: display(r.currentArea, display(r.address, 'Unknown')),
+        vehicle: display(r.vehicleType),
+        vehicleNumber: display(r.vehicleNumber),
+        drivingLicenseNumber: display(r.drivingLicenseNumber),
+        aadharNumber: display(r.aadharNumber),
+        panNumber: display(r.panNumber),
+        accountHolder: display(r.accountHolder),
+        accountNumber: display(r.accountNumber),
+        ifsc: display(r.ifsc),
+        documents: documentFiles.map((d) => d.label),
+        documentFiles,
+        status: r.isVerified ? 'approved' : 'pending_review',
+    };
+}
+
 const PendingDeliveryBoys = () => {
-    const [pendingRiders, setPendingRiders] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const queryClient = useQueryClient();
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
     const [viewingRider, setViewingRider] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [previewDoc, setPreviewDoc] = useState(null);
 
-    const fetchPendingRiders = async () => {
-        setIsLoading(true);
-        try {
-            const params = { verified: 'false' };
-            if (searchTerm.trim()) params.search = searchTerm.trim();
-            const response = await adminApi.getDeliveryPartners(params);
+    // Perf audit Phase 8: same 500ms debounce as before, now backed by
+    // React Query. `filterStatus` never actually fed the request params
+    // (it's applied client-side only, below) — the old effect refetched on
+    // every filterStatus change anyway even though the response couldn't
+    // differ; the query key here is params-only, so that redundant network
+    // call no longer happens. No visible change: filteredRiders still
+    // recomputes from filterStatus immediately either way.
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm.trim());
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    const queryParams = useMemo(() => {
+        const params = { verified: 'false' };
+        if (debouncedSearchTerm) params.search = debouncedSearchTerm;
+        return params;
+    }, [debouncedSearchTerm]);
+
+    const { data: pendingRiders = [], isLoading, isError, refetch } = useQuery({
+        queryKey: [...PENDING_RIDERS_QUERY_KEY, queryParams],
+        queryFn: async () => {
+            const response = await adminApi.getDeliveryPartners(queryParams);
             const payload = response.data.result || {};
             const list = Array.isArray(payload.items)
                 ? payload.items
                 : response.data.results || [];
+            return list.map(mapPendingRider);
+        },
+    });
 
-            const mappedRiders = list.map((r) => {
-                const documentFiles = formatDocumentEntries(r.documents);
-                const display = (value, fallback = 'Not provided') => {
-                    const text = String(value ?? '').trim();
-                    return text || fallback;
-                };
-                return {
-                    id: r._id,
-                    name: display(r.name, 'Unknown'),
-                    phone: display(r.phone),
-                    email: display(r.email),
-                    address: display(r.address),
-                    dob: display(r.dob),
-                    bloodGroup: display(r.bloodGroup),
-                    preferredArea: display(r.currentArea, display(r.address)),
-                    avatar: isHttpUrl(r.profileImage) ? r.profileImage : '',
-                    appliedDate: r.createdAt
-                        ? new Date(r.createdAt).toLocaleDateString('en-GB', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                          })
-                        : '—',
-                    location: display(r.currentArea, display(r.address, 'Unknown')),
-                    vehicle: display(r.vehicleType),
-                    vehicleNumber: display(r.vehicleNumber),
-                    drivingLicenseNumber: display(r.drivingLicenseNumber),
-                    aadharNumber: display(r.aadharNumber),
-                    panNumber: display(r.panNumber),
-                    accountHolder: display(r.accountHolder),
-                    accountNumber: display(r.accountNumber),
-                    ifsc: display(r.ifsc),
-                    documents: documentFiles.map((d) => d.label),
-                    documentFiles,
-                    status: r.isVerified ? 'approved' : 'pending_review',
-                };
-            });
-
-            setPendingRiders(mappedRiders);
-        } catch (error) {
-            console.error('Fetch Pending Riders Error:', error);
+    useEffect(() => {
+        if (isError) {
+            console.error('Fetch Pending Riders Error');
             toast.error('Failed to load applications');
-        } finally {
-            setIsLoading(false);
         }
-    };
+    }, [isError]);
 
-    React.useEffect(() => {
-        const timer = setTimeout(() => {
-            fetchPendingRiders();
-        }, 500);
-        return () => clearTimeout(timer);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchTerm, filterStatus]);
+    // Perf audit Phase 8: approve/reject used to splice the rider out of
+    // page-local state directly for an instant UI update with no refetch —
+    // replicate that exact UX by writing the same filtered list straight
+    // into the query cache instead of invalidating (which would show a
+    // brief loading state before the item disappeared).
+    const removeRiderFromCache = (id) => {
+        queryClient.setQueryData(
+            [...PENDING_RIDERS_QUERY_KEY, queryParams],
+            (old) => (Array.isArray(old) ? old.filter((r) => r.id !== id) : old),
+        );
+    };
 
     const filteredRiders = useMemo(() => {
         return pendingRiders.filter((r) => {
@@ -176,7 +202,7 @@ const PendingDeliveryBoys = () => {
         try {
             await adminApi.approveDeliveryPartner(id);
             toast.success('Rider Approved & Activated!');
-            setPendingRiders(pendingRiders.filter((r) => r.id !== id));
+            removeRiderFromCache(id);
             setViewingRider(null);
         } catch (error) {
             console.error('Approval Error:', error);
@@ -192,7 +218,7 @@ const PendingDeliveryBoys = () => {
             try {
                 await adminApi.rejectDeliveryPartner(id);
                 toast.success('Application Rejected');
-                setPendingRiders(pendingRiders.filter((r) => r.id !== id));
+                removeRiderFromCache(id);
                 setViewingRider(null);
             } catch (error) {
                 console.error('Rejection Error:', error);
@@ -226,7 +252,7 @@ const PendingDeliveryBoys = () => {
             key: 'applicant',
             cell: (rider) => (
                 <div className="flex items-center gap-3">
-                    <img src={avatarSrc(rider)} alt="" className="h-11 w-11 rounded-full bg-slate-100 object-cover" />
+                    <img src={avatarSrc(rider)} alt="" loading="lazy" width="44" height="44" className="h-11 w-11 rounded-full bg-slate-100 object-cover" />
                     <div>
                         <p className="text-sm font-bold text-slate-900">{rider.name}</p>
                         <div className="mt-0.5 flex items-center gap-1.5 text-slate-400">
@@ -309,7 +335,7 @@ const PendingDeliveryBoys = () => {
                     <>
                         <button
                             type="button"
-                            onClick={fetchPendingRiders}
+                            onClick={() => refetch()}
                             className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:text-primary"
                         >
                             <RotateCw className="h-4 w-4" />

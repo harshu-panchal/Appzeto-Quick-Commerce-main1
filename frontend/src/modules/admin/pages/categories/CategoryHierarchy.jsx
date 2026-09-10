@@ -15,10 +15,9 @@ import { adminApi } from "../../services/adminApi";
 import Badge from "@shared/components/ui/Badge";
 import PageHeader from "@shared/components/ui/PageHeader";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 
 const CategoryHierarchy = () => {
-  const [categories, setCategories] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
   // Selection State for Miller Columns
@@ -46,23 +45,21 @@ const CategoryHierarchy = () => {
     return { headers, l2, subs, total: headers + l2 + subs };
   }, [categories]);
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  const fetchCategories = async () => {
-    setIsLoading(true);
-    try {
+  // Perf audit Phase 8: migrated to React Query — this is a read-only
+  // browser (no create/edit here), so a single cached query with no
+  // mutation-invalidation path is a direct swap.
+  const { data: categories = [], isLoading, isError } = useQuery({
+    queryKey: ["admin", "categoryTree"],
+    queryFn: async () => {
       const res = await adminApi.getCategoryTree();
-      if (res.data.success) {
-        setCategories(res.data.results || res.data.result || []);
-      }
-    } catch (error) {
-      toast.error("Failed to fetch category hierarchy");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      if (!res.data.success) return [];
+      return res.data.results || res.data.result || [];
+    },
+  });
+
+  useEffect(() => {
+    if (isError) toast.error("Failed to fetch category hierarchy");
+  }, [isError]);
 
   // Filter Logic
   const filteredHeaders = useMemo(() => {

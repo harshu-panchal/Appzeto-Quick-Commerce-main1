@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { adminApi } from '../services/adminApi';
 import Card from '@shared/components/ui/Card';
@@ -31,6 +32,7 @@ const CustomerDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { showToast } = useToast();
+    const queryClient = useQueryClient();
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [orderSearch, setOrderSearch] = useState('');
     const [visibleOrders, setVisibleOrders] = useState(3);
@@ -44,36 +46,39 @@ const CustomerDetail = () => {
     const [notifMessage, setNotifMessage] = useState('');
     const [notes, setNotes] = useState('Prefer morning deliveries. Use the building entrance on the north side.');
 
-    const [customer, setCustomer] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [orders, setOrders] = useState([]);
-
     const [editForm, setEditForm] = useState({ name: '', email: '', phone: '' });
 
-    useEffect(() => {
-        const fetchCustomerDetails = async () => {
-            try {
-                setLoading(true);
-                const { data } = await adminApi.getUserById(id);
-                if (data.success) {
-                    const customerData = data.result;
-                    setCustomer(customerData);
-                    setOrders(customerData.recentOrders || []);
-                    setEditForm({
-                        name: customerData.name,
-                        email: customerData.email,
-                        phone: customerData.phone
-                    });
-                }
-            } catch (error) {
-                console.error("Error fetching customer details:", error);
-                showToast("Failed to load customer profile", "error");
-            } finally {
-                setLoading(false);
+    // Perf audit Phase 8: migrated to React Query. `customer`/`orders` are
+    // mutated locally (block/unblock, edit-profile) without a real API
+    // round-trip — this predates the migration (flagged pre-existing mock
+    // behavior) and is preserved exactly via queryClient.setQueryData
+    // instead of setState.
+    const customerQueryKey = ['admin', 'customerDetail', id];
+    const { data: customerQueryData, isLoading: loading, isError } = useQuery({
+        queryKey: customerQueryKey,
+        queryFn: async () => {
+            const { data } = await adminApi.getUserById(id);
+            if (data.success) {
+                const customerData = data.result;
+                setEditForm({
+                    name: customerData.name,
+                    email: customerData.email,
+                    phone: customerData.phone
+                });
+                return { customer: customerData, orders: customerData.recentOrders || [] };
             }
-        };
-        if (id) fetchCustomerDetails();
-    }, [id]);
+            return { customer: null, orders: [] };
+        },
+        enabled: !!id,
+    });
+
+    useEffect(() => {
+        if (isError) showToast("Failed to load customer profile", "error");
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isError]);
+
+    const customer = customerQueryData?.customer ?? null;
+    const orders = customerQueryData?.orders ?? [];
 
     const handleRefresh = () => {
         setIsRefreshing(true);
@@ -85,7 +90,10 @@ const CustomerDetail = () => {
 
     const handleUpdateProfile = (e) => {
         e.preventDefault();
-        setCustomer({ ...editForm });
+        queryClient.setQueryData(customerQueryKey, (prev) => ({
+            ...(prev || { orders: [] }),
+            customer: { ...editForm },
+        }));
         setIsEditModalOpen(false);
         showToast('Profile updated successfully', 'success');
     };
@@ -99,7 +107,10 @@ const CustomerDetail = () => {
 
     const handleRestrictAccount = () => {
         const newStatus = customer.status === 'active' ? 'restricted' : 'active';
-        setCustomer({ ...customer, status: newStatus });
+        queryClient.setQueryData(customerQueryKey, (prev) => ({
+            ...(prev || { orders: [] }),
+            customer: { ...prev?.customer, status: newStatus },
+        }));
         setIsRestrictModalOpen(false);
         showToast(`Account successfully ${newStatus === 'restricted' ? 'restricted' : 'activated'}`, newStatus === 'restricted' ? 'warning' : 'success');
     };

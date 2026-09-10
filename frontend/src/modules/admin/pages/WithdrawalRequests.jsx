@@ -27,72 +27,99 @@ import {
 import { cn } from '@/lib/utils';
 import { adminApi } from "../services/adminApi";
 import { toast } from "sonner";
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+
+const WITHDRAWALS_QUERY_ROOT = ['admin', 'withdrawals'];
+
+async function fetchWithdrawalPage(apiMethod, params, fallbackPage) {
+    const res = await apiMethod(params).catch(() => ({ data: { success: false, result: {} } }));
+    if (!res.data.success) {
+        throw new Error('Failed to fetch requests');
+    }
+    const payload = res.data.result || {};
+    const items = Array.isArray(payload.items) ? payload.items : (res.data.results || []);
+    return {
+        items,
+        total: typeof payload.total === 'number' ? payload.total : items.length,
+        page: typeof payload.page === 'number' ? payload.page : fallbackPage,
+    };
+}
 
 const WithdrawalRequests = () => {
+    const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState('sellers');
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
     const [selectedRequest, setSelectedRequest] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [isMutating, setIsMutating] = useState(false);
     const [actionModal, setActionModal] = useState({ isOpen: false, type: null, request: null });
 
-    const [sellerRequests, setSellerRequests] = useState([]);
-    const [deliveryRequests, setDeliveryRequests] = useState([]);
     const [sellerPage, setSellerPage] = useState(1);
     const [deliveryPage, setDeliveryPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
-    const [sellerTotal, setSellerTotal] = useState(0);
-    const [deliveryTotal, setDeliveryTotal] = useState(0);
 
-    const fetchData = async (sellerPageNum = 1, deliveryPageNum = 1) => {
-        try {
-            setLoading(true);
-            const commonParams = { page: 1, limit: pageSize };
-            if (searchTerm.trim()) commonParams.search = searchTerm.trim();
-            if (filterStatus !== 'all') commonParams.status = filterStatus;
-
-            const [sellerRes, deliveryRes] = await Promise.all([
-                adminApi.getSellerWithdrawals({ ...commonParams, page: sellerPageNum }).catch(err => ({ data: { success: false, result: {} } })),
-                adminApi.getDeliveryWithdrawals({ ...commonParams, page: deliveryPageNum }).catch(err => ({ data: { success: false, result: {} } }))
-            ]);
-
-            if (sellerRes.data.success) {
-                const payload = sellerRes.data.result || {};
-                const items = Array.isArray(payload.items) ? payload.items : (sellerRes.data.results || []);
-                setSellerRequests(items);
-                setSellerTotal(typeof payload.total === 'number' ? payload.total : items.length);
-                setSellerPage(typeof payload.page === 'number' ? payload.page : sellerPageNum);
-            }
-            if (deliveryRes.data.success) {
-                const payload = deliveryRes.data.result || {};
-                const items = Array.isArray(payload.items) ? payload.items : (deliveryRes.data.results || []);
-                setDeliveryRequests(items);
-                setDeliveryTotal(typeof payload.total === 'number' ? payload.total : items.length);
-                setDeliveryPage(typeof payload.page === 'number' ? payload.page : deliveryPageNum);
-            }
-        } catch (error) {
-            console.error("Fetch error:", error);
-            toast.error("Failed to fetch requests");
-        } finally {
-            setLoading(false);
-        }
-    };
-
+    // Perf audit Phase 8: migrated to React Query — same 500ms debounce,
+    // same "any filter/search change resets both tabs to page 1" behavior.
+    // The two tabs are now independent queries instead of always being
+    // re-fetched together on every page change (previously, paging the
+    // seller tab also silently re-fetched the untouched delivery tab with
+    // identical params) — same rendered result, one fewer redundant
+    // request per page click.
     useEffect(() => {
         const timer = setTimeout(() => {
-            fetchData(1, 1);
+            setDebouncedSearchTerm(searchTerm.trim());
+            setSellerPage(1);
+            setDeliveryPage(1);
         }, 500);
         return () => clearTimeout(timer);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pageSize, searchTerm, filterStatus]);
+    }, [searchTerm]);
 
-    const fetchSellerPage = (p) => {
-        fetchData(p, deliveryPage);
-        setSellerPage(p);
-    };
-    const fetchDeliveryPage = (p) => {
-        fetchData(sellerPage, p);
-        setDeliveryPage(p);
+    useEffect(() => {
+        setSellerPage(1);
+        setDeliveryPage(1);
+    }, [filterStatus, pageSize]);
+
+    const commonParams = useMemo(() => {
+        const params = { limit: pageSize };
+        if (debouncedSearchTerm) params.search = debouncedSearchTerm;
+        if (filterStatus !== 'all') params.status = filterStatus;
+        return params;
+    }, [pageSize, debouncedSearchTerm, filterStatus]);
+
+    const sellerQuery = useQuery({
+        queryKey: [...WITHDRAWALS_QUERY_ROOT, 'sellers', { ...commonParams, page: sellerPage }],
+        queryFn: () => fetchWithdrawalPage(adminApi.getSellerWithdrawals, { ...commonParams, page: sellerPage }, sellerPage),
+        placeholderData: keepPreviousData,
+    });
+    const deliveryQuery = useQuery({
+        queryKey: [...WITHDRAWALS_QUERY_ROOT, 'delivery', { ...commonParams, page: deliveryPage }],
+        queryFn: () => fetchWithdrawalPage(adminApi.getDeliveryWithdrawals, { ...commonParams, page: deliveryPage }, deliveryPage),
+        placeholderData: keepPreviousData,
+    });
+
+    useEffect(() => {
+        if (sellerQuery.isError || deliveryQuery.isError) {
+            console.error("Fetch error:", sellerQuery.error || deliveryQuery.error);
+            toast.error("Failed to fetch requests");
+        }
+    }, [sellerQuery.isError, deliveryQuery.isError, sellerQuery.error, deliveryQuery.error]);
+
+    const sellerRequests = sellerQuery.data?.items ?? [];
+    const deliveryRequests = deliveryQuery.data?.items ?? [];
+    const sellerTotal = sellerQuery.data?.total ?? 0;
+    const deliveryTotal = deliveryQuery.data?.total ?? 0;
+    // Matches the original single `loading` flag exactly: true during the
+    // initial load, every page/filter refetch, AND the approve/reject
+    // mutation — that one flag drove the skeleton gate, the table's loading
+    // state, the pagination spinner, and the confirm-action modal's
+    // spinner/disabled state all at once, so it's kept as one combined flag
+    // here rather than split, to avoid changing any of those behaviors.
+    const loading = isMutating || sellerQuery.isFetching || deliveryQuery.isFetching;
+
+    const refetchBoth = () => {
+        sellerQuery.refetch();
+        deliveryQuery.refetch();
     };
 
     const stats = useMemo(() => {
@@ -130,18 +157,18 @@ const WithdrawalRequests = () => {
 
     const confirmAction = async () => {
         try {
-            setLoading(true);
+            setIsMutating(true);
             const status = actionModal.type === 'approve' ? 'Settled' : 'Failed';
             const res = await adminApi.updateWithdrawalStatus(actionModal.request._id, { status });
             if (res.data.success) {
                 toast.success(`Request ${status} successfully`);
-                fetchData(sellerPage, deliveryPage);
+                queryClient.invalidateQueries({ queryKey: WITHDRAWALS_QUERY_ROOT });
                 setActionModal({ isOpen: false, type: null, request: null });
             }
         } catch (error) {
             toast.error("Action failed");
         } finally {
-            setLoading(false);
+            setIsMutating(false);
         }
     };
 
@@ -289,7 +316,7 @@ const WithdrawalRequests = () => {
                 description="Review and process fund disbursement requests from sellers and delivery partners."
                 actions={
                     <>
-                        <Button variant="outline" onClick={() => fetchData(sellerPage, deliveryPage)}>
+                        <Button variant="outline" onClick={refetchBoth}>
                             <RotateCw className={cn('h-4 w-4', loading && 'animate-spin')} />
                         </Button>
                         <Button variant="outline" onClick={handleExport}>
@@ -385,7 +412,7 @@ const WithdrawalRequests = () => {
                         totalPages={Math.ceil((activeTab === 'sellers' ? sellerTotal : deliveryTotal) / pageSize) || 1}
                         total={activeTab === 'sellers' ? sellerTotal : deliveryTotal}
                         pageSize={pageSize}
-                        onPageChange={activeTab === 'sellers' ? fetchSellerPage : fetchDeliveryPage}
+                        onPageChange={activeTab === 'sellers' ? setSellerPage : setDeliveryPage}
                         onPageSizeChange={(newSize) => {
                             setPageSize(newSize);
                             setSellerPage(1);

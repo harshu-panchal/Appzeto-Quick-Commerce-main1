@@ -1,31 +1,23 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Tag, Sparkles, Clock, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { customerApi } from "../services/customerApi";
 
 const OffersPage = () => {
-  const [legacyOffers, setLegacyOffers] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    const load = async () => {
-      setIsLoading(true);
-      try {
-        const offersRes = await customerApi.getOffers().catch(() => ({ data: {} }));
-        const offersList =
-          offersRes.data?.results ||
-          offersRes.data?.result ||
-          offersRes.data ||
-          [];
-        setLegacyOffers(Array.isArray(offersList) ? offersList : []);
-      } catch (e) {
-        console.error("Failed to load offers", e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    load();
-  }, []);
+  // Perf audit Phase 8: migrated to React Query.
+  const { data: legacyOffers = [], isLoading } = useQuery({
+    queryKey: ["customer", "offers"],
+    queryFn: async () => {
+      const offersRes = await customerApi.getOffers().catch(() => ({ data: {} }));
+      const offersList =
+        offersRes.data?.results ||
+        offersRes.data?.result ||
+        offersRes.data ||
+        [];
+      return Array.isArray(offersList) ? offersList : [];
+    },
+  });
 
   const styleToBg = {
     blue: "bg-black ",

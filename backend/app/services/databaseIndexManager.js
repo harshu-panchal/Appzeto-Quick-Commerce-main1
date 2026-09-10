@@ -86,20 +86,36 @@ const INDEX_DEFINITIONS = {
     { keys: { phone: 1 }, options: { name: "idx_phone", background: true, sparse: true } },
   ],
 
-  customers: [
-    { keys: { phone: 1 }, options: { name: "idx_phone", background: true, sparse: true } },
-    { keys: { email: 1 }, options: { name: "idx_email", background: true, sparse: true } },
+  // Phase (perf audit BE-D1) fix: the customer/User model is registered as
+  // `mongoose.model("User", userSchema)` (see backend/app/models/customer.js),
+  // which Mongoose pluralizes to collection `users` — NOT `customers`. The
+  // old `customers:` block below was indexing a phantom, always-empty
+  // collection on every boot while the real, hot `users` collection never
+  // got its intended `createdAt` index. `phone`/`email` are NOT repeated
+  // here: `customer.js` already declares `unique:true` on both, which Mongo
+  // backs with its own index — only `createdAt` was truly additive.
+  users: [
     { keys: { createdAt: -1 }, options: { name: "idx_created", background: true } },
   ],
 
   deliveries: [
     { keys: { phone: 1 }, options: { name: "idx_phone", background: true, sparse: true } },
-    { keys: { isOnline: 1, isVerified: 1, isActive: 1 }, options: { name: "idx_online_verified_active", background: true } },
+    // Phase (perf audit BE-D8) fix: schema (backend/app/models/delivery.js)
+    // has no `isActive` field — only `isOnline`/`isVerified`, which the
+    // schema itself already indexes via
+    // `deliverySchema.index({ isOnline: 1, isVerified: 1 })`. The 3-key
+    // variant here was a dead-field duplicate of that schema index, adding
+    // write overhead with zero query benefit on this write-heavy
+    // (every-location-ping) collection with no read-side gain. Removed.
   ],
 
   wishlists: [
-    { keys: { customerId: 1 }, options: { name: "idx_customerId", background: true } },
-    { keys: { customerId: 1, "items.productId": 1 }, options: { name: "idx_customerId_itemsProductId", background: true } },
+    // Phase (perf audit BE-D8) fix: `{customerId:1,"items.productId":1}`
+    // referenced a field that doesn't exist (schema field is `products`,
+    // see backend/app/models/wishlist.js) — dead index, removed. The plain
+    // `customerId` lookup is already covered by the schema's own
+    // `unique:true` on that field, so no manager-level index is needed here
+    // at all.
   ],
 
   carts: [
@@ -121,7 +137,13 @@ const INDEX_DEFINITIONS = {
     // P3-2 fix: schema fields are `actorType` + `actorId`, not
     // `ownerType` + `ownerId`. The old manager index was dead.
     { keys: { orderId: 1, actorType: 1, createdAt: -1 }, options: { name: "idx_orderId_actorType_created", background: true } },
-    { keys: { actorType: 1, actorId: 1, createdAt: -1 }, options: { name: "idx_actorType_actorId_created", background: true } },
+    // Phase (perf audit BE-D8) fix: `{actorType,actorId,createdAt}` was
+    // removed here — it was byte-for-byte identical to the index the
+    // schema already declares
+    // (`ledgerEntrySchema.index({actorType:1,actorId:1,createdAt:-1})` in
+    // backend/app/models/ledgerEntry.js), so Mongo was maintaining two
+    // separate B-trees for the same key combination on every finance
+    // ledger write for no benefit. The schema-level index remains.
   ],
 
   paymentwebhookevents: [

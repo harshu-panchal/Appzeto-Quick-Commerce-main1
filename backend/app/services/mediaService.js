@@ -25,15 +25,36 @@ function getAllowedMimeTypes() {
 }
 
 function getOptimizedImageFormat() {
-  return String(process.env.CLOUDINARY_IMAGE_UPLOAD_FORMAT || "")
-    .trim()
-    .toLowerCase();
+  // Perf audit BE-I1: default to "auto" (Cloudinary picks the best format —
+  // e.g. WebP/AVIF — per requesting browser) instead of the previous
+  // empty-string-means-disabled default. Every product/category/banner
+  // photo was previously uploaded and stored at whatever format the
+  // uploading device produced (often full-size JPEG), with format
+  // optimization only active if an operator had manually set
+  // CLOUDINARY_IMAGE_UPLOAD_FORMAT in the environment — which, per the
+  // audit, nobody had. Still fully overridable via env if a specific format
+  // is ever required. New uploads only — never touches already-stored media.
+  const raw = String(process.env.CLOUDINARY_IMAGE_UPLOAD_FORMAT ?? "auto").trim().toLowerCase();
+  return raw;
 }
 
 function getOptimizedImageQuality() {
-  const raw = String(process.env.CLOUDINARY_IMAGE_UPLOAD_QUALITY || "").trim();
+  // Perf audit BE-I1: same reasoning as format above — default to "auto"
+  // instead of disabled.
+  const raw = String(process.env.CLOUDINARY_IMAGE_UPLOAD_QUALITY ?? "auto").trim();
   // Allow legacy values like "q_auto:good" while Cloudinary expects quality "auto:good".
   return raw.startsWith("q_") ? raw.slice(2) : raw;
+}
+
+function getOptimizedImageMaxDimension() {
+  // Perf audit BE-I1 (P6-2): cap the longest edge of newly-uploaded images.
+  // 2000px is generous — no legitimate product/category/banner/profile
+  // photo needs to exceed this — while capping what would otherwise be a
+  // raw multi-thousand-pixel phone-camera original. Cloudinary's "limit"
+  // crop mode (applied below) only ever shrinks an image that exceeds this;
+  // it never upscales or crops content out of a smaller image.
+  const raw = parseInt(process.env.CLOUDINARY_IMAGE_MAX_DIMENSION || "2000", 10);
+  return Number.isFinite(raw) && raw > 0 ? raw : 2000;
 }
 
 function isImageMimeType(mimeType = "") {
@@ -42,9 +63,17 @@ function isImageMimeType(mimeType = "") {
 
 function buildImageUploadTransformation() {
   const quality = getOptimizedImageQuality();
-  if (!quality) return null;
+  const maxDimension = getOptimizedImageMaxDimension();
+  const transformation = {};
+  if (quality) transformation.quality = quality;
+  if (maxDimension) {
+    transformation.width = maxDimension;
+    transformation.height = maxDimension;
+    transformation.crop = "limit";
+  }
+  if (Object.keys(transformation).length === 0) return null;
   // Use object form to avoid Cloudinary treating string values as a named transformation.
-  return [{ quality }];
+  return [transformation];
 }
 
 function getImageUploadOptions() {

@@ -18,16 +18,17 @@ import {
   BACKGROUND_COLOR_OPTIONS,
   SIDE_IMAGE_OPTIONS,
 } from "@/shared/constants/offerSectionOptions";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Uses the same backend collection as offer sections,
 // but presents it as a dedicated "Shop by Store" manager.
 
+const SHOP_BY_STORE_QUERY_KEY = ["admin", "offerSections"];
+
 const ShopByStoreManagement = () => {
   const { showToast } = useToast();
-  const [stores, setStores] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const queryClient = useQueryClient();
   const [productsFiltered, setProductsFiltered] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStore, setEditingStore] = useState(null);
   const [formData, setFormData] = useState({
@@ -40,19 +41,33 @@ const ShopByStoreManagement = () => {
     status: "active",
   });
 
-  const loadCategories = async () => {
-    try {
+  // Perf audit Phase 8: migrated `categories` and `stores` to React Query
+  // (both are simple one-time-on-mount fetches). `productsFiltered` is
+  // left as a page-local fetch — it's transient, modal-form-scoped data
+  // driven by whatever categories are currently selected in the open
+  // modal, not a page data list, so there's no real caching benefit.
+  const { data: categories = [] } = useQuery({
+    queryKey: ["admin", "level2CategoriesForStores"],
+    queryFn: async () => {
       const res = await adminApi.getCategories();
       const list = res.data.results || res.data.result || [];
-      const cats = (Array.isArray(list) ? list : []).filter(
-        (c) => c.type === "category"
-      );
-      setCategories(cats);
-    } catch (e) {
-      console.error(e);
-      showToast("Failed to load categories", "error");
-    }
-  };
+      return (Array.isArray(list) ? list : []).filter((c) => c.type === "category");
+    },
+  });
+
+  const { data: stores = [], isLoading, isError } = useQuery({
+    queryKey: SHOP_BY_STORE_QUERY_KEY,
+    queryFn: async () => {
+      const res = await adminApi.getOfferSections();
+      const list = res.data.results || res.data.result || res.data;
+      return Array.isArray(list) ? list : [];
+    },
+  });
+
+  useEffect(() => {
+    if (isError) showToast("Failed to load stores", "error");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isError]);
 
   const loadProductsByCategory = async (categoryIds) => {
     const hasCategories = Array.isArray(categoryIds) && categoryIds.length > 0;
@@ -78,25 +93,6 @@ const ShopByStoreManagement = () => {
       showToast("Failed to load products", "error");
     }
   };
-
-  const loadStores = async () => {
-    setIsLoading(true);
-    try {
-      const res = await adminApi.getOfferSections();
-      const list = res.data.results || res.data.result || res.data;
-      setStores(Array.isArray(list) ? list : []);
-    } catch (e) {
-      console.error(e);
-      showToast("Failed to load stores", "error");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadCategories();
-    loadStores();
-  }, []);
 
   useEffect(() => {
     loadProductsByCategory(formData.categoryIds);
@@ -168,14 +164,16 @@ const ShopByStoreManagement = () => {
       if (editingStore) {
         const res = await adminApi.updateOfferSection(editingStore._id, payload);
         const updated = res.data.result || res.data.results || res.data;
-        setStores((prev) =>
-          prev.map((s) => (s._id === editingStore._id ? updated : s))
+        queryClient.setQueryData(SHOP_BY_STORE_QUERY_KEY, (prev) =>
+          Array.isArray(prev) ? prev.map((s) => (s._id === editingStore._id ? updated : s)) : prev,
         );
         showToast("Store updated", "success");
       } else {
         const res = await adminApi.createOfferSection(payload);
         const created = res.data.result || res.data.results || res.data;
-        setStores((prev) => [...prev, created]);
+        queryClient.setQueryData(SHOP_BY_STORE_QUERY_KEY, (prev) =>
+          Array.isArray(prev) ? [...prev, created] : [created],
+        );
         showToast("Store created", "success");
       }
       setIsModalOpen(false);
@@ -192,7 +190,9 @@ const ShopByStoreManagement = () => {
     if (!window.confirm("Delete this store?")) return;
     try {
       await adminApi.deleteOfferSection(id);
-      setStores((prev) => prev.filter((s) => s._id !== id));
+      queryClient.setQueryData(SHOP_BY_STORE_QUERY_KEY, (prev) =>
+        Array.isArray(prev) ? prev.filter((s) => s._id !== id) : prev,
+      );
       showToast("Store deleted", "success");
     } catch (e) {
       console.error(e);

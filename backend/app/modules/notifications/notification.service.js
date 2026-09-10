@@ -219,28 +219,33 @@ export async function notify(eventType, payload = {}) {
   }
 
   const dedupeTtlSeconds = DEFAULT_DEDUP_TTL_SECONDS();
-  let enqueued = 0;
-  let skipped = 0;
-  let duplicates = 0;
-  const notificationIds = [];
 
-  for (const notification of notifications) {
+  // Perf audit BE-D7: this used to process recipients one at a time —
+  // three awaited round-trips (preference lookup, dedupe claim, doc
+  // create) per notification, all fully sequential even when notifying,
+  // say, several admins about the same event. The sibling
+  // `broadcastNotification` (notification.controller.js) already fans out
+  // with `Promise.allSettled`; this mirrors that. Each recipient's work is
+  // fully independent (separate dedupe keys, separate preference lookups,
+  // separate documents), so running them concurrently changes nothing
+  // about what happens to any individual recipient — same checks, same
+  // side effects, same counts — it just no longer waits for recipient N
+  // to finish before starting recipient N+1.
+  async function processOneRecipient(notification) {
     try {
       const preference = await getPreference(notification.userId, notification.role);
       if (!isAllowedByPreference(eventType, preference)) {
-        skipped += 1;
-        continue;
+        return { outcome: "skipped" };
       }
 
       const dedupeKey = dedupeKeyForNotification(eventType, notification, payload);
       const isFirstOccurrence = await claimDedupeKey(dedupeKey, dedupeTtlSeconds);
       if (!isFirstOccurrence) {
-        duplicates += 1;
         incrementCounter("notifications_duplicates_total", {
           eventType,
           role: notification.role,
         });
-        continue;
+        return { outcome: "duplicate" };
       }
 
       const notificationDoc = await Notification.create({
@@ -272,8 +277,6 @@ export async function notify(eventType, payload = {}) {
             NOTIFICATION_JOB_NAMES.SEND,
             { notificationId: notificationIdStr },
           );
-          enqueued += 1;
-          notificationIds.push(notificationIdStr);
           incrementCounter("notifications_total", {
             status: "queued",
             eventType,
@@ -281,14 +284,13 @@ export async function notify(eventType, payload = {}) {
           });
         } else {
           await deliverNotificationById(notificationIdStr);
-          enqueued += 1;
-          notificationIds.push(notificationIdStr);
           incrementCounter("notifications_total", {
             status: "triggered",
             eventType,
             role: notification.role,
           });
         }
+        return { outcome: "enqueued", notificationId: notificationIdStr };
       } catch (deliveryError) {
         await Notification.updateOne(
           { _id: notificationDoc._id },
@@ -314,14 +316,36 @@ export async function notify(eventType, payload = {}) {
             message: deliveryError.message,
           },
         );
+        return { outcome: "failed" };
       }
     } catch (error) {
-      skipped += 1;
       logger.error("Notification emit pipeline failed", {
         eventType,
         message: error.message,
       });
+      return { outcome: "skipped" };
     }
+  }
+
+  const results = await Promise.all(notifications.map(processOneRecipient));
+
+  let enqueued = 0;
+  let skipped = 0;
+  let duplicates = 0;
+  const notificationIds = [];
+  for (const result of results) {
+    if (result.outcome === "enqueued") {
+      enqueued += 1;
+      notificationIds.push(result.notificationId);
+    } else if (result.outcome === "duplicate") {
+      duplicates += 1;
+    } else if (result.outcome === "skipped") {
+      skipped += 1;
+    }
+    // "failed" (delivery/enqueue failure after the Notification doc was
+    // already created) intentionally increments none of these counters —
+    // matches the original, which only bumped the `notifications_total`
+    // metric and logged on that path, not `skipped`/`enqueued`/`duplicates`.
   }
 
   await refreshQueueMetrics();

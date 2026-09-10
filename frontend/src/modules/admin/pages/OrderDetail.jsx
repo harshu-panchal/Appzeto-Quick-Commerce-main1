@@ -1,5 +1,6 @@
 // Ultimate Order Intelligence Dossier
 import React, { useState, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { useSettings } from '@core/context/SettingsContext';
@@ -38,30 +39,36 @@ const OrderDetail = () => {
     const navigate = useNavigate();
     const { showToast } = useToast();
     const { settings } = useSettings();
-    const [order, setOrder] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const queryClient = useQueryClient();
     const invoiceRef = useRef(null);
     const statusConfirm = useConfirmDialog();
 
-    const fetchDetail = async () => {
-        setIsLoading(true);
-        try {
+    // Perf audit Phase 8: migrated to React Query — same fetch-on-orderId
+    // behavior, and a status update still triggers a fresh refetch
+    // (invalidateQueries) exactly like the original's fetchDetail() call.
+    const orderQueryKey = ['admin', 'orderDetail', orderId];
+    const { data: order, isLoading, isError } = useQuery({
+        queryKey: orderQueryKey,
+        queryFn: async () => {
             const response = await adminApi.getOrderDetails(orderId);
             if (response.data.success) {
-                setOrder(response.data.result);
+                return response.data.result;
             }
-        } catch (error) {
-            showToast("Failed to load order details", "error");
-        } finally {
-            setIsLoading(false);
-        }
-    };
+            return null;
+        },
+        enabled: !!orderId,
+    });
+
+    useEffect(() => {
+        if (isError) showToast("Failed to load order details", "error");
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isError]);
 
     const applyStatusUpdate = async (newStatus) => {
         try {
             await adminApi.updateOrderStatus(orderId, { status: newStatus });
             showToast(`Order status updated to ${newStatus}`, "success");
-            fetchDetail(); // Refresh data
+            queryClient.invalidateQueries({ queryKey: orderQueryKey }); // Refresh data
         } catch (error) {
             console.error("Failed to update status:", error);
             showToast("Failed to update status", "error");
@@ -88,12 +95,6 @@ const OrderDetail = () => {
         }
         applyStatusUpdate(newStatus);
     };
-
-    useEffect(() => {
-        if (orderId) {
-            fetchDetail();
-        }
-    }, [orderId]);
 
     const getStatusStyles = (status) => {
         switch (status.toLowerCase()) {

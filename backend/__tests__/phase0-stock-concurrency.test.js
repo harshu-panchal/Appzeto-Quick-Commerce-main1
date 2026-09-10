@@ -2,6 +2,10 @@ import { jest } from "@jest/globals";
 
 const mockProductFindOneAndUpdate = jest.fn();
 const mockStockHistoryCreate = jest.fn();
+// Perf audit BE-D7: reserveStockForItems now writes its StockHistory
+// entries via a single insertMany() after the per-item loop instead of one
+// create() call per item.
+const mockStockHistoryInsertMany = jest.fn();
 
 jest.unstable_mockModule("../app/models/product.js", () => ({
   default: {
@@ -12,6 +16,7 @@ jest.unstable_mockModule("../app/models/product.js", () => ({
 jest.unstable_mockModule("../app/models/stockHistory.js", () => ({
   default: {
     create: mockStockHistoryCreate,
+    insertMany: mockStockHistoryInsertMany,
   },
 }));
 
@@ -29,6 +34,7 @@ describe("Phase 0 stock concurrency safety", () => {
       return null;
     });
     mockStockHistoryCreate.mockResolvedValue([]);
+    mockStockHistoryInsertMany.mockResolvedValue([]);
   });
 
   it("allows only one reservation under concurrent pressure and blocks oversell", async () => {
@@ -56,6 +62,6 @@ describe("Phase 0 stock concurrency safety", () => {
     expect(successCount).toBe(1);
     expect(failCount).toBe(1);
     expect(mockProductFindOneAndUpdate).toHaveBeenCalledTimes(2);
-    expect(mockStockHistoryCreate).toHaveBeenCalledTimes(1);
+    expect(mockStockHistoryInsertMany).toHaveBeenCalledTimes(1);
   });
 });

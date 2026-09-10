@@ -15,6 +15,9 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { adminApi } from "../../services/adminApi";
 import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+const SUBCATEGORIES_QUERY_KEY = ["admin", "allCategories"];
 
 const makeSlug = (value) =>
   String(value || "")
@@ -25,10 +28,7 @@ const makeSlug = (value) =>
     .replace(/-+/g, "-");
 
 const SubCategories = () => {
-  const [categories, setCategories] = useState([]);
-  const [level2Categories, setLevel2Categories] = useState([]);
-  const [headerCategories, setHeaderCategories] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterLevel2, setFilterLevel2] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
@@ -54,34 +54,40 @@ const SubCategories = () => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const fileInputRef = useRef(null);
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  const fetchCategories = async () => {
-    setIsLoading(true);
-    try {
+  // Perf audit Phase 8: migrated to React Query. Same query key as
+  // Level2Categories.jsx's equivalent query — both fetch the exact same
+  // unparameterized `getCategories()` endpoint and filter different `type`
+  // values client-side, so sharing the key means navigating between the
+  // Level2/Subcategory admin pages within the cache window shows data
+  // instantly with no refetch, not just within this one page.
+  const { data: allCategoriesData, isFetching, isError: isCategoriesError } = useQuery({
+    queryKey: SUBCATEGORIES_QUERY_KEY,
+    queryFn: async () => {
       const res = await adminApi.getCategories();
-      if (res.data.success) {
-        const payload = res.data.result;
-        const results = res.data.results;
-        const allCats = Array.isArray(results)
-          ? results
-          : Array.isArray(payload)
-            ? payload
-            : Array.isArray(payload?.items)
-              ? payload.items
-              : [];
-        setCategories(allCats.filter((c) => c.type === "subcategory"));
-        setLevel2Categories(allCats.filter((c) => c.type === "category"));
-        setHeaderCategories(allCats.filter((c) => c.type === "header"));
-      }
-    } catch (error) {
-      toast.error("Failed to fetch categories");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      if (!res.data.success) throw new Error("Failed to fetch categories");
+      const payload = res.data.result;
+      const results = res.data.results;
+      const allCats = Array.isArray(results)
+        ? results
+        : Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.items)
+            ? payload.items
+            : [];
+      return allCats;
+    },
+  });
+
+  useEffect(() => {
+    if (isCategoriesError) toast.error("Failed to fetch categories");
+  }, [isCategoriesError]);
+
+  const allCategories = allCategoriesData ?? [];
+  const categories = useMemo(() => allCategories.filter((c) => c.type === "subcategory"), [allCategories]);
+  const level2Categories = useMemo(() => allCategories.filter((c) => c.type === "category"), [allCategories]);
+  const headerCategories = useMemo(() => allCategories.filter((c) => c.type === "header"), [allCategories]);
+  const invalidateCategories = () =>
+    queryClient.invalidateQueries({ queryKey: SUBCATEGORIES_QUERY_KEY });
 
   const getParentInfo = (parentId) => {
     const id = parentId?._id || parentId;
@@ -202,7 +208,7 @@ const SubCategories = () => {
       }
       setIsAddModalOpen(false);
       setEditingItem(null);
-      fetchCategories();
+      invalidateCategories();
     } catch (error) {
       console.error(error);
       const errorMessage = error.response?.data?.message || (editingItem ? "Failed to update subcategory" : "Failed to create subcategory");
@@ -220,7 +226,7 @@ const SubCategories = () => {
       toast.success("Subcategory deleted");
       setIsDeleteModalOpen(false);
       setDeleteTarget(null);
-      fetchCategories();
+      invalidateCategories();
     } catch (error) {
       const errorMessage = error.response?.data?.message || "Failed to delete subcategory";
       toast.error(errorMessage);
@@ -421,7 +427,7 @@ const SubCategories = () => {
         columns={categoryColumns}
         data={paginatedCategories}
         rowKey={(c) => c._id || c.id}
-        loading={isLoading}
+        loading={isFetching}
         emptyState={<div className="py-12 text-center text-sm text-slate-400">No subcategories found.</div>}
       />
 
@@ -432,7 +438,7 @@ const SubCategories = () => {
         pageSize={pageSize}
         onPageChange={setPage}
         onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
-        loading={isLoading}
+        loading={isFetching}
       />
 
       {/* Add/Edit Modal */}

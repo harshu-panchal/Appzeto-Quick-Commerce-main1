@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   HiOutlinePencilSquare,
   HiOutlinePhoto,
@@ -23,12 +24,11 @@ const emptyBannerItem = () => ({
   isUploading: false,
 });
 
+const HERO_CATEGORIES_QUERY_KEY = ["admin", "heroCategoriesPerPage"];
+
 export default function HeroCategoriesPerPage() {
   const { showToast } = useToast();
-  const [headers, setHeaders] = useState([]);
-  const [allCategories, setAllCategories] = useState([]);
-  const [pageData, setPageData] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRow, setEditingRow] = useState(null);
@@ -36,69 +36,73 @@ export default function HeroCategoriesPerPage() {
   const [formCategoryIds, setFormCategoryIds] = useState([]);
   const [saving, setSaving] = useState(false);
 
+  // Perf audit Phase 8: migrated the compound tree + per-header hero-config
+  // load to a single React Query entry (it was always fetched as one unit
+  // on mount, so one query key matches the original data-loading shape).
+  const {
+    data: queryData,
+    isLoading: loading,
+    isError,
+  } = useQuery({
+    queryKey: HERO_CATEGORIES_QUERY_KEY,
+    queryFn: async () => {
+      const treeRes = await adminApi.getCategoryTree();
+      const tree = treeRes.data?.results || treeRes.data?.result || [];
+      const headerList = Array.isArray(tree) ? tree : [];
+
+      const flatCategories = headerList.flatMap((h) => (h.children || []).map((c) => ({ ...c, headerName: h.name })));
+
+      const homeRes = await adminApi.getHeroConfig({ pageType: "home" });
+      const homeResult = homeRes.data?.result || homeRes.data || {};
+      const homeBanners = homeResult.banners?.items || [];
+      const homeCatIds = homeResult.categoryIds || [];
+
+      const rows = [
+        {
+          id: "home",
+          label: "Home",
+          pageType: "home",
+          headerId: null,
+          bannerCount: homeBanners.length,
+          categoryCount: homeCatIds.length,
+        },
+      ];
+
+      const headerRows = await Promise.all(
+        headerList.map(async (h) => {
+          const res = await adminApi.getHeroConfig({
+            pageType: "header",
+            headerId: h._id,
+          });
+          const result = res.data?.result || res.data || {};
+          const items = result.banners?.items || [];
+          const catIds = result.categoryIds || [];
+          return {
+            id: h._id,
+            label: h.name || "Unnamed",
+            pageType: "header",
+            headerId: h._id,
+            bannerCount: items.length,
+            categoryCount: catIds.length,
+          };
+        })
+      );
+
+      return {
+        headers: headerList,
+        allCategories: flatCategories,
+        pageData: [...rows, ...headerRows],
+      };
+    },
+  });
+
+  const allCategories = queryData?.allCategories ?? [];
+  const pageData = queryData?.pageData ?? [];
+
   useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      setLoading(true);
-      try {
-        const treeRes = await adminApi.getCategoryTree();
-        const tree = treeRes.data?.results || treeRes.data?.result || [];
-        const headerList = Array.isArray(tree) ? tree : [];
-        if (cancelled) return;
-        setHeaders(headerList);
-
-        const flatCategories = headerList.flatMap((h) => (h.children || []).map((c) => ({ ...c, headerName: h.name })));
-        setAllCategories(flatCategories);
-
-        const homeRes = await adminApi.getHeroConfig({ pageType: "home" });
-        const homeResult = homeRes.data?.result || homeRes.data || {};
-        const homeBanners = homeResult.banners?.items || [];
-        const homeCatIds = homeResult.categoryIds || [];
-
-        const rows = [
-          {
-            id: "home",
-            label: "Home",
-            pageType: "home",
-            headerId: null,
-            bannerCount: homeBanners.length,
-            categoryCount: homeCatIds.length,
-          },
-        ];
-
-        const headerRows = await Promise.all(
-          headerList.map(async (h) => {
-            const res = await adminApi.getHeroConfig({
-              pageType: "header",
-              headerId: h._id,
-            });
-            const result = res.data?.result || res.data || {};
-            const items = result.banners?.items || [];
-            const catIds = result.categoryIds || [];
-            return {
-              id: h._id,
-              label: h.name || "Unnamed",
-              pageType: "header",
-              headerId: h._id,
-              bannerCount: items.length,
-              categoryCount: catIds.length,
-            };
-          })
-        );
-
-        if (!cancelled) setPageData([...rows, ...headerRows]);
-      } catch (e) {
-        if (!cancelled) console.error(e);
-        showToast("Failed to load hero config", "error");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    load();
-    return () => { cancelled = true; };
-  }, [showToast]);
+    if (isError) showToast("Failed to load hero config", "error");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isError]);
 
   const openEdit = async (row) => {
     setEditingRow(row);
@@ -184,16 +188,21 @@ export default function HeroCategoriesPerPage() {
         categoryIds: formCategoryIds,
       });
       showToast("Hero config saved", "success");
-      setPageData((prev) =>
-        prev.map((p) =>
-          p.id === editingRow.id
-            ? {
-                ...p,
-                bannerCount: items.length,
-                categoryCount: formCategoryIds.length,
-              }
-            : p
-        )
+      queryClient.setQueryData(HERO_CATEGORIES_QUERY_KEY, (prev) =>
+        prev
+          ? {
+              ...prev,
+              pageData: prev.pageData.map((p) =>
+                p.id === editingRow.id
+                  ? {
+                      ...p,
+                      bannerCount: items.length,
+                      categoryCount: formCategoryIds.length,
+                    }
+                  : p
+              ),
+            }
+          : prev
       );
       setModalOpen(false);
       setEditingRow(null);

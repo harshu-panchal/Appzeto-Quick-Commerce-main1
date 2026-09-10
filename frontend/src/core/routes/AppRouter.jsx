@@ -1,26 +1,23 @@
-import React, { lazy, useMemo, useEffect, Suspense } from 'react';
+import React, { lazy, useMemo, Suspense } from 'react';
 import { createBrowserRouter, RouterProvider, Outlet, Navigate } from 'react-router-dom';
 import ProtectedRoute from '../guards/ProtectedRoute';
 import RoleGuard from '../guards/RoleGuard';
 import { UserRole } from '../constants/roles';
 import RootErrorBoundary from '../../shared/components/RootErrorBoundary';
-import { setActiveRole, ROLES } from '../auth/activeRoleStore';
 
-// Providers for Customer Module
-import { WishlistProvider } from '../../modules/customer/context/WishlistContext';
-import { CartProvider } from '../../modules/customer/context/CartContext';
-import { CartAnimationProvider } from '../../modules/customer/context/CartAnimationContext';
-import { ProductDetailProvider } from '../../modules/customer/context/ProductDetailContext';
-import { LocationProvider } from '../../modules/customer/context/LocationContext';
-import ScrollToTop from '../../modules/customer/components/shared/ScrollToTop';
-import LocationSetupGate from '../../modules/customer/components/shared/LocationSetupGate';
-
-// Public Pages
-import Auth from '../../modules/seller/pages/Auth';
-import ApplicationPending from '../../modules/seller/pages/ApplicationPending';
-import AdminAuth from '../../modules/admin/pages/AdminAuth';
-import DeliveryAuth from '../../modules/delivery/pages/DeliveryAuth';
-import CustomerAuth from '../../modules/customer/pages/CustomerAuth';
+// Public Pages (lazy-loaded — perf audit FE-B1/FE-B2/FE-B5/FE-B6: these were
+// previously statically imported here, which forced every portal-specific
+// dependency they pull in (Google Maps loader, Lottie animations, the
+// delivery-only tesseract.js OCR wrapper) into the one entry bundle every
+// visitor of every portal downloads before anything renders. Lazy-loading
+// them defers that cost to the person who actually opens that specific
+// auth screen, matching the pattern already used below for
+// SellerModule/AdminModule/DeliveryModule.)
+const Auth = lazy(() => import('../../modules/seller/pages/Auth'));
+const ApplicationPending = lazy(() => import('../../modules/seller/pages/ApplicationPending'));
+const AdminAuth = lazy(() => import('../../modules/admin/pages/AdminAuth'));
+const DeliveryAuth = lazy(() => import('../../modules/delivery/pages/DeliveryAuth'));
+const CustomerAuth = lazy(() => import('../../modules/customer/pages/CustomerAuth'));
 
 // Customer Pages (lazy-loaded)
 const Home = lazy(() => import('../../modules/customer/pages/Home'));
@@ -60,33 +57,10 @@ const DeliveryTermsPage = lazy(() => import('../../modules/delivery/pages/Delive
 const DeliveryPrivacyPage = lazy(() => import('../../modules/delivery/pages/DeliveryPrivacyPage'));
 const DeliveryAboutPage = lazy(() => import('../../modules/delivery/pages/DeliveryAboutPage'));
 
-import CustomerLayout from '../../modules/customer/components/layout/CustomerLayout';
-
-const CustomerLayoutWrapper = () => {
-    useEffect(() => {
-        setActiveRole(ROLES.CUSTOMER);
-    }, []);
-
-    return (
-        <LocationProvider>
-            <WishlistProvider>
-                <CartProvider>
-                    <CartAnimationProvider>
-                        <ProductDetailProvider>
-                            <ScrollToTop />
-                            <LocationSetupGate />
-                            <CustomerLayout>
-                                <Suspense fallback={<div className="flex h-screen items-center justify-center font-outfit">Loading...</div>}>
-                                    <Outlet />
-                                </Suspense>
-                            </CustomerLayout>
-                        </ProductDetailProvider>
-                    </CartAnimationProvider>
-                </CartProvider>
-            </WishlistProvider>
-        </LocationProvider>
-    );
-};
+// Perf audit FE-B4: extracted to its own module + lazy-loaded (see
+// CustomerLayoutWrapper.jsx) so the customer cart/wishlist/location context
+// stack is only downloaded by sessions that render a customer route.
+const CustomerLayoutWrapper = lazy(() => import('./CustomerLayoutWrapper'));
 
 const AppRouter = () => {
     const router = useMemo(() => createBrowserRouter([
@@ -97,15 +71,27 @@ const AppRouter = () => {
             children: [
                 {
                     path: 'login',
-                    element: <CustomerAuth />,
+                    element: (
+                        <Suspense fallback={<div className="flex h-screen items-center justify-center font-outfit">Loading...</div>}>
+                            <CustomerAuth />
+                        </Suspense>
+                    ),
                 },
                 {
                     path: 'signup',
-                    element: <CustomerAuth />,
+                    element: (
+                        <Suspense fallback={<div className="flex h-screen items-center justify-center font-outfit">Loading...</div>}>
+                            <CustomerAuth />
+                        </Suspense>
+                    ),
                 },
                 {
                     path: 'seller/auth',
-                    element: <Auth />,
+                    element: (
+                        <Suspense fallback={<div className="flex h-screen items-center justify-center font-outfit">Loading...</div>}>
+                            <Auth />
+                        </Suspense>
+                    ),
                 },
                 {
                     path: 'seller/terms',
@@ -141,7 +127,11 @@ const AppRouter = () => {
                 },
                 {
                     path: 'seller/pending-approval',
-                    element: <ApplicationPending />,
+                    element: (
+                        <Suspense fallback={<div className="flex h-screen items-center justify-center font-outfit">Loading...</div>}>
+                            <ApplicationPending />
+                        </Suspense>
+                    ),
                 },
                 {
                     path: 'delivery/terms',
@@ -169,11 +159,19 @@ const AppRouter = () => {
                 },
                 {
                     path: 'admin/auth',
-                    element: <AdminAuth />,
+                    element: (
+                        <Suspense fallback={<div className="flex h-screen items-center justify-center font-outfit">Loading...</div>}>
+                            <AdminAuth />
+                        </Suspense>
+                    ),
                 },
                 {
                     path: 'delivery/auth',
-                    element: <DeliveryAuth />,
+                    element: (
+                        <Suspense fallback={<div className="flex h-screen items-center justify-center font-outfit">Loading...</div>}>
+                            <DeliveryAuth />
+                        </Suspense>
+                    ),
                 },
                 {
                     path: 'seller/*',

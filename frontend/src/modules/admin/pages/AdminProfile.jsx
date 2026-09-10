@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Card from '@shared/components/ui/Card';
 import Button from '@shared/components/ui/Button';
 import PageHeader from '@shared/components/ui/PageHeader';
@@ -18,8 +19,8 @@ import { adminApi } from '../services/adminApi';
 
 const AdminProfile = () => {
     const { user, logout } = useAuth();
+    const queryClient = useQueryClient();
     const [isSaving, setIsSaving] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('profile');
     const [profile, setProfile] = useState({
         name: '',
@@ -33,25 +34,37 @@ const AdminProfile = () => {
         confirmPassword: ''
     });
 
-    useEffect(() => {
-        fetchProfile();
-    }, []);
-
-    const fetchProfile = async () => {
-        try {
+    // Perf audit Phase 8: migrated the profile fetch to React Query. The
+    // result seeds editable local form state, so a background refetch
+    // (window refocus, etc.) must not clobber in-progress edits — the
+    // seededRef guard applies fetched data into form state only once,
+    // and is intentionally reset after a successful save so the
+    // post-save refresh (matching the original's fetchProfile() call
+    // after update) re-seeds from the server's response.
+    const profileQueryKey = ['admin', 'profile'];
+    const { data: profileData, isLoading, isError } = useQuery({
+        queryKey: profileQueryKey,
+        queryFn: async () => {
             const response = await adminApi.getProfile();
             const data = response.data.result;
-            setProfile({
+            return {
                 name: data.name,
                 email: data.email,
-                role: data.role || 'Admin'
-            });
-        } catch (error) {
-            toast.error('Failed to fetch admin profile');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+                role: data.role || 'Admin',
+            };
+        },
+    });
+
+    useEffect(() => {
+        if (isError) toast.error('Failed to fetch admin profile');
+    }, [isError]);
+
+    const seededRef = useRef(false);
+    useEffect(() => {
+        if (!profileData || seededRef.current) return;
+        seededRef.current = true;
+        setProfile(profileData);
+    }, [profileData]);
 
     const handleProfileUpdate = async (e) => {
         e.preventDefault();
@@ -62,7 +75,8 @@ const AdminProfile = () => {
                 email: profile.email
             });
             toast.success('Profile updated successfully');
-            fetchProfile();
+            seededRef.current = false;
+            queryClient.invalidateQueries({ queryKey: profileQueryKey });
         } catch (error) {
             toast.error(error.response?.data?.message || 'Failed to update profile');
         } finally {

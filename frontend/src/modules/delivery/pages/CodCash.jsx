@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { motion } from "framer-motion";
 import { IndianRupee, RotateCw } from "lucide-react";
 import { toast } from "sonner";
@@ -7,56 +7,72 @@ import Button from "@/shared/components/ui/Button";
 import ConfirmDialog from "@/shared/components/ui/ConfirmDialog";
 import useConfirmDialog from "@/shared/hooks/useConfirmDialog";
 import { deliveryApi } from "../services/deliveryApi";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const RUPEE = "\u20B9";
+
+const DEFAULT_COD_DATA = {
+  systemFloatCOD: 0,
+  cashInHand: 0,
+  toCollect: [],
+  toRemit: [],
+};
 
 function safeMoney(value) {
   const num = Number(value || 0);
   return Number.isFinite(num) ? num : 0;
 }
 
+const COD_CASH_QUERY_KEY = ["delivery", "codCashSummary"];
+
 const CodCash = () => {
-  const [loading, setLoading] = React.useState(true);
+  const queryClient = useQueryClient();
   const [paying, setPaying] = React.useState(false);
   const [payAmount, setPayAmount] = React.useState("");
   const payConfirm = useConfirmDialog();
-  const [data, setData] = React.useState({
-    systemFloatCOD: 0,
-    cashInHand: 0,
-    toCollect: [],
-    toRemit: [],
-  });
 
-  const fetchSummary = async () => {
-    try {
-      setLoading(true);
+  // Perf audit Phase 8: migrated to React Query. `data` defaults to
+  // DEFAULT_COD_DATA so every render always has a defined object to read
+  // from, matching the original page-local state's initial value.
+  const { data: queryData, isLoading: loading, isError, error, refetch } = useQuery({
+    queryKey: COD_CASH_QUERY_KEY,
+    queryFn: async () => {
       const res = await deliveryApi.getCodCashSummary();
-      if (res.data.success && res.data.result) {
-        const result = res.data.result;
-        const nextToRemit = Array.isArray(result.toRemit) ? result.toRemit : [];
-        const nextPayable = nextToRemit.reduce(
-          (sum, row) => sum + safeMoney(row.amountNetPending),
-          0,
-        );
-        setData({
-          systemFloatCOD: safeMoney(result.systemFloatCOD),
-          cashInHand: safeMoney(result.cashInHand),
-          toCollect: Array.isArray(result.toCollect) ? result.toCollect : [],
-          toRemit: nextToRemit,
-        });
-        setPayAmount(nextPayable > 0 ? String(nextPayable) : "");
+      if (!res.data.success || !res.data.result) {
+        return DEFAULT_COD_DATA;
       }
-    } catch (error) {
-      toast.error(error?.response?.data?.message || "Failed to load COD cash");
-    } finally {
-      setLoading(false);
-    }
-  };
+      const result = res.data.result;
+      const nextToRemit = Array.isArray(result.toRemit) ? result.toRemit : [];
+      return {
+        systemFloatCOD: safeMoney(result.systemFloatCOD),
+        cashInHand: safeMoney(result.cashInHand),
+        toCollect: Array.isArray(result.toCollect) ? result.toCollect : [],
+        toRemit: nextToRemit,
+      };
+    },
+  });
+  const data = queryData ?? DEFAULT_COD_DATA;
 
-  React.useEffect(() => {
-    fetchSummary();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => {
+    if (isError) {
+      toast.error(error?.response?.data?.message || "Failed to load COD cash");
+    }
+  }, [isError, error]);
+
+  // Original behavior: every successful fetch (initial load, manual
+  // refresh, and the post-payment refresh) overwrites whatever the rider
+  // had typed with the freshly computed payable amount. Preserved exactly
+  // \u2014 this effect re-runs every time a new `data` object arrives.
+  useEffect(() => {
+    if (!data) return;
+    const nextPayable = (data.toRemit || []).reduce(
+      (sum, row) => sum + safeMoney(row.amountNetPending),
+      0,
+    );
+    setPayAmount(nextPayable > 0 ? String(nextPayable) : "");
+  }, [data]);
+
+  const fetchSummary = () => refetch();
 
   const containerVariants = {
     hidden: { opacity: 0 },

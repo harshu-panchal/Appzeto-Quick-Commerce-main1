@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Tag, Sparkles, ChevronRight } from "lucide-react";
 import { customerApi } from "../services/customerApi";
 import ProductCard from "../components/shared/ProductCard";
@@ -8,6 +9,8 @@ import {
   getBackgroundColorByValue,
 } from "@/shared/constants/offerSectionOptions";
 import { applyCloudinaryTransform } from "@/core/utils/imageUtils";
+
+const EMPTY_SECTIONS = [];
 
 const mapProduct = (p) => ({
   id: p._id,
@@ -25,45 +28,36 @@ const mapProduct = (p) => ({
 
 const ShopByStorePage = () => {
   const { currentLocation } = useAppLocation();
-  const [sections, setSections] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [activeStoreId, setActiveStoreId] = useState(null);
 
-  useEffect(() => {
-    const load = async () => {
-      const hasValidLocation =
-        Number.isFinite(currentLocation?.latitude) &&
-        Number.isFinite(currentLocation?.longitude);
-      if (!hasValidLocation) {
-        setIsLoading(false);
-        setSections([]);
-        setActiveStoreId(null);
-        return;
-      }
+  const hasValidLocation =
+    Number.isFinite(currentLocation?.latitude) &&
+    Number.isFinite(currentLocation?.longitude);
 
-      setIsLoading(true);
-      try {
-        const res = await customerApi
-          .getOfferSections({
-            lat: currentLocation.latitude,
-            lng: currentLocation.longitude,
-          })
-          .catch(() => ({ data: {} }));
-        const list =
-          res.data?.results || res.data?.result || res.data || [];
-        const normalized = Array.isArray(list) ? list : [];
-        setSections(normalized);
-        if (normalized.length > 0) {
-          setActiveStoreId(normalized[0]._id);
-        }
-      } catch (e) {
-        console.error("Failed to load store sections", e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    load();
-  }, [currentLocation?.latitude, currentLocation?.longitude]);
+  // Perf audit Phase 8: migrated to React Query.
+  const { data: sections = EMPTY_SECTIONS, isLoading } = useQuery({
+    queryKey: ['customer', 'shopByStoreSections', hasValidLocation ? currentLocation.latitude : null, hasValidLocation ? currentLocation.longitude : null],
+    queryFn: async () => {
+      const res = await customerApi
+        .getOfferSections({
+          lat: currentLocation.latitude,
+          lng: currentLocation.longitude,
+        })
+        .catch(() => ({ data: {} }));
+      const list =
+        res.data?.results || res.data?.result || res.data || [];
+      return Array.isArray(list) ? list : [];
+    },
+    enabled: hasValidLocation,
+  });
+
+  // Original always reset the active store to the first result on every
+  // successful load (including location-triggered reloads) — replicated
+  // via an effect keyed on the fetched list's identity.
+  useEffect(() => {
+    setActiveStoreId(sections.length > 0 ? sections[0]._id : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sections]);
 
   const sortedStores = useMemo(
     () => [...sections].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ChevronLeft, Heart, Search, Minus, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -27,10 +28,6 @@ const CategoryProductsPage = () => {
     const initialSubcategoryId = location.state?.activeSubcategoryId || 'all';
     const { isOpen: isProductDetailOpen } = useProductDetail();
     const [selectedSubCategory, setSelectedSubCategory] = useState(initialSubcategoryId);
-    const [category, setCategory] = useState(null);
-    const [subCategories, setSubCategories] = useState([{ id: 'all', name: 'All', icon: 'https://cdn-icons-png.flaticon.com/128/2321/2321831.png' }]);
-    const [products, setProducts] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
     const [noServiceData, setNoServiceData] = useState(null);
 
     // Dynamically load no-service Lottie on mount
@@ -40,14 +37,19 @@ const CategoryProductsPage = () => {
             .catch(() => {});
     }, []);
 
-    const fetchData = async () => {
-        setIsLoading(true);
-        try {
-            const hasValidLocation =
-                Number.isFinite(currentLocation?.latitude) &&
-                Number.isFinite(currentLocation?.longitude);
+    const DEFAULT_SUBCATEGORIES = [{ id: 'all', name: 'All', icon: 'https://cdn-icons-png.flaticon.com/128/2321/2321831.png' }];
+    const hasValidLocation =
+        Number.isFinite(currentLocation?.latitude) &&
+        Number.isFinite(currentLocation?.longitude);
 
-            // Fetch products and categories in parallel instead of sequentially
+    // Perf audit Phase 8: migrated to React Query. Products + category tree
+    // were always fetched together in parallel as one unit, so they stay
+    // one query, keyed on catId + location (matches the original effect's
+    // dependency array exactly). `placeholderData: keepPreviousData` avoids
+    // a blank flash when switching categories or when location refreshes.
+    const { data: categoryData, isLoading, refetch } = useQuery({
+        queryKey: ['customer', 'categoryProducts', catId, hasValidLocation ? currentLocation.latitude : null, hasValidLocation ? currentLocation.longitude : null],
+        queryFn: async () => {
             const [prodRes, catRes] = await Promise.all([
                 hasValidLocation
                     ? customerApi.getProducts({
@@ -59,6 +61,7 @@ const CategoryProductsPage = () => {
                 customerApi.getCategories({ tree: true }),
             ]);
 
+            let products = [];
             if (prodRes.data.success) {
                 const rawResult = prodRes.data.result;
                 const dbProds = Array.isArray(prodRes.data.results)
@@ -69,7 +72,7 @@ const CategoryProductsPage = () => {
                     ? rawResult
                     : [];
 
-                const formattedProds = dbProds.map(p => ({
+                products = dbProds.map(p => ({
                     ...p,
                     id: p._id,
                     image:
@@ -81,11 +84,10 @@ const CategoryProductsPage = () => {
                     weight: p.weight || "1 unit",
                     deliveryTime: "8-15 mins"
                 }));
-                setProducts(Array.isArray(formattedProds) ? formattedProds : []);
-            } else {
-                setProducts([]);
             }
 
+            let category = null;
+            let subCategories = DEFAULT_SUBCATEGORIES;
             if (catRes.data.success) {
                 const tree = catRes.data.results || catRes.data.result || [];
                 let currentCat = null;
@@ -98,26 +100,30 @@ const CategoryProductsPage = () => {
                 }
 
                 if (currentCat) {
-                    setCategory(currentCat);
+                    category = currentCat;
                     const subs = (currentCat.children || []).map(s => ({
                         id: s._id,
                         name: s.name,
                         icon: s.image || 'https://cdn-icons-png.flaticon.com/128/2321/2321801.png'
                     }));
-                    setSubCategories([{ id: 'all', name: 'All', icon: 'https://cdn-icons-png.flaticon.com/128/2321/2321831.png' }, ...subs]);
+                    subCategories = [...DEFAULT_SUBCATEGORIES, ...subs];
                 }
             }
-        } catch (error) {
-            console.error("Error fetching category data:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+
+            return { products, category, subCategories };
+        },
+        placeholderData: keepPreviousData,
+    });
+
+    const category = categoryData?.category ?? null;
+    const subCategories = categoryData?.subCategories ?? DEFAULT_SUBCATEGORIES;
+    const products = categoryData?.products ?? [];
+    const fetchData = refetch;
 
     useEffect(() => {
-        fetchData();
         setSelectedSubCategory(location.state?.activeSubcategoryId || 'all');
-    }, [catId, location.state?.activeSubcategoryId, currentLocation?.latitude, currentLocation?.longitude]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [catId, location.state?.activeSubcategoryId]);
 
     const safeProducts = Array.isArray(products) ? products : [];
 

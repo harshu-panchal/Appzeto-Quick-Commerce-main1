@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import Badge from '@shared/components/ui/Badge';
 import Button from '@shared/components/ui/Button';
 import PageHeader from '@shared/components/ui/PageHeader';
@@ -27,50 +28,71 @@ import { toast } from 'sonner';
 const CustomerManagement = () => {
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
     const [isExporting, setIsExporting] = useState(false);
-    const [customers, setCustomers] = useState([]);
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
-    const [total, setTotal] = useState(0);
-    const [loading, setLoading] = useState(true);
 
+    // Perf audit Phase 8: data fetching migrated to React Query (see
+    // core/query/queryClient.js) — same 500ms debounce as before, but the
+    // fetch itself is now cached/deduped/shared instead of a page-local
+    // useState+useEffect+axios call. Debounce still updates a separate
+    // `debouncedSearchTerm` before it reaches the query, so the input field
+    // itself never lags.
     useEffect(() => {
         const timer = setTimeout(() => {
-            fetchCustomers(1);
+            setDebouncedSearchTerm(searchTerm);
+            setPage(1);
         }, 500);
         return () => clearTimeout(timer);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pageSize, searchTerm, filterStatus]);
-    const fetchCustomers = async (requestedPage = 1) => {
-        try {
-            setLoading(true);
-            const params = { page: requestedPage, limit: pageSize };
-            if (searchTerm.trim()) params.search = searchTerm.trim();
-            if (filterStatus !== 'all') params.status = filterStatus;
-            const { data } = await adminApi.getUsers(params);
-            if (data.success) {
-                const payload = data.result || {};
-                const list = Array.isArray(payload.items) ? payload.items : (data.results || []);
-                setCustomers(list);
-                if (typeof payload.total === 'number') {
-                    setTotal(payload.total);
-                } else {
-                    setTotal(list.length);
-                }
-                if (typeof payload.page === 'number') {
-                    setPage(payload.page);
-                } else {
-                    setPage(requestedPage);
-                }
+    }, [searchTerm]);
+
+    useEffect(() => {
+        setPage(1);
+    }, [pageSize, filterStatus]);
+
+    const queryParams = useMemo(() => {
+        const params = { page, limit: pageSize };
+        if (debouncedSearchTerm.trim()) params.search = debouncedSearchTerm.trim();
+        if (filterStatus !== 'all') params.status = filterStatus;
+        return params;
+    }, [page, pageSize, debouncedSearchTerm, filterStatus]);
+
+    const {
+        data: queryData,
+        isLoading,
+        isFetching,
+        isError,
+    } = useQuery({
+        queryKey: ['admin', 'customers', queryParams],
+        queryFn: async () => {
+            const { data } = await adminApi.getUsers(queryParams);
+            if (!data.success) {
+                throw new Error(data.message || 'Failed to load customers');
             }
-        } catch (error) {
-            console.error("Error fetching customers:", error);
-            toast.error("Failed to load customers");
-        } finally {
-            setLoading(false);
-        }
-    };
+            const payload = data.result || {};
+            const list = Array.isArray(payload.items) ? payload.items : (data.results || []);
+            return {
+                items: list,
+                total: typeof payload.total === 'number' ? payload.total : list.length,
+                page: typeof payload.page === 'number' ? payload.page : queryParams.page,
+            };
+        },
+        placeholderData: keepPreviousData,
+    });
+
+    useEffect(() => {
+        if (isError) toast.error('Failed to load customers');
+    }, [isError]);
+
+    const customers = queryData?.items ?? [];
+    const total = queryData?.total ?? 0;
+    // Full-page skeleton only on the very first load (no cached data at
+    // all yet) — matches the old `loading && customers.length === 0`; a
+    // background refetch (paging, filtering, window refocus) instead shows
+    // the lighter in-table loading state below, same as before.
+    const loading = isLoading;
 
     const stats = useMemo(() => {
         const safeCustomers = Array.isArray(customers) ? customers : [];
@@ -126,6 +148,9 @@ const CustomerManagement = () => {
                     <img
                         src="https://cdn-icons-png.flaticon.com/512/149/149071.png"
                         alt=""
+                        loading="lazy"
+                        width="40"
+                        height="40"
                         className="h-10 w-10 rounded-lg border border-slate-100 bg-slate-50 object-cover"
                     />
                     <div>
@@ -250,7 +275,7 @@ const CustomerManagement = () => {
                         columns={columns}
                         data={filteredCustomers}
                         rowKey={(c) => c.id}
-                        loading={loading && customers.length > 0}
+                        loading={isFetching && customers.length > 0}
                         emptyState={
                             <EmptyState
                                 icon={<Users className="h-6 w-6" />}
@@ -261,16 +286,16 @@ const CustomerManagement = () => {
                     />
 
                     <Pagination
-                        page={page}
+                        page={queryData?.page ?? page}
                         totalPages={Math.ceil(total / pageSize) || 1}
                         total={total}
                         pageSize={pageSize}
-                        onPageChange={(p) => fetchCustomers(p)}
+                        onPageChange={(p) => setPage(p)}
                         onPageSizeChange={(newSize) => {
                             setPageSize(newSize);
                             setPage(1);
                         }}
-                        loading={loading}
+                        loading={isFetching}
                     />
                 </>
             )}

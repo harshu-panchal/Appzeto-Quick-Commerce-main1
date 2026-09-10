@@ -19,12 +19,15 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Lottie from "lottie-react";
-import deliveryRiding from "@/assets/Delivery Riding.json";
 import { deliveryApi } from "../services/deliveryApi";
 import { useAuth } from "@core/context/AuthContext";
 import { useSettings } from "@core/context/SettingsContext";
 import { toast } from "sonner";
-import Tesseract from "tesseract.js";
+// Perf audit FE-B2: dynamically imported inside performOCR() instead of
+// statically here — tesseract.js is only ever needed by the small subset of
+// sessions that actually reach the delivery-signup document-scan step, but a
+// static import here previously shipped its ~63KB wrapper to every visitor
+// of every portal (see performance_audit_plan_part1.md, FE-B2).
 
 const VEHICLE_TYPES = [
   { value: "bike", label: "Bike" },
@@ -43,6 +46,16 @@ const DeliveryAuth = () => {
     import('@core/auth/activeRoleStore').then(({ setActiveRole, ROLES }) => {
       setActiveRole(ROLES.DELIVERY);
     });
+  }, []);
+
+  // Perf audit FE-B6: dynamically loaded instead of statically imported —
+  // defers this ~81KB JSON's fetch/parse off the initial render of the
+  // auth form.
+  const [deliveryRiding, setDeliveryRiding] = useState(null);
+  useEffect(() => {
+    import("@/assets/Delivery Riding.json")
+      .then((m) => setDeliveryRiding(m.default))
+      .catch(() => {});
   }, []);
 
   // mode: "login" | "signup"
@@ -110,6 +123,7 @@ const DeliveryAuth = () => {
     if (type === "aadhar") setAadharVerified(null);
 
     try {
+      const { default: Tesseract } = await import("tesseract.js");
       const result = await Tesseract.recognize(file, 'eng', {
         logger: (m) => {
           if (m.status === 'recognizing text') {
@@ -354,7 +368,7 @@ const DeliveryAuth = () => {
               </div>
             </div>
             <div className="w-40 h-40">
-              <Lottie animationData={deliveryRiding} loop />
+              {deliveryRiding && <Lottie animationData={deliveryRiding} loop />}
             </div>
             <AnimatePresence mode="wait">
               <motion.div

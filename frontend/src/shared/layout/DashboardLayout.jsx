@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import Sidebar from './Sidebar';
@@ -306,10 +306,14 @@ const DashboardLayout = ({ children, navItems, title }) => {
             .finally(() => setEarningsLoading(false));
     }, [role, location.pathname]);
 
-    const refreshOrders = () => {
+    // Perf audit FE-R2: wrapped in useCallback (stable identity across
+    // renders — both only ever touch refs/setState setters, which are
+    // themselves stable) so the memoized context values below don't have to
+    // treat them as changing on every render.
+    const refreshOrders = useCallback(() => {
         if (fetchOrdersRef.current) fetchOrdersRef.current();
-    };
-    const refreshEarnings = () => {
+    }, []);
+    const refreshEarnings = useCallback(() => {
         earningsFetchedRef.current = false;
         setEarningsLoading(true);
         sellerApi
@@ -329,7 +333,26 @@ const DashboardLayout = ({ children, navItems, title }) => {
                 setEarningsLoading(false);
                 earningsFetchedRef.current = true;
             });
-    };
+    }, []);
+
+    // Perf audit FE-R2: previously these were plain object literals rebuilt
+    // on every render, which forced every context consumer (seller
+    // Orders/Dashboard/Earnings pages) to re-render whenever
+    // DashboardLayout re-rendered for ANY reason — including the
+    // accept-order countdown ticking once a second while the new-order
+    // modal is open. Memoizing means consumers now only re-render when the
+    // underlying data actually changes.
+    const sellerOrdersContextValue = useMemo(() => ({
+        orders: role === 'seller' ? sellerOrders : [],
+        ordersLoading: role === 'seller' ? ordersLoading : false,
+        refreshOrders,
+    }), [role, sellerOrders, ordersLoading, refreshOrders]);
+
+    const sellerEarningsContextValue = useMemo(() => ({
+        earningsData: role === 'seller' ? sellerEarningsData : defaultEarnings,
+        earningsLoading: role === 'seller' ? earningsLoading : false,
+        refreshEarnings,
+    }), [role, sellerEarningsData, earningsLoading, refreshEarnings]);
 
     useEffect(() => {
         setIsSidebarOpen(false);
@@ -423,18 +446,8 @@ const DashboardLayout = ({ children, navItems, title }) => {
                 <Topbar onMenuClick={() => setIsSidebarOpen(true)} sidebarCollapsed={isAdminOrSeller ? isSidebarCollapsed : false} />
                 <main className={cn("p-4 md:p-5 min-h-screen", isAdminOrSeller ? "pt-[68px] md:pt-20 pb-20 md:pb-5" : "pt-20")}>
                     <div className="w-full pb-12">
-                        <SellerOrdersContext.Provider
-                            value={{
-                                orders: role === 'seller' ? sellerOrders : [],
-                                ordersLoading: role === 'seller' ? ordersLoading : false,
-                                refreshOrders,
-                            }}>
-                            <SellerEarningsContext.Provider
-                                value={{
-                                    earningsData: role === 'seller' ? sellerEarningsData : defaultEarnings,
-                                    earningsLoading: role === 'seller' ? earningsLoading : false,
-                                    refreshEarnings,
-                                }}>
+                        <SellerOrdersContext.Provider value={sellerOrdersContextValue}>
+                            <SellerEarningsContext.Provider value={sellerEarningsContextValue}>
                                 {children}
                             </SellerEarningsContext.Provider>
                         </SellerOrdersContext.Provider>

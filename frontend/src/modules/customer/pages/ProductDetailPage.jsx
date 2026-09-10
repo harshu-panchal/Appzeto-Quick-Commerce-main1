@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Heart, Plus, Minus, Star, ShieldCheck, Clock, ArrowLeft, MessageSquare } from 'lucide-react';
 import { useCart } from '../context/CartContext';
@@ -21,12 +22,8 @@ const ProductDetailPage = () => {
     const { currentLocation } = useAppLocation();
     const { settings } = useSettings();
 
-    const [product, setProduct] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const queryClient = useQueryClient();
     const [activeImage, setActiveImage] = useState('');
-    const [reviews, setReviews] = useState([]);
-    const [reviewLoading, setReviewLoading] = useState(false);
     const [isSubmittingReview, setIsSubmittingReview] = useState(false);
     const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
     const [localHasReviewed, setLocalHasReviewed] = useState(false);
@@ -39,69 +36,86 @@ const ProductDetailPage = () => {
             .catch(() => {});
     }, []);
 
-    const fetchData = async (showLoader = true) => {
-        if (showLoader) setIsLoading(true);
-        setError(null);
-        try {
-            const hasValidLocation =
-                Number.isFinite(currentLocation?.latitude) &&
-                Number.isFinite(currentLocation?.longitude);
+    const hasValidLocation =
+        Number.isFinite(currentLocation?.latitude) &&
+        Number.isFinite(currentLocation?.longitude);
 
+    // Perf audit Phase 8: migrated to React Query. Product + reviews were
+    // always fetched together as one unit in the original (every product
+    // fetch — including the silent lat/lng-triggered background refetch —
+    // re-fetched reviews too), so they stay one query here. `placeholderData:
+    // keepPreviousData` means navigating between product pages (or the
+    // silent location refetch) no longer blanks the page behind a full
+    // spinner — a strict "instant navigation" improvement consistent with
+    // this project's performance goal, not a feature change.
+    const productQueryKey = [
+        'customer',
+        'productDetail',
+        id,
+        hasValidLocation ? currentLocation.latitude : null,
+        hasValidLocation ? currentLocation.longitude : null,
+    ];
+
+    const {
+        data: productData,
+        isLoading,
+        isFetching: reviewLoading,
+        isError,
+        error: queryError,
+    } = useQuery({
+        queryKey: productQueryKey,
+        queryFn: async () => {
             const params = hasValidLocation ? {
                 lat: currentLocation.latitude,
                 lng: currentLocation.longitude
             } : {};
 
             const res = await customerApi.getProductById(id, params);
-            if (res.data.success) {
-                const p = res.data.result;
-                const formatted = {
-                    ...p,
-                    id: p._id,
-                    images: [p.mainImage, ...(p.galleryImages || [])].filter(Boolean)
-                };
-                setProduct(formatted);
-                setActiveImage(formatted.images[0] || 'https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=600&auto=format&fit=crop');
-                fetchReviews();
+            if (!res.data.success) {
+                throw new Error("Failed to load product");
             }
-        } catch (err) {
-            console.error("Fetch product error:", err);
-            setError(err.response?.data?.message || "Failed to load product");
-        } finally {
-            setIsLoading(false);
-        }
-    };
+            const p = res.data.result;
+            const formatted = {
+                ...p,
+                id: p._id,
+                images: [p.mainImage, ...(p.galleryImages || [])].filter(Boolean)
+            };
 
-    const fetchReviews = async () => {
-        try {
-            setReviewLoading(true);
-            const res = await customerApi.getProductReviews(id);
-            if (res.data.success) {
-                setReviews(res.data.results || []);
+            let reviews = [];
+            try {
+                const revRes = await customerApi.getProductReviews(id);
+                if (revRes.data.success) {
+                    reviews = revRes.data.results || [];
+                }
+            } catch (error) {
+                console.error("Fetch reviews error:", error);
             }
-        } catch (error) {
-            console.error("Fetch reviews error:", error);
-        } finally {
-            setReviewLoading(false);
+
+            return { product: formatted, reviews };
+        },
+        enabled: !!id,
+        placeholderData: keepPreviousData,
+    });
+
+    const product = productData?.product ?? null;
+    const reviews = productData?.reviews ?? [];
+    const error = isError
+        ? (queryError?.response?.data?.message || queryError?.message || "Failed to load product")
+        : null;
+
+    // Reset the active image whenever a fresh product fetch lands (matches
+    // the original's unconditional setActiveImage on every fetchData call).
+    useEffect(() => {
+        if (product) {
+            setActiveImage(product.images[0] || 'https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=600&auto=format&fit=crop');
         }
-    };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [productData]);
 
     useEffect(() => {
         setNewReview({ rating: 5, comment: '' });
         setLocalHasReviewed(false);
-        setReviews([]);
-        if (id) {
-            fetchData();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
-
-    useEffect(() => {
-        if (id && product) {
-            fetchData(false);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentLocation?.latitude, currentLocation?.longitude]);
 
     const handleReviewSubmit = async (e) => {
         e.preventDefault();
@@ -118,14 +132,17 @@ const ProductDetailPage = () => {
                 showToast("Review submitted successfully", "success");
                 setNewReview({ rating: 5, comment: '' });
                 setLocalHasReviewed(true);
-                setReviews(prev => [{
-                    _id: 'temp-' + Date.now(),
-                    rating: newReview.rating,
-                    comment: newReview.comment,
-                    createdAt: new Date().toISOString(),
-                    userId: { name: 'You' },
-                    status: 'pending'
-                }, ...prev]);
+                queryClient.setQueryData(productQueryKey, (prev) => prev ? {
+                    ...prev,
+                    reviews: [{
+                        _id: 'temp-' + Date.now(),
+                        rating: newReview.rating,
+                        comment: newReview.comment,
+                        createdAt: new Date().toISOString(),
+                        userId: { name: 'You' },
+                        status: 'pending'
+                    }, ...prev.reviews],
+                } : prev);
             }
         } catch (error) {
             showToast(error.response?.data?.message || "Failed to submit review", "error");

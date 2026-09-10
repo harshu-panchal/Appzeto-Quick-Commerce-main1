@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import InvoiceModal from "../components/order/InvoiceModal";
@@ -137,11 +138,9 @@ const matchesOrderIdentifier = (payloadOrderId, identifiers = []) => {
 
 const OrderDetailPage = () => {
   const { orderId } = useParams();
+  const queryClient = useQueryClient();
   const [showInvoice, setShowInvoice] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [order, setOrder] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [returnDetails, setReturnDetails] = useState(null);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [requestingReturn, setRequestingReturn] = useState(false);
   const [selectedReturnItems, setSelectedReturnItems] = useState({});
@@ -170,27 +169,64 @@ const OrderDetailPage = () => {
   const refreshRef = useRef({ inFlight: false, lastAt: 0, timer: null });
   const extraRoomRef = useRef("");
 
+  const navigate = useNavigate();
+  const isInvalidOrderId = !orderId || orderId === "undefined" || orderId === "null";
+
+  // Pure helper for resolving the lookup id from a freshly-fetched order
+  // before React state has settled (e.g. inside the query function).
+  const resolveOrderLookupId = (ord) =>
+    resolveOrderIdentifiers(ord, orderId).lookupId || "";
+
+  // Perf audit Phase 8: migrated the initial order+return fetch to React
+  // Query. `order` is subsequently patched in-place by socket updates and
+  // a debounced refresh, so those become `queryClient.setQueryData(...)`
+  // calls below rather than treating this as a read-only cache.
+  const orderDetailQueryKey = ["customer", "orderDetail", orderId];
+  const { data: orderDetailData, isLoading: loading, isError } = useQuery({
+    queryKey: orderDetailQueryKey,
+    queryFn: async () => {
+      const response = await customerApi.getOrderDetails(orderId);
+      const ord = response.data.result;
+      let returnDetails = null;
+      let returnPickupOtp = null;
+      try {
+        const retRes = await customerApi.getReturnDetails(resolveOrderLookupId(ord));
+        returnDetails = retRes.data.result;
+        if (returnDetails?.returnPickupOtp) {
+          returnPickupOtp = returnDetails.returnPickupOtp;
+        }
+      } catch {
+        returnDetails = null;
+      }
+      return { order: ord, returnDetails, returnPickupOtp };
+    },
+    enabled: !isInvalidOrderId,
+  });
+
+  const order = orderDetailData?.order ?? null;
+  const returnDetails = orderDetailData?.returnDetails ?? null;
+
+  useEffect(() => {
+    if (orderDetailData?.returnPickupOtp) {
+      setHandoffOtp(orderDetailData.returnPickupOtp);
+    }
+  }, [orderDetailData?.returnPickupOtp]);
+
+  useEffect(() => {
+    if (isError) toast.error("Failed to load order details");
+  }, [isError]);
+
   // Single source of truth for the various ids that may refer to this
   // order (URL param vs canonical order.orderId vs checkoutGroupId). The
   // hook exposes:
   //   - canonicalOrderId : id to use for realtime fan-out (RTDB + sockets)
   //   - identifiersRef   : .current array kept in sync for socket callbacks
   //   - extraRoomId      : canonical id when it differs from the URL param
-  // `lookupId` is also available from the hook for callers that need a
-  // REST-friendly id; this page derives it ad hoc via `resolveOrderLookupId`
-  // because the value is needed against freshly-fetched data before state
-  // settles, which the pure helper handles directly.
   const {
     canonicalOrderId,
     identifiersRef,
     extraRoomId,
   } = useOrderIdentifiers(orderId, order);
-
-  const navigate = useNavigate();
-  // Pure helper for resolving the lookup id from a freshly-fetched order
-  // before React state has settled (e.g. inside the initial fetch effect).
-  const resolveOrderLookupId = (ord) =>
-    resolveOrderIdentifiers(ord, orderId).lookupId || "";
 
   const handleBack = () => {
     const idx = window?.history?.state?.idx;
@@ -207,43 +243,12 @@ const OrderDetailPage = () => {
   }, []);
 
   useEffect(() => {
-    const isInvalid = !orderId || orderId === "undefined" || orderId === "null";
-    if (isInvalid) {
+    if (isInvalidOrderId) {
       console.warn(`[OrderDetailPage] Invalid orderId from URL: ${orderId}. Redirecting...`);
       navigate("/orders", { replace: true });
-      return;
     }
-
-    const fetchOrderDetails = async () => {
-      try {
-        refreshRef.current.inFlight = true;
-        const response = await customerApi.getOrderDetails(orderId);
-        const ord = response.data.result;
-        setOrder(ord);
-
-        try {
-          const retRes = await customerApi.getReturnDetails(resolveOrderLookupId(ord));
-          const ret = retRes.data.result;
-          setReturnDetails(ret);
-          if (ret?.returnPickupOtp) {
-            setHandoffOtp(ret.returnPickupOtp);
-          }
-        } catch {
-          setReturnDetails(null);
-        }
-      } catch (error) {
-        console.error("Failed to fetch order details:", error);
-        toast.error("Failed to load order details");
-      } finally {
-        refreshRef.current.inFlight = false;
-        setLoading(false);
-      }
-    };
-
-    if (orderId) {
-      fetchOrderDetails();
-    }
-  }, [orderId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isInvalidOrderId, orderId]);
 
   useEffect(() => {
     if (!orderId) return undefined;
@@ -259,19 +264,7 @@ const OrderDetailPage = () => {
     const refresh = () => {
       if (refreshRef.current.timer) clearTimeout(refreshRef.current.timer);
       refreshRef.current.timer = setTimeout(() => {
-        customerApi
-          .getOrderDetails(orderId)
-          .then(async (r) => {
-            const ord = r.data.result;
-            setOrder(ord);
-            try {
-              const retRes = await customerApi.getReturnDetails(resolveOrderLookupId(ord));
-              setReturnDetails(retRes.data.result);
-            } catch {
-              setReturnDetails(null);
-            }
-          })
-          .catch(() => { });
+        queryClient.invalidateQueries({ queryKey: orderDetailQueryKey });
       }, 500);
     };
 
@@ -279,16 +272,19 @@ const OrderDetailPage = () => {
       // Immediately update order state from socket payload — no waiting for API re-fetch
       const ws = String(payload?.workflowStatus || "").toUpperCase();
       if (ws) {
-        setOrder((prev) => {
-          if (!prev) return prev;
+        queryClient.setQueryData(orderDetailQueryKey, (prev) => {
+          if (!prev?.order) return prev;
           return {
             ...prev,
-            workflowStatus: ws,
-            // Keep legacy status in sync for components that read order.status
-            ...(ws === "DELIVERED" && { status: "delivered" }),
-            ...(ws === "DELIVERY_SEARCH" && { status: "confirmed" }),
-            ...(ws === "OUT_FOR_DELIVERY" && { status: "out_for_delivery" }),
-            ...(ws === "CANCELLED" && { status: "cancelled" }),
+            order: {
+              ...prev.order,
+              workflowStatus: ws,
+              // Keep legacy status in sync for components that read order.status
+              ...(ws === "DELIVERED" && { status: "delivered" }),
+              ...(ws === "DELIVERY_SEARCH" && { status: "confirmed" }),
+              ...(ws === "OUT_FOR_DELIVERY" && { status: "out_for_delivery" }),
+              ...(ws === "CANCELLED" && { status: "cancelled" }),
+            },
           };
         });
       }
@@ -630,8 +626,11 @@ const OrderDetailPage = () => {
         customerApi.getOrderDetails(orderId),
         customerApi.getReturnDetails(resolveOrderLookupId(order)),
       ]);
-      setOrder(orderRes.data.result);
-      setReturnDetails(retRes.data.result);
+      queryClient.setQueryData(orderDetailQueryKey, (prev) => ({
+        ...prev,
+        order: orderRes.data.result,
+        returnDetails: retRes.data.result,
+      }));
     } catch (error) {
       console.error("Failed to submit return request", error);
       toast.error(

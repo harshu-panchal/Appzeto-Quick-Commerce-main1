@@ -34,81 +34,100 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
+
+function mapSellerTransaction(t) {
+    return {
+        id: (t.reference || t._id || '').toString().substring(0, 10).toUpperCase(),
+        orderId: t.order?.orderId || null,
+        date: new Date(t.createdAt).toLocaleString('en-IN', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        }),
+        seller: t.user?.shopName || t.user?.name || 'Unknown',
+        type: t.type === 'Seller Earning' ? 'sale' :
+            (t.type === 'Withdrawal' || t.type === 'Payout') ? 'payout' :
+                t.type.toLowerCase(),
+        amount: t.amount,
+        commissionRate: t.order?.pricing?.platformFeeRate || 0,
+        commissionAmount: t.order?.pricing?.platformFee || 0,
+        taxAmount: t.order?.pricing?.tax || 0,
+        netPayable: t.amount,
+        status: t.status.toLowerCase(),
+        paymentMethod: t.paymentMethod || 'Wallet',
+        bankDetails: t.bankDetails || t.user?.bankDetails || 'N/A',
+        items: t.order?.items?.map(item => ({
+            name: item.product?.name || 'Unknown Item',
+            qty: item.quantity,
+            price: item.price
+        })) || []
+    };
+}
 
 const SellerTransactions = () => {
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
     const [filterType, setFilterType] = useState('all');
     const [selectedSeller, setSelectedSeller] = useState('all');
     const [selectedTxn, setSelectedTxn] = useState(null);
     const [isExporting, setIsExporting] = useState(false);
-    const [transactions, setTransactions] = useState([]);
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
-    const [total, setTotal] = useState(0);
-    const [loading, setLoading] = useState(true);
 
+    // Perf audit Phase 8: migrated to React Query — same 500ms debounce and
+    // "any filter change resets to page 1" behavior as before.
     useEffect(() => {
         const timer = setTimeout(() => {
-            fetchTransactions(1);
+            setDebouncedSearchTerm(searchTerm.trim());
+            setPage(1);
         }, 500);
         return () => clearTimeout(timer);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pageSize, searchTerm, filterStatus, filterType, selectedSeller]);
+    }, [searchTerm]);
 
-    const fetchTransactions = async (requestedPage = 1) => {
-        try {
-            setLoading(true);
-            const params = { page: requestedPage, limit: pageSize };
-            if (searchTerm.trim()) params.search = searchTerm.trim();
-            if (filterStatus !== 'all') params.status = filterStatus;
-            if (filterType !== 'all') params.type = filterType;
-            if (selectedSeller !== 'all') params.sellerId = selectedSeller; // Assuming backend supports seller filter
+    useEffect(() => {
+        setPage(1);
+    }, [pageSize, filterStatus, filterType, selectedSeller]);
 
-            const res = await adminApi.getSellerTransactions(params);
-            if (res.data.success) {
-                const payload = res.data.result || {};
-                const data = Array.isArray(payload.items) ? payload.items : (res.data.results || []);
-                const mapped = data.map(t => ({
-                    id: (t.reference || t._id || '').toString().substring(0, 10).toUpperCase(),
-                    orderId: t.order?.orderId || null,
-                    date: new Date(t.createdAt).toLocaleString('en-IN', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    }),
-                    seller: t.user?.shopName || t.user?.name || 'Unknown',
-                    type: t.type === 'Seller Earning' ? 'sale' :
-                        (t.type === 'Withdrawal' || t.type === 'Payout') ? 'payout' :
-                            t.type.toLowerCase(),
-                    amount: t.amount,
-                    commissionRate: t.order?.pricing?.platformFeeRate || 0,
-                    commissionAmount: t.order?.pricing?.platformFee || 0,
-                    taxAmount: t.order?.pricing?.tax || 0,
-                    netPayable: t.amount,
-                    status: t.status.toLowerCase(),
-                    paymentMethod: t.paymentMethod || 'Wallet',
-                    bankDetails: t.bankDetails || t.user?.bankDetails || 'N/A',
-                    items: t.order?.items?.map(item => ({
-                        name: item.product?.name || 'Unknown Item',
-                        qty: item.quantity,
-                        price: item.price
-                    })) || []
-                }));
-                setTransactions(mapped);
-                setTotal(typeof payload.total === 'number' ? payload.total : mapped.length);
-                setPage(typeof payload.page === 'number' ? payload.page : requestedPage);
-            }
-        } catch (error) {
+    const queryParams = useMemo(() => {
+        const params = { page, limit: pageSize };
+        if (debouncedSearchTerm) params.search = debouncedSearchTerm;
+        if (filterStatus !== 'all') params.status = filterStatus;
+        if (filterType !== 'all') params.type = filterType;
+        if (selectedSeller !== 'all') params.sellerId = selectedSeller;
+        return params;
+    }, [page, pageSize, debouncedSearchTerm, filterStatus, filterType, selectedSeller]);
+
+    const { data: queryData, isLoading, isFetching, isError } = useQuery({
+        queryKey: ['admin', 'sellerTransactions', queryParams],
+        queryFn: async () => {
+            const res = await adminApi.getSellerTransactions(queryParams);
+            if (!res.data.success) throw new Error('Failed to fetch transactions');
+            const payload = res.data.result || {};
+            const data = Array.isArray(payload.items) ? payload.items : (res.data.results || []);
+            const mapped = data.map(mapSellerTransaction);
+            return {
+                items: mapped,
+                total: typeof payload.total === 'number' ? payload.total : mapped.length,
+                page: typeof payload.page === 'number' ? payload.page : queryParams.page,
+            };
+        },
+        placeholderData: keepPreviousData,
+    });
+
+    useEffect(() => {
+        if (isError) {
             toast.error("Failed to fetch transactions");
-            console.error(error);
-        } finally {
-            setLoading(false);
         }
-    };
+    }, [isError]);
+
+    const transactions = queryData?.items ?? [];
+    const total = queryData?.total ?? 0;
+    const loading = isLoading;
 
     const sellers = useMemo(() => {
         const unique = Array.from(new Set(transactions.map(t => t.seller)));
@@ -464,7 +483,7 @@ const SellerTransactions = () => {
                         columns={txnColumns}
                         data={filteredTransactions}
                         rowKey={(t) => t.id}
-                        loading={loading && transactions.length > 0}
+                        loading={isFetching && transactions.length > 0}
                         emptyState={
                             <EmptyState
                                 icon={<Receipt className="h-6 w-6" />}
@@ -475,16 +494,16 @@ const SellerTransactions = () => {
                     />
 
                     <Pagination
-                        page={page}
+                        page={queryData?.page ?? page}
                         totalPages={Math.ceil(total / pageSize) || 1}
                         total={total}
                         pageSize={pageSize}
-                        onPageChange={(p) => fetchTransactions(p)}
+                        onPageChange={(p) => setPage(p)}
                         onPageSizeChange={(newSize) => {
                             setPageSize(newSize);
                             setPage(1);
                         }}
-                        loading={loading}
+                        loading={isFetching}
                     />
                 </>
             )}

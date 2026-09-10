@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
   CheckCircle,
@@ -21,28 +22,26 @@ import OtpInput from "../components/OtpInput";
 const DeliveryConfirmation = () => {
   const navigate = useNavigate();
   const { orderId } = useParams();
-  const [order, setOrder] = useState(null);
   const [cashCollected, setCashCollected] = useState("");
   const [otpGenerated, setOtpGenerated] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [loading, setLoading] = useState(true);
+
+  // Perf audit Phase 8: migrated to React Query.
+  const { data: order, isLoading: loading, isError } = useQuery({
+    queryKey: ["delivery", "orderDetail", orderId],
+    queryFn: async () => {
+      const res = await deliveryApi.getOrderDetails(orderId);
+      if (res.data.success) {
+        return res.data.result;
+      }
+      return null;
+    },
+    enabled: !!orderId,
+  });
 
   useEffect(() => {
-    const fetchOrder = async () => {
-      try {
-        setLoading(true);
-        const res = await deliveryApi.getOrderDetails(orderId);
-        if (res.data.success) {
-          setOrder(res.data.result);
-        }
-      } catch (error) {
-        toast.error("Failed to load order details");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchOrder();
-  }, [orderId]);
+    if (isError) toast.error("Failed to load order details");
+  }, [isError]);
 
   const handleOtpGenerated = (data) => {
     console.log("OTP generated successfully:", data);

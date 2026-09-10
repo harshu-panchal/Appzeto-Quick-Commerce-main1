@@ -1,5 +1,6 @@
 // Premium Billing & Financial Configuration System
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Card from '@shared/components/ui/Card';
 import Button from '@shared/components/ui/Button';
 import PageHeader from '@shared/components/ui/PageHeader';
@@ -36,40 +37,49 @@ const BillingCharges = () => {
         onlineEnabled: true,
     });
 
+    // Perf audit Phase 8: migrated the initial settings load to React
+    // Query (a one-time fetch feeding editable local form state). The
+    // fetched deliveryMode/config values are applied into local state via
+    // an effect once, exactly matching the original fetch-then-setState
+    // flow; further edits stay purely local until Save.
+    const { data: settingsData, isError } = useQuery({
+        queryKey: ['admin', 'billingChargesSettings'],
+        queryFn: async () => {
+            const [platformRes, deliveryRes] = await Promise.all([
+                adminApi.getPlatformSettings(),
+                adminApi.getDeliveryFinanceSettings(),
+            ]);
+            return {
+                delivery: deliveryRes.data?.success ? deliveryRes.data.result : null,
+            };
+        },
+        staleTime: Infinity,
+    });
+
     useEffect(() => {
-        const fetchSettings = async () => {
-            try {
-                const [platformRes, deliveryRes] = await Promise.all([
-                    adminApi.getPlatformSettings(),
-                    adminApi.getDeliveryFinanceSettings(),
-                ]);
+        if (isError) console.error('Failed to load settings');
+    }, [isError]);
 
-                if (platformRes.data?.success && platformRes.data.result) {
-                    // removed obsolete returnDeliveryCommission
-                }
-
-                if (deliveryRes.data?.success && deliveryRes.data.result) {
-                    const s = deliveryRes.data.result;
-                    setDeliveryMode(s.deliveryPricingMode === 'fixed_price' ? 'fixed' : 'distance');
-                    setConfig((prev) => ({
-                        ...prev,
-                        baseCharge: s.customerBaseDeliveryFee ?? s.baseDeliveryCharge ?? prev.baseCharge,
-                        riderBasePayout: s.riderBasePayout ?? s.customerBaseDeliveryFee ?? prev.riderBasePayout,
-                        baseDistance: s.baseDistanceCapacityKm ?? prev.baseDistance,
-                        extraPerKm: s.incrementalKmSurcharge ?? prev.extraPerKm,
-                        deliveryPartnerRatePerKm: s.deliveryPartnerRatePerKm ?? s.fleetCommissionRatePerKm ?? prev.deliveryPartnerRatePerKm,
-                        fixedCharge: s.fixedDeliveryFee ?? s.customerBaseDeliveryFee ?? prev.fixedCharge,
-                        handlingFeeStrategy: s.handlingFeeStrategy ?? prev.handlingFeeStrategy,
-                        codEnabled: s.codEnabled ?? prev.codEnabled,
-                        onlineEnabled: s.onlineEnabled ?? prev.onlineEnabled,
-                    }));
-                }
-            } catch (error) {
-                console.error('Failed to load settings', error);
-            }
-        };
-        fetchSettings();
-    }, []);
+    const hasSeededFormRef = useRef(false);
+    useEffect(() => {
+        const s = settingsData?.delivery;
+        if (!s || hasSeededFormRef.current) return;
+        hasSeededFormRef.current = true;
+        setDeliveryMode(s.deliveryPricingMode === 'fixed_price' ? 'fixed' : 'distance');
+        setConfig((prev) => ({
+            ...prev,
+            baseCharge: s.customerBaseDeliveryFee ?? s.baseDeliveryCharge ?? prev.baseCharge,
+            riderBasePayout: s.riderBasePayout ?? s.customerBaseDeliveryFee ?? prev.riderBasePayout,
+            baseDistance: s.baseDistanceCapacityKm ?? prev.baseDistance,
+            extraPerKm: s.incrementalKmSurcharge ?? prev.extraPerKm,
+            deliveryPartnerRatePerKm: s.deliveryPartnerRatePerKm ?? s.fleetCommissionRatePerKm ?? prev.deliveryPartnerRatePerKm,
+            fixedCharge: s.fixedDeliveryFee ?? s.customerBaseDeliveryFee ?? prev.fixedCharge,
+            handlingFeeStrategy: s.handlingFeeStrategy ?? prev.handlingFeeStrategy,
+            codEnabled: s.codEnabled ?? prev.codEnabled,
+            onlineEnabled: s.onlineEnabled ?? prev.onlineEnabled,
+        }));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [settingsData]);
 
     const handleSave = async () => {
         try {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Card from "@/shared/components/ui/Card";
 import { deliveryApi } from "../services/deliveryApi";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 
 const displayOrderStatus = (order) => {
   if (order?.workflowStatus === "DELIVERED" || order?.status === "delivered")
@@ -24,109 +25,35 @@ const displayOrderStatus = (order) => {
 const OrderHistory = () => {
   const navigate = useNavigate();
   const [filter, setFilter] = useState("all");
-  const [loading, setLoading] = useState(true);
-  const [orders, setOrders] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const prevFilterRef = useRef(filter);
-  const fetchSeqRef = useRef(0);
-  const visibilityAbortRef = useRef(null);
+
+  // Perf audit Phase 8: migrated to React Query. This replaces two
+  // hand-rolled mechanisms with built-ins that do the same job: the
+  // AbortController + sequence-number guard (React Query already only ever
+  // applies the latest request for a given query key, and cancels
+  // superseded in-flight ones), and the manual `visibilitychange` listener
+  // that refetched on tab refocus (the shared QueryClient already has
+  // `refetchOnWindowFocus: true` as its default — see
+  // core/query/queryClient.js). Not using `keepPreviousData` here
+  // deliberately: the original cleared `orders` to `[]` the instant the
+  // filter changed (before the new fetch resolved), so the loading spinner
+  // must reappear on every filter switch — that's the query default
+  // (no data yet for a new key) without keepPreviousData.
+  const { data: orders = [], isLoading, isFetching, isError } = useQuery({
+    queryKey: ["delivery", "orderHistory", filter],
+    queryFn: async () => {
+      const response = await deliveryApi.getOrderHistory({ status: filter });
+      const list = response.data?.results ?? response.data?.result ?? [];
+      return Array.isArray(list) ? list : [];
+    },
+  });
 
   useEffect(() => {
-    visibilityAbortRef.current?.abort();
-    const filterChanged = prevFilterRef.current !== filter;
-    prevFilterRef.current = filter;
-    if (filterChanged) {
-      setOrders([]);
-    }
+    if (isError) toast.error("Failed to fetch order history");
+  }, [isError]);
 
-    const abortController = new AbortController();
-    const runSeq = ++fetchSeqRef.current;
-
-    setLoading(true);
-    (async () => {
-      try {
-        const response = await deliveryApi.getOrderHistory(
-          { status: filter },
-          { signal: abortController.signal },
-        );
-        if (runSeq !== fetchSeqRef.current) return;
-        const list =
-          response.data?.results ?? response.data?.result ?? [];
-        setOrders(Array.isArray(list) ? list : []);
-      } catch (error) {
-        if (
-          error?.code === "ERR_CANCELED" ||
-          error?.name === "CanceledError" ||
-          error?.name === "AbortError"
-        ) {
-          return;
-        }
-        if (runSeq !== fetchSeqRef.current) return;
-        toast.error("Failed to fetch order history");
-      } finally {
-        if (runSeq === fetchSeqRef.current) {
-          setLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      abortController.abort();
-      visibilityAbortRef.current?.abort();
-    };
-  }, [filter]);
-
-  useEffect(() => {
-    let sawHidden = false;
-    const onVis = () => {
-      if (document.visibilityState === "hidden") {
-        sawHidden = true;
-        return;
-      }
-      if (!sawHidden || document.visibilityState !== "visible") return;
-      sawHidden = false;
-
-      visibilityAbortRef.current?.abort();
-      const ac = new AbortController();
-      visibilityAbortRef.current = ac;
-      const runSeq = ++fetchSeqRef.current;
-      setLoading(true);
-      (async () => {
-        try {
-          const response = await deliveryApi.getOrderHistory(
-            { status: filter },
-            { signal: ac.signal },
-          );
-          if (runSeq !== fetchSeqRef.current) return;
-          const list =
-            response.data?.results ?? response.data?.result ?? [];
-          setOrders(Array.isArray(list) ? list : []);
-        } catch (error) {
-          if (
-            error?.code === "ERR_CANCELED" ||
-            error?.name === "CanceledError" ||
-            error?.name === "AbortError"
-          ) {
-            return;
-          }
-          if (runSeq !== fetchSeqRef.current) return;
-          toast.error("Failed to fetch order history");
-        } finally {
-          if (runSeq === fetchSeqRef.current) {
-            setLoading(false);
-          }
-        }
-      })();
-    };
-    document.addEventListener("visibilitychange", onVis);
-    return () => {
-      document.removeEventListener("visibilitychange", onVis);
-      visibilityAbortRef.current?.abort();
-    };
-  }, [filter]);
-
-  const initialLoading = loading && orders.length === 0;
-  const refreshing = loading && orders.length > 0;
+  const initialLoading = isLoading;
+  const refreshing = isFetching && !isLoading;
 
   const filteredOrders = (orders || []).filter((order) => {
     const q = searchQuery.toLowerCase();

@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Lottie from 'lottie-react';
-import backendAnimation from '../../../assets/Backend Icon.json';
 import { adminApi } from '../services/adminApi';
 
 const AdminAuth = () => {
@@ -30,6 +29,14 @@ const AdminAuth = () => {
         import('@core/auth/activeRoleStore').then(({ setActiveRole, ROLES }) => {
             setActiveRole(ROLES.ADMIN);
         });
+    }, []);
+
+    // Perf audit FE-B6: dynamically loaded instead of statically imported.
+    const [backendAnimation, setBackendAnimation] = useState(null);
+    React.useEffect(() => {
+        import('../../../assets/Backend Icon.json')
+            .then((m) => setBackendAnimation(m.default))
+            .catch(() => {});
     }, []);
 
     React.useEffect(() => {
@@ -288,11 +295,13 @@ const AdminAuth = () => {
                             transition={{ delay: 0.3, duration: 1, type: "spring" }}
                             className="relative z-10 w-full max-w-[380px]"
                         >
-                            <Lottie
-                                animationData={backendAnimation}
-                                loop={true}
-                                className="h-auto w-full"
-                            />
+                            {backendAnimation && (
+                                <Lottie
+                                    animationData={backendAnimation}
+                                    loop={true}
+                                    className="h-auto w-full"
+                                />
+                            )}
                         </motion.div>
 
                     </div>

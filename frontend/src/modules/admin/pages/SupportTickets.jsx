@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import Card from '@shared/components/ui/Card';
 import Badge from '@shared/components/ui/Badge';
 import PageHeader from '@shared/components/ui/PageHeader';
@@ -21,13 +21,31 @@ import { useToast } from '@shared/components/ui/Toast';
 import { useAuth } from '@core/context/AuthContext';
 import { joinTicketRoom, leaveTicketRoom, onTicketCreated, onTicketMessage } from '@/core/services/orderSocket';
 import { useSupportUnread } from '@core/context/SupportUnreadContext';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+
+const TICKETS_QUERY_ROOT = ['admin', 'tickets'];
+
+function mapTicket(t) {
+    return {
+        ...t,
+        id: t._id,
+        ticketCode: t._id.slice(-6).toUpperCase(),
+        user: t.userId?.name || "Unknown",
+        date: new Date(t.createdAt).toLocaleString(),
+        messages: (t.messages || []).map((m, i) => ({
+            ...m,
+            id: m._id || m.id || `msg-${t._id}-${i}`,
+            time: new Date(m.createdAt || Date.now()).toLocaleTimeString()
+        }))
+    };
+}
 
 const SupportTickets = () => {
     const { showToast } = useToast();
     const { token } = useAuth();
+    const queryClient = useQueryClient();
     const { unreadByTicket, setIsViewingSupportChat, setActiveTicketId, markTicketRead } = useSupportUnread();
     const getToken = () => token;
-    const fetchTicketsRef = useRef(null);
     const ticketsRef = useRef([]);
     const selectedTicketRoomRef = useRef(null);
     const messagesContainerRef = useRef(null);
@@ -39,11 +57,70 @@ const SupportTickets = () => {
     const [reply, setReply] = useState('');
     const [menuOpen, setMenuOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [tickets, setTickets] = useState([]);
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
-    const [total, setTotal] = useState(0);
+
+    const queryParams = useMemo(() => {
+        const params = { page, limit: pageSize };
+        if (debouncedSearchTerm) params.search = debouncedSearchTerm;
+        return params;
+    }, [page, pageSize, debouncedSearchTerm]);
+    const queryKey = [...TICKETS_QUERY_ROOT, queryParams];
+
+    // Perf audit Phase 8: migrated to React Query — same 500ms debounce and
+    // page-reset-on-filter-change behavior as before. The socket-driven
+    // live message/ticket updates below now write through
+    // `queryClient.setQueryData` on this same key instead of a page-local
+    // `setTickets`, so a fetched page keeps receiving live updates exactly
+    // as before, just from the shared cache instead of local state.
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm.trim());
+            setPage(1);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    useEffect(() => {
+        setPage(1);
+    }, [pageSize]);
+
+    const { data: queryData, isFetching: loading, isError, refetch } = useQuery({
+        queryKey,
+        queryFn: async () => {
+            const res = await adminApi.getTickets(queryParams);
+            if (!res.data.success) throw new Error('Failed to load tickets');
+            const payload = res.data.result || {};
+            const data = Array.isArray(payload.items) ? payload.items : (res.data.results || []);
+            const mapped = data.map(mapTicket);
+            return {
+                items: mapped,
+                total: typeof payload.total === 'number' ? payload.total : mapped.length,
+                page: typeof payload.page === 'number' ? payload.page : queryParams.page,
+            };
+        },
+        placeholderData: keepPreviousData,
+    });
+
+    useEffect(() => {
+        if (isError) {
+            console.error("Fetch Tickets Error");
+            showToast("Failed to load tickets", "error");
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isError]);
+
+    const tickets = queryData?.items ?? [];
+    const total = queryData?.total ?? 0;
+
+    const setTickets = (updater) => {
+        queryClient.setQueryData(queryKey, (old) => {
+            if (!old) return old;
+            const nextItems = typeof updater === 'function' ? updater(old.items) : updater;
+            return { ...old, items: nextItems };
+        });
+    };
 
     useEffect(() => {
         setIsViewingSupportChat(true);
@@ -58,51 +135,6 @@ const SupportTickets = () => {
         setActiveTicketId(tid);
         if (tid) markTicketRead(tid);
     }, [selectedTicket?.id, setActiveTicketId, markTicketRead]);
-
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            fetchTickets(1);
-        }, 500);
-        return () => clearTimeout(timer);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pageSize, searchTerm]);
-
-    const fetchTickets = async (requestedPage = 1) => {
-        try {
-            setLoading(true);
-            const params = { page: requestedPage, limit: pageSize };
-            if (searchTerm.trim()) params.search = searchTerm.trim();
-
-            const res = await adminApi.getTickets(params);
-            if (res.data.success) {
-                const payload = res.data.result || {};
-                const data = Array.isArray(payload.items) ? payload.items : (res.data.results || []);
-                setTickets(data.map(t => ({
-                    ...t,
-                    id: t._id,
-                    ticketCode: t._id.slice(-6).toUpperCase(),
-                    user: t.userId?.name || "Unknown",
-                    date: new Date(t.createdAt).toLocaleString(),
-                    messages: (t.messages || []).map((m, i) => ({
-                        ...m,
-                        id: m._id || m.id || `msg-${t._id}-${i}`,
-                        time: new Date(m.createdAt || Date.now()).toLocaleTimeString()
-                    }))
-                })));
-                setTotal(typeof payload.total === 'number' ? payload.total : data.length);
-                setPage(typeof payload.page === 'number' ? payload.page : requestedPage);
-            }
-        } catch (error) {
-            console.error("Fetch Tickets Error:", error);
-            showToast("Failed to load tickets", "error");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchTicketsRef.current = fetchTickets;
-    });
 
     useEffect(() => {
         ticketsRef.current = tickets;
@@ -157,7 +189,11 @@ const SupportTickets = () => {
 
         const offCreated = onTicketCreated(getToken, () => {
             showToast('New support ticket received', 'info');
-            fetchTicketsRef.current?.(1);
+            // Matches the original's `fetchTicketsRef.current?.(1)` — jump
+            // back to page 1 and force a fresh fetch there (setPage alone
+            // wouldn't refetch if already on page 1).
+            setPage(1);
+            queryClient.invalidateQueries({ queryKey: TICKETS_QUERY_ROOT });
         });
 
         const offMessage = onTicketMessage(getToken, (payload) => {
@@ -425,11 +461,11 @@ const SupportTickets = () => {
                         </div>
                         <div className="border-t border-slate-100 p-3">
                             <Pagination
-                                page={page}
+                                page={queryData?.page ?? page}
                                 totalPages={Math.ceil(total / pageSize) || 1}
                                 total={total}
                                 pageSize={pageSize}
-                                onPageChange={(p) => fetchTickets(p)}
+                                onPageChange={(p) => setPage(p)}
                                 onPageSizeChange={(newSize) => {
                                     setPageSize(newSize);
                                     setPage(1);

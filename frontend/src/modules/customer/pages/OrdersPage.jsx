@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
 import { Package, ChevronRight, Clock, CheckCircle, Loader2, ChevronLeft } from 'lucide-react';
 import { customerApi } from '../services/customerApi';
@@ -7,11 +8,11 @@ import { applyCloudinaryTransform } from '@/core/utils/imageUtils';
 
 const OrdersPage = () => {
     const navigate = useNavigate();
-    const [orders, setOrders] = useState([]);
-    const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchOrders = async () => {
+    // Perf audit Phase 8: migrated to React Query.
+    const { data: orders = [], isLoading: loading } = useQuery({
+        queryKey: ['customer', 'myOrders'],
+        queryFn: async () => {
             try {
                 const response = await customerApi.getMyOrders();
                 // Backend uses handleResponse():
@@ -22,7 +23,7 @@ const OrdersPage = () => {
                     payload?.result?.items ||
                     payload?.results ||
                     [];
-                setOrders(Array.isArray(items) ? items : []);
+                return Array.isArray(items) ? items : [];
             } catch (error) {
                 console.error("Failed to fetch orders:", error);
                 const apiMessage = error?.response?.data?.message;
@@ -30,13 +31,10 @@ const OrdersPage = () => {
                 if (apiMessage) {
                     console.warn("[OrdersPage] API error:", apiMessage);
                 }
-            } finally {
-                setLoading(false);
+                return [];
             }
-        };
-
-        fetchOrders();
-    }, []);
+        },
+    });
 
     if (loading) {
         return (

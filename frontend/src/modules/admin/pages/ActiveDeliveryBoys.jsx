@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Badge from '@shared/components/ui/Badge';
 import Button from '@shared/components/ui/Button';
 import PageHeader from '@shared/components/ui/PageHeader';
@@ -31,18 +31,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import Pagination from '@shared/components/ui/Pagination';
 import { adminApi } from '../services/adminApi';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 
 const RIDER_AVATAR_FALLBACK = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 const riderAvatar = (rider) =>
     rider.avatar && !rider.avatar.includes('emoji') && !rider.avatar.includes('avatar') ? rider.avatar : RIDER_AVATAR_FALLBACK;
 
+const ACTIVE_DELIVERY_BOYS_QUERY_ROOT = ['admin', 'activeDeliveryBoys'];
+
 const ActiveDeliveryBoys = () => {
-    const [riders, setRiders] = useState([]);
+    const queryClient = useQueryClient();
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
-    const [total, setTotal] = useState(0);
-    const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [selectedRider, setSelectedRider] = useState(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -54,15 +56,33 @@ const ActiveDeliveryBoys = () => {
         name: '', phone: '', email: '', vehicle: '', vehicleNum: '', location: ''
     });
 
-    // Fetch Riders
-    const fetchRiders = async (requestedPage = 1) => {
-        setIsLoading(true);
-        try {
-            const params = { page: requestedPage, limit: pageSize };
-            if (searchTerm.trim()) params.search = searchTerm.trim();
-            if (statusFilter !== 'all') params.status = statusFilter;
+    // Perf audit Phase 8: migrated to React Query — same 500ms debounce,
+    // same page-reset-on-filter-change behavior.
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm.trim());
+            setPage(1);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
 
-            const response = await adminApi.getDeliveryPartners(params);
+    useEffect(() => {
+        setPage(1);
+    }, [pageSize, statusFilter]);
+
+    const queryParams = useMemo(() => {
+        const params = { page, limit: pageSize };
+        if (debouncedSearchTerm) params.search = debouncedSearchTerm;
+        if (statusFilter !== 'all') params.status = statusFilter;
+        return params;
+    }, [page, pageSize, debouncedSearchTerm, statusFilter]);
+
+    const queryKey = [...ACTIVE_DELIVERY_BOYS_QUERY_ROOT, queryParams];
+
+    const { data: queryData, isLoading, isFetching, isError } = useQuery({
+        queryKey,
+        queryFn: async () => {
+            const response = await adminApi.getDeliveryPartners(queryParams);
             const payload = response.data.result || {};
             const data = Array.isArray(payload.items) ? payload.items : (response.data.results || response.data.result || []);
 
@@ -82,24 +102,41 @@ const ActiveDeliveryBoys = () => {
                 joinDate: new Date(r.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
             }));
 
-            setRiders(mappedRiders);
-            setTotal(typeof payload.total === 'number' ? payload.total : mappedRiders.length);
-            setPage(typeof payload.page === 'number' ? payload.page : requestedPage);
-        } catch (error) {
-            console.error('Fetch Riders Error:', error);
-            toast.error('Failed to fetch delivery partners');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+            return {
+                items: mappedRiders,
+                total: typeof payload.total === 'number' ? payload.total : mappedRiders.length,
+                page: typeof payload.page === 'number' ? payload.page : queryParams.page,
+            };
+        },
+        placeholderData: keepPreviousData,
+    });
 
-    React.useEffect(() => {
-        const timer = setTimeout(() => {
-            fetchRiders(1);
-        }, 500);
-        return () => clearTimeout(timer);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pageSize, searchTerm, statusFilter]);
+    useEffect(() => {
+        if (isError) {
+            console.error('Fetch Riders Error');
+            toast.error('Failed to fetch delivery partners');
+        }
+    }, [isError]);
+
+    const riders = queryData?.items ?? [];
+    const total = queryData?.total ?? 0;
+
+    // Audit note (pre-existing, unrelated to this migration, left as-is):
+    // onboard/edit/delete below only ever mutated local state — there was
+    // no actual `adminApi.createDeliveryPartner`/`updateDeliveryPartner`/
+    // `deleteDeliveryPartner` call anywhere in this file, so these actions
+    // never persisted to the server. Preserved exactly: they still only
+    // splice the current cached page's data via `setQueryData`, the same
+    // way the old `setRiders(...)` only touched local state — no
+    // invalidate/refetch is triggered, matching the original never
+    // re-fetching after these actions either.
+    const setLocalRiders = (updater) => {
+        queryClient.setQueryData(queryKey, (old) => {
+            if (!old) return old;
+            const nextItems = typeof updater === 'function' ? updater(old.items) : updater;
+            return { ...old, items: nextItems };
+        });
+    };
 
     // Filtering logic
     const filteredRiders = useMemo(() => {
@@ -120,7 +157,7 @@ const ActiveDeliveryBoys = () => {
             setIsEditModalOpen(true);
         } else if (type === 'delete') {
             if (window.confirm(`Are you sure you want to deactivate ${rider.name}?`)) {
-                setRiders(riders.filter(r => r.id !== rider.id));
+                setLocalRiders((prev) => prev.filter(r => r.id !== rider.id));
             }
         }
     };
@@ -159,7 +196,7 @@ const ActiveDeliveryBoys = () => {
             lastSync: 'Just now',
             joinDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
         };
-        setRiders([newRider, ...riders]);
+        setLocalRiders((prev) => [newRider, ...prev]);
         setIsOnboardModalOpen(false);
         setFormState({ name: '', phone: '', email: '', vehicle: '', vehicleNum: '', location: '' });
         toast.success("New rider added successfully");
@@ -169,7 +206,7 @@ const ActiveDeliveryBoys = () => {
         e.preventDefault();
         if (!validateForm()) return;
 
-        setRiders(riders.map(r => r.id === selectedRider.id ? { ...r, ...formState } : r));
+        setLocalRiders((prev) => prev.map(r => r.id === selectedRider.id ? { ...r, ...formState } : r));
         setIsEditModalOpen(false);
         setSelectedRider(null);
         toast.success("Rider details updated successfully");
@@ -320,7 +357,7 @@ const ActiveDeliveryBoys = () => {
                 columns={riderColumns}
                 data={filteredRiders}
                 rowKey={(r) => r.id}
-                loading={isLoading && riders.length > 0}
+                loading={isFetching && riders.length > 0}
                 emptyState={
                     <EmptyState
                         icon={<User className="h-6 w-6" />}
@@ -331,16 +368,16 @@ const ActiveDeliveryBoys = () => {
             />
 
             <Pagination
-                page={page}
+                page={queryData?.page ?? page}
                 totalPages={Math.ceil(total / pageSize) || 1}
                 total={total}
                 pageSize={pageSize}
-                onPageChange={(p) => fetchRiders(p)}
+                onPageChange={(p) => setPage(p)}
                 onPageSizeChange={(newSize) => {
                     setPageSize(newSize);
                     setPage(1);
                 }}
-                loading={isLoading}
+                loading={isFetching}
             />
 
             {/* Profile Detail Modal */}

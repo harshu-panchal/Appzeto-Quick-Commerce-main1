@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Button from "@shared/components/ui/Button";
 import Badge from "@shared/components/ui/Badge";
 import {
@@ -68,8 +69,23 @@ const AddProduct = () => {
     ],
   });
 
-  const [dbCategories, setDbCategories] = useState([]);
-  const [isLoadingCats, setIsLoadingCats] = useState(true);
+  // Perf audit Phase 8: migrated the one-time category-tree fetch to React
+  // Query — shares the cache with any other seller page that calls the
+  // same unparameterized getCategoryTree() endpoint.
+  const { data: dbCategories = [], isLoading: isLoadingCats, isError: isCatsError } = useQuery({
+    queryKey: ["seller", "categoryTree"],
+    queryFn: async () => {
+      const res = await sellerApi.getCategoryTree();
+      if (res.data.success) {
+        return res.data.results || res.data.result || [];
+      }
+      return [];
+    },
+  });
+
+  useEffect(() => {
+    if (isCatsError) toast.error("Failed to load categories");
+  }, [isCatsError]);
 
   useEffect(() => {
     setFormData((prev) => {
@@ -96,22 +112,6 @@ const AddProduct = () => {
       return changed ? { ...prev, sku: nextSku, variants: nextVariants } : prev;
     });
   }, [formData.name]);
-
-  React.useEffect(() => {
-    const fetchCats = async () => {
-      try {
-        const res = await sellerApi.getCategoryTree();
-        if (res.data.success) {
-          setDbCategories(res.data.results || res.data.result || []);
-        }
-      } catch (error) {
-        toast.error("Failed to load categories");
-      } finally {
-        setIsLoadingCats(false);
-      }
-    };
-    fetchCats();
-  }, []);
 
   const categories = dbCategories;
 

@@ -31,31 +31,61 @@ import Modal from '@shared/components/ui/Modal';
 import Pagination from '@shared/components/ui/Pagination';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+
+const DEFAULT_MODERATION_COUNTS = {
+    all: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    active: 0,
+    lowStock: 0,
+    outOfStock: 0,
+};
+
+// Perf audit FE-R3: these were previously defined *inside* the
+// ProductManagement component body, so every render created new function
+// identities for them. Because they're rendered as JSX components
+// (`<StatusBadge .../>`) inside DataTable's cell renderers, React treated
+// them as a different component type on every re-render and fully
+// unmounted/remounted every badge cell in the table — including while
+// simply typing in the edit-product modal's form fields, since that state
+// lives in this same component. Neither component closes over any local
+// state (they're pure functions of their props), so hoisting them to
+// module scope is a pure perf fix with identical visual output.
+const StatusBadge = ({ status, stock }) => {
+    if (stock === 0) return <Badge variant="danger">Out of Stock</Badge>;
+    if (stock <= 10) return <Badge variant="warning">Low Stock</Badge>;
+    if (status === 'active') return <Badge variant="success">Active</Badge>;
+    return <Badge variant="secondary">Draft</Badge>;
+};
+
+const ApprovalBadge = ({ approvalStatus }) => {
+    const normalized = String(approvalStatus || 'approved').toLowerCase();
+    if (normalized === 'pending') {
+        return <Badge variant="warning">Pending</Badge>;
+    }
+    if (normalized === 'rejected') {
+        return <Badge variant="danger">Rejected</Badge>;
+    }
+    return <Badge variant="success">Approved</Badge>;
+};
+
+const ADMIN_PRODUCTS_QUERY_KEY = ['admin', 'productModeration'];
 
 const ProductManagement = () => {
-    const [products, setProducts] = useState([]);
-    const [categories, setCategories] = useState([]); // All categories for dropdowns
+    const queryClient = useQueryClient();
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
-    const [total, setTotal] = useState(0);
-    const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
 
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [filterCategory, setFilterCategory] = useState('all');
     const [filterStatus, setFilterStatus] = useState('all'); // Added filterStatus
     const [filterApprovalStatus, setFilterApprovalStatus] = useState('all');
     const [filterStockStatus, setFilterStockStatus] = useState('all');
     const [sortBy, setSortBy] = useState('newest');
-    const [moderationCounts, setModerationCounts] = useState({
-        all: 0,
-        pending: 0,
-        approved: 0,
-        rejected: 0,
-        active: 0,
-        lowStock: 0,
-        outOfStock: 0
-    });
     const [moderatingActionId, setModeratingActionId] = useState('');
 
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -95,36 +125,57 @@ const ProductManagement = () => {
     const [viewingVariants, setViewingVariants] = useState(null);
     const [isVariantsViewModalOpen, setIsVariantsViewModalOpen] = useState(false);
 
-    const fetchCategories = async () => {
-        try {
+    // Perf audit Phase 8: migrated to React Query — same 500ms debounce,
+    // same page-reset-on-filter-change behavior as before.
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm);
+            setPage(1);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    useEffect(() => {
+        setPage(1);
+    }, [filterCategory, filterStatus, filterApprovalStatus, filterStockStatus, sortBy, pageSize]);
+
+    const { data: categories = [] } = useQuery({
+        queryKey: ['admin', 'categoryTree'],
+        queryFn: async () => {
             const response = await adminApi.getCategoryTree();
-            if (response.data.success) {
-                setCategories(response.data.results || response.data.result || []);
-            }
-        } catch (error) {
-            console.error('Failed to fetch categories');
-        }
-    };
+            if (!response.data.success) return [];
+            return response.data.results || response.data.result || [];
+        },
+    });
 
-    const fetchProducts = async (requestedPage = 1) => {
-        setIsLoading(true);
-        try {
-            const params = { page: requestedPage, limit: pageSize };
-            if (searchTerm) params.search = searchTerm;
-            if (filterCategory !== 'all') params.category = filterCategory;
-            if (filterStatus !== 'all') params.status = filterStatus;
-            if (filterApprovalStatus !== 'all') params.approvalStatus = filterApprovalStatus;
-            if (filterStockStatus !== 'all') params.stockStatus = filterStockStatus;
-            if (sortBy) params.sort = sortBy;
+    const productsQueryParams = useMemo(() => {
+        const params = { page, limit: pageSize };
+        if (debouncedSearchTerm) params.search = debouncedSearchTerm;
+        if (filterCategory !== 'all') params.category = filterCategory;
+        if (filterStatus !== 'all') params.status = filterStatus;
+        if (filterApprovalStatus !== 'all') params.approvalStatus = filterApprovalStatus;
+        if (filterStockStatus !== 'all') params.stockStatus = filterStockStatus;
+        if (sortBy) params.sort = sortBy;
+        return params;
+    }, [page, pageSize, debouncedSearchTerm, filterCategory, filterStatus, filterApprovalStatus, filterStockStatus, sortBy]);
 
-            const response = await adminApi.getProductModerationList(params);
-            if (response.data.success) {
-                const payload = response.data.result || {};
-                const list = Array.isArray(payload.items) ? payload.items : (response.data.results || []);
-                setProducts(list);
-                setTotal(typeof payload.total === 'number' ? payload.total : list.length);
-                setPage(typeof payload.page === 'number' ? payload.page : requestedPage);
-                setModerationCounts({
+    const {
+        data: productsQueryData,
+        isLoading,
+        isFetching,
+        isError: isProductsError,
+    } = useQuery({
+        queryKey: [...ADMIN_PRODUCTS_QUERY_KEY, productsQueryParams],
+        queryFn: async () => {
+            const response = await adminApi.getProductModerationList(productsQueryParams);
+            if (!response.data.success) throw new Error('Failed to fetch products');
+            const payload = response.data.result || {};
+            const list = Array.isArray(payload.items) ? payload.items : (response.data.results || []);
+            return {
+                items: list,
+                total: typeof payload.total === 'number' ? payload.total : list.length,
+                page: typeof payload.page === 'number' ? payload.page : productsQueryParams.page,
+                counts: {
                     all: Number(payload?.counts?.all || 0),
                     pending: Number(payload?.counts?.pending || 0),
                     approved: Number(payload?.counts?.approved || 0),
@@ -132,25 +183,20 @@ const ProductManagement = () => {
                     active: Number(payload?.counts?.active || 0),
                     lowStock: Number(payload?.counts?.lowStock || 0),
                     outOfStock: Number(payload?.counts?.outOfStock || 0),
-                });
-            }
-        } catch (error) {
-            toast.error('Failed to fetch products');
-        } finally {
-            setIsLoading(false);
-        }
-    };
+                },
+            };
+        },
+        placeholderData: keepPreviousData,
+    });
 
     useEffect(() => {
-        fetchCategories();
-    }, []);
+        if (isProductsError) toast.error('Failed to fetch products');
+    }, [isProductsError]);
 
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            fetchProducts(1);
-        }, 500); // Debounce search
-        return () => clearTimeout(timer);
-    }, [searchTerm, filterCategory, filterStatus, filterApprovalStatus, filterStockStatus, sortBy, pageSize]);
+    const products = productsQueryData?.items ?? [];
+    const total = productsQueryData?.total ?? 0;
+    const moderationCounts = productsQueryData?.counts ?? DEFAULT_MODERATION_COUNTS;
+    const invalidateProducts = () => queryClient.invalidateQueries({ queryKey: ADMIN_PRODUCTS_QUERY_KEY });
 
     const handleSave = async () => {
         if (!editingItem) {
@@ -193,7 +239,7 @@ const ProductManagement = () => {
             await adminApi.updateProduct(editingItem._id, data);
             toast.success('Product updated successfully');
             setIsProductModalOpen(false);
-            fetchProducts(page);
+            invalidateProducts();
         } catch (error) {
             toast.error(error.response?.data?.message || 'Failed to save product');
         } finally {
@@ -206,7 +252,7 @@ const ProductManagement = () => {
             await adminApi.deleteProduct(itemToDelete._id);
             toast.success('Product deleted');
             setIsDeleteModalOpen(false);
-            fetchProducts(page);
+            invalidateProducts();
         } catch (error) {
             toast.error('Failed to delete product');
         }
@@ -225,7 +271,7 @@ const ProductManagement = () => {
                 const res = await adminApi.rejectProductModeration(product._id, { approvalNote });
                 toast.success(res?.data?.message || 'Product rejected successfully');
             }
-            fetchProducts(page);
+            invalidateProducts();
         } catch (error) {
             toast.error(error.response?.data?.message || 'Failed to update product approval status');
         } finally {
@@ -372,24 +418,6 @@ const ProductManagement = () => {
         };
     }, [moderationCounts, total]);
 
-    const StatusBadge = ({ status, stock }) => {
-        if (stock === 0) return <Badge variant="danger">Out of Stock</Badge>;
-        if (stock <= 10) return <Badge variant="warning">Low Stock</Badge>;
-        if (status === 'active') return <Badge variant="success">Active</Badge>;
-        return <Badge variant="secondary">Draft</Badge>;
-    };
-
-    const ApprovalBadge = ({ approvalStatus }) => {
-        const normalized = String(approvalStatus || 'approved').toLowerCase();
-        if (normalized === 'pending') {
-            return <Badge variant="warning">Pending</Badge>;
-        }
-        if (normalized === 'rejected') {
-            return <Badge variant="danger">Rejected</Badge>;
-        }
-        return <Badge variant="success">Approved</Badge>;
-    };
-
     const columns = [
         {
             header: 'Product',
@@ -397,7 +425,7 @@ const ProductManagement = () => {
             cell: (p) => (
                 <div className="flex min-w-0 items-center gap-3">
                     <div className="h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
-                        <img src={p.mainImage || p.images?.[0]} alt={p.name} className="h-full w-full object-cover" />
+                        <img src={p.mainImage || p.images?.[0]} alt={p.name} loading="lazy" className="h-full w-full object-cover" />
                     </div>
                     <div className="min-w-0">
                         <p className="truncate text-[13px] font-semibold text-slate-900" title={p.name}>{p.name}</p>
@@ -645,7 +673,7 @@ const ProductManagement = () => {
                         columns={columns}
                         data={productsList}
                         rowKey={(p) => p._id}
-                        loading={isLoading && productsList.length > 0}
+                        loading={isFetching && productsList.length > 0}
                         emptyState={
                             <EmptyState
                                 icon={<HiOutlineCube className="h-6 w-6" />}
@@ -656,16 +684,16 @@ const ProductManagement = () => {
                     />
 
                     <Pagination
-                        page={page}
+                        page={productsQueryData?.page ?? page}
                         totalPages={Math.ceil(total / pageSize) || 1}
                         total={total}
                         pageSize={pageSize}
-                        onPageChange={(p) => fetchProducts(p)}
+                        onPageChange={(p) => setPage(p)}
                         onPageSizeChange={(newSize) => {
                             setPageSize(newSize);
                             setPage(1);
                         }}
-                        loading={isLoading}
+                        loading={isFetching}
                     />
                 </>
             )}

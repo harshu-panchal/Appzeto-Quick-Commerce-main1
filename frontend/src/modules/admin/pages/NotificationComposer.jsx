@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Card from '@shared/components/ui/Card';
 import Badge from '@shared/components/ui/Badge';
 import Button from '@shared/components/ui/Button';
@@ -54,11 +55,25 @@ const NotificationComposer = () => {
     const emojiPopoverRef = useRef(null);
     const imageInputRef = useRef(null);
 
-    const [audienceStats, setAudienceStats] = useState({
-        all: 0,
-        customers: 0,
-        sellers: 0,
-        delivery: 0,
+    // Perf audit Phase 8: migrated audience stats to React Query. Original
+    // silently kept the zeroed defaults on failure (no toast), so the
+    // queryFn matches that by swallowing the error and returning defaults.
+    const { data: audienceStats = { all: 0, customers: 0, sellers: 0, delivery: 0 } } = useQuery({
+        queryKey: ['admin', 'broadcastAudienceStats'],
+        queryFn: async () => {
+            try {
+                const res = await adminApi.getBroadcastAudienceStats();
+                const result = res?.data?.result || {};
+                return {
+                    all: Number(result?.all || 0),
+                    customers: Number(result?.customers || 0),
+                    sellers: Number(result?.sellers || 0),
+                    delivery: Number(result?.delivery || 0),
+                };
+            } catch {
+                return { all: 0, customers: 0, sellers: 0, delivery: 0 };
+            }
+        },
     });
 
     const segments = [
@@ -67,29 +82,6 @@ const NotificationComposer = () => {
         { id: 'sellers', label: 'Sellers', count: audienceStats.sellers, description: 'Seller Audience', icon: HiOutlineBuildingStorefront, color: 'text-info', bg: 'bg-info/10' },
         { id: 'delivery', label: 'Delivery Partners', count: audienceStats.delivery, description: 'Delivery Audience', icon: HiOutlineTruck, color: 'text-success', bg: 'bg-success/10' },
     ];
-
-    useEffect(() => {
-        let isMounted = true;
-        const loadAudienceStats = async () => {
-            try {
-                const res = await adminApi.getBroadcastAudienceStats();
-                const result = res?.data?.result || {};
-                if (!isMounted) return;
-                setAudienceStats({
-                    all: Number(result?.all || 0),
-                    customers: Number(result?.customers || 0),
-                    sellers: Number(result?.sellers || 0),
-                    delivery: Number(result?.delivery || 0),
-                });
-            } catch {
-                // keep defaults when stats endpoint fails
-            }
-        };
-        loadAudienceStats();
-        return () => {
-            isMounted = false;
-        };
-    }, []);
 
     const handleSend = async () => {
         if (isSending) return;

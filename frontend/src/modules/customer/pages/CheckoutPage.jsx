@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import Lottie from "lottie-react";
 import { useInViewAnimation } from "@/core/hooks/useInViewAnimation";
@@ -205,7 +206,22 @@ const CheckoutPage = () => {
   });
   const [savedRecipient, setSavedRecipient] = useState(null);
   const [recommendedProducts, setRecommendedProducts] = useState([]);
-  const [coupons, setCoupons] = useState([]);
+  // Perf audit Phase 8: migrated to React Query (one-time reference-data
+  // fetch, silently ignores failure exactly like the original).
+  const { data: coupons = [] } = useQuery({
+    queryKey: ["customer", "activeCoupons"],
+    queryFn: async () => {
+      try {
+        const res = await customerApi.getActiveCoupons();
+        if (res.data.success) {
+          return res.data.result || res.data.results || [];
+        }
+        return [];
+      } catch {
+        return [];
+      }
+    },
+  });
   const [manualCode, setManualCode] = useState("");
   const [emptyBoxData, setEmptyBoxData] = useState(null);
 
@@ -678,26 +694,13 @@ const CheckoutPage = () => {
     [cart]
   );
 
-  // Load recipient from localStorage + fetch coupons on mount
+  // Load recipient from localStorage on mount
   useEffect(() => {
     const parsed = getJSON(RECIPIENT_STORAGE_KEY, null);
     if (parsed && parsed.completeAddress && parsed.name && parsed.phone) {
       setRecipientData(parsed);
       setSavedRecipient(parsed);
     }
-
-    const fetchCoupons = async () => {
-      try {
-        const res = await customerApi.getActiveCoupons();
-        if (res.data.success) {
-          const list = res.data.result || res.data.results || [];
-          setCoupons(list);
-        }
-      } catch {
-        // silently ignore
-      }
-    };
-    fetchCoupons();
   }, []);
 
   // Debounced checkoutPreview — fires 400 ms after last dependency change

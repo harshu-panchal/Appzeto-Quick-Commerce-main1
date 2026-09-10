@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { MessageCircle, Phone, Mail, ChevronDown, ChevronUp, FileText, ChevronLeft, PlusCircle, X, Send } from 'lucide-react';
 import { useToast } from '@shared/components/ui/Toast';
@@ -31,8 +32,26 @@ const SupportPage = () => {
         priority: 'medium'
     });
     const [faqs, setFaqs] = useState([]);
-    const [supportIntroHtml, setSupportIntroHtml] = useState('');
-    const [supportIntroTitle, setSupportIntroTitle] = useState('');
+
+    // Perf audit Phase 8: migrated the legal-page intro fetch to React
+    // Query (the FAQ fetch below has its own bespoke sessionStorage TTL
+    // cache already — intentionally left as-is since it already serves
+    // the caching intent and changing it risks altering that TTL
+    // semantics for no benefit).
+    const { data: supportIntroData } = useQuery({
+        queryKey: ['customer', 'supportIntro'],
+        queryFn: async () => {
+            try {
+                const res = await legalPagesApi.get('customer', 'support');
+                const data = res.data?.result ?? res.data;
+                return { html: data?.contentHtml || '', title: data?.title || '' };
+            } catch {
+                return { html: '', title: '' };
+            }
+        },
+    });
+    const supportIntroHtml = supportIntroData?.html || '';
+    const supportIntroTitle = supportIntroData?.title || '';
 
     useEffect(() => {
         if (location.state?.autoOpenTicket) {
@@ -48,17 +67,6 @@ const SupportPage = () => {
             navigate('.', { replace: true, state: {} });
         }
     }, [location.state, navigate]);
-
-    useEffect(() => {
-        legalPagesApi
-            .get('customer', 'support')
-            .then((res) => {
-                const data = res.data?.result ?? res.data;
-                setSupportIntroHtml(data?.contentHtml || '');
-                setSupportIntroTitle(data?.title || '');
-            })
-            .catch(() => {});
-    }, []);
 
     useEffect(() => {
         const fetchFaqs = async () => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import Badge from "@shared/components/ui/Badge";
 import Button from "@shared/components/ui/Button";
 import PageHeader from "@shared/components/ui/PageHeader";
@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import IconSelector from "@shared/components/IconSelector";
 import Pagination from "@shared/components/ui/Pagination";
 import { getIconSvg } from "@shared/constants/categoryIcons";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 
 // MUI icon library (shared with customer app & icon selector)
 import HomeIcon from "@mui/icons-material/Home";
@@ -51,13 +52,14 @@ const makeSlug = (value) =>
     .replace(/[^\w-]+/g, "")
     .replace(/-+/g, "-");
 
+const HEADER_CATEGORIES_QUERY_KEY = ["admin", "headerCategories"];
+
 const HeaderCategories = () => {
-  const [categories, setCategories] = useState([]);
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
-  const [total, setTotal] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isIconSelectorOpen, setIsIconSelectorOpen] = useState(false);
@@ -110,32 +112,56 @@ const HeaderCategories = () => {
     grocery: LocalGroceryStoreIcon,
   };
 
+  // Perf audit Phase 8: migrated to React Query — same 400ms debounce and
+  // page-reset-on-search-change behavior as before.
   useEffect(() => {
-    const timer = setTimeout(() => fetchCategories(1), 400);
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setPage(1);
+    }, 400);
     return () => clearTimeout(timer);
-  }, [searchTerm, pageSize]);
+  }, [searchTerm]);
 
-  const fetchCategories = async (requestedPage = 1) => {
-    setIsLoading(true);
-    try {
-      const params = { type: "header", page: requestedPage, limit: pageSize };
-      if (searchTerm) params.search = searchTerm;
-      const res = await adminApi.getCategories(params);
-      if (res.data.success) {
-        const payload = res.data.result || {};
-        const list = Array.isArray(payload.items) ? payload.items : [];
-        const allCats = res.data.results || [];
-        const headers = list.length > 0 ? list : allCats.filter((c) => c.type === "header");
-        setCategories(headers);
-        setTotal(typeof payload.total === "number" ? payload.total : headers.length);
-        setPage(typeof payload.page === "number" ? payload.page : requestedPage);
-      }
-    } catch (error) {
-      toast.error("Failed to fetch header categories");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize]);
+
+  const categoriesQueryParams = useMemo(() => {
+    const params = { type: "header", page, limit: pageSize };
+    if (debouncedSearchTerm) params.search = debouncedSearchTerm;
+    return params;
+  }, [page, pageSize, debouncedSearchTerm]);
+
+  const {
+    data: categoriesQueryData,
+    isFetching,
+    isError: isCategoriesError,
+  } = useQuery({
+    queryKey: [...HEADER_CATEGORIES_QUERY_KEY, categoriesQueryParams],
+    queryFn: async () => {
+      const res = await adminApi.getCategories(categoriesQueryParams);
+      if (!res.data.success) throw new Error("Failed to fetch header categories");
+      const payload = res.data.result || {};
+      const list = Array.isArray(payload.items) ? payload.items : [];
+      const allCats = res.data.results || [];
+      const headers = list.length > 0 ? list : allCats.filter((c) => c.type === "header");
+      return {
+        items: headers,
+        total: typeof payload.total === "number" ? payload.total : headers.length,
+        page: typeof payload.page === "number" ? payload.page : categoriesQueryParams.page,
+      };
+    },
+    placeholderData: keepPreviousData,
+  });
+
+  useEffect(() => {
+    if (isCategoriesError) toast.error("Failed to fetch header categories");
+  }, [isCategoriesError]);
+
+  const categories = categoriesQueryData?.items ?? [];
+  const total = categoriesQueryData?.total ?? 0;
+  const invalidateCategories = () =>
+    queryClient.invalidateQueries({ queryKey: HEADER_CATEGORIES_QUERY_KEY });
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
@@ -220,7 +246,7 @@ const HeaderCategories = () => {
       }
       setIsAddModalOpen(false);
       setEditingItem(null);
-      fetchCategories(page);
+      invalidateCategories();
     } catch (error) {
       console.error(error);
       const errorMessage = error.response?.data?.message || (editingItem ? "Failed to update category" : "Failed to create category");
@@ -238,7 +264,7 @@ const HeaderCategories = () => {
       toast.success("Header category deleted");
       setIsDeleteModalOpen(false);
       setDeleteTarget(null);
-      fetchCategories(page);
+      invalidateCategories();
     } catch (error) {
       const errorMessage = error.response?.data?.message || "Failed to delete category";
       toast.error(errorMessage);
@@ -412,18 +438,18 @@ const HeaderCategories = () => {
         columns={categoryColumns}
         data={categories}
         rowKey={(c) => c._id || c.id}
-        loading={isLoading}
+        loading={isFetching}
         emptyState={<div className="py-12 text-center text-sm text-slate-400">No header categories found.</div>}
       />
 
       <Pagination
-        page={page}
+        page={categoriesQueryData?.page ?? page}
         totalPages={Math.ceil(total / pageSize) || 1}
         total={total}
         pageSize={pageSize}
-        onPageChange={(p) => fetchCategories(p)}
+        onPageChange={(p) => setPage(p)}
         onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
-        loading={isLoading}
+        loading={isFetching}
       />
 
       {/* Add/Edit Modal */}

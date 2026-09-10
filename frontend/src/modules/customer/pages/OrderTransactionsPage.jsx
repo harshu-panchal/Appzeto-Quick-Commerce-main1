@@ -1,29 +1,28 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, ArrowUpRight, ArrowDownLeft, ReceiptIndianRupee } from 'lucide-react';
 import { customerApi } from '../services/customerApi';
 
 const OrderTransactionsPage = () => {
     const navigate = useNavigate();
-    const [orders, setOrders] = useState([]);
-    const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchOrders = async () => {
+    // Perf audit Phase 8: migrated to React Query, sharing the same
+    // ["customer","myOrders"] key as OrdersPage.jsx since both call the
+    // same unparameterized getMyOrders() endpoint — free cache sharing.
+    const { data: orders = [], isLoading: loading } = useQuery({
+        queryKey: ['customer', 'myOrders'],
+        queryFn: async () => {
             try {
                 const res = await customerApi.getMyOrders();
                 // Handle both paginated (result.items) and legacy (results) formats
-                const orderData = res.data.result?.items || res.data.results || [];
-                setOrders(orderData);
+                return res.data.result?.items || res.data.results || [];
             } catch (error) {
                 console.error('Failed to fetch orders for transaction history:', error);
-            } finally {
-                setLoading(false);
+                return [];
             }
-        };
-
-        fetchOrders();
-    }, []);
+        },
+    });
 
     return (
         <div className="min-h-screen bg-slate-50 pb-24 font-sans">

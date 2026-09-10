@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   User,
   Mail,
@@ -18,10 +19,11 @@ import Card from "@shared/components/ui/Card";
 import Button from "@shared/components/ui/Button";
 import MapPicker from "../../../shared/components/MapPicker";
 
+const PROFILE_QUERY_KEY = ["seller", "profile"];
+
 const SellerProfile = () => {
-  const [profile, setProfile] = useState(null);
+  const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -35,31 +37,39 @@ const SellerProfile = () => {
     address: "",
   });
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const fetchProfile = async () => {
-    try {
+  // Perf audit Phase 8: migrated to React Query. `profile` is read-only
+  // display data straight from the cache; `formData` is editable local
+  // state seeded from it once per successful fetch (seededRef guard, same
+  // pattern as AdminProfile/AdminSettings) so a background refetch can't
+  // clobber in-progress edits. The ref is reset after a save or a status
+  // toggle so the next fetched value re-seeds the form.
+  const { data: profile, isLoading, isError } = useQuery({
+    queryKey: PROFILE_QUERY_KEY,
+    queryFn: async () => {
       const response = await sellerApi.getProfile();
-      const data = response.data.result;
-      setProfile(data);
-      setFormData({
-        name: data.name,
-        shopName: data.shopName,
-        phone: data.phone,
-        email: data.email,
-        lat: data.location?.coordinates[1] || null,
-        lng: data.location?.coordinates[0] || null,
-        radius: data.serviceRadius || 5,
-        address: data.address || "",
-      });
-    } catch (error) {
-      toast.error("Failed to fetch profile");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      return response.data.result;
+    },
+  });
+
+  useEffect(() => {
+    if (isError) toast.error("Failed to fetch profile");
+  }, [isError]);
+
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (!profile || seededRef.current) return;
+    seededRef.current = true;
+    setFormData({
+      name: profile.name,
+      shopName: profile.shopName,
+      phone: profile.phone,
+      email: profile.email,
+      lat: profile.location?.coordinates[1] || null,
+      lng: profile.location?.coordinates[0] || null,
+      radius: profile.serviceRadius || 5,
+      address: profile.address || "",
+    });
+  }, [profile]);
 
   const handleLocationSelect = (location) => {
     setFormData((prev) => ({
@@ -112,7 +122,8 @@ const SellerProfile = () => {
       await sellerApi.updateProfile(payload);
       toast.success("Profile updated successfully");
       setIsEditing(false);
-      fetchProfile();
+      seededRef.current = false;
+      queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY });
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to update profile");
     } finally {
@@ -124,7 +135,7 @@ const SellerProfile = () => {
     try {
       const newStatus = !profile.isActive;
       await sellerApi.updateProfile({ isActive: newStatus });
-      setProfile((prev) => ({ ...prev, isActive: newStatus }));
+      queryClient.setQueryData(PROFILE_QUERY_KEY, (prev) => ({ ...prev, isActive: newStatus }));
       toast.success(`Shop is now ${newStatus ? "Active" : "Inactive"}`);
     } catch (error) {
       toast.error("Failed to update shop status");
