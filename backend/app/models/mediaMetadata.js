@@ -14,7 +14,6 @@ const mediaMetadataSchema = new mongoose.Schema(
   {
     intentId: {
       type: String,
-      default: null,
       unique: true,
       sparse: true,
       index: true,
@@ -46,7 +45,6 @@ const mediaMetadataSchema = new mongoose.Schema(
       required: function () {
         return this.provider === "cloudinary";
       },
-      default: null,
       unique: true,
       sparse: true,
       index: true,
@@ -193,6 +191,18 @@ mediaMetadataSchema.index(
     partialFilterExpression: { status: "pending", expiresAt: { $type: "date" } },
   },
 );
+
+// Pre-save hook to ensure sparse unique indexed fields (intentId, publicId) are omitted (undefined)
+// rather than stored as null or empty string, preventing E11000 duplicate key errors in MongoDB.
+mediaMetadataSchema.pre("save", function (next) {
+  if (this.intentId === null || this.intentId === "") {
+    this.intentId = undefined;
+  }
+  if (this.publicId === null || this.publicId === "") {
+    this.publicId = undefined;
+  }
+  next();
+});
 
 /**
  * Mark media as deleted (soft delete)

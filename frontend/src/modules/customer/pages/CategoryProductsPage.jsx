@@ -37,7 +37,44 @@ const CategoryProductsPage = () => {
             .catch(() => {});
     }, []);
 
-    const DEFAULT_SUBCATEGORIES = [{ id: 'all', name: 'All', icon: 'https://cdn-icons-png.flaticon.com/128/2321/2321831.png' }];
+    const DEFAULT_SUBCATEGORIES = [{ 
+        id: 'all', 
+        name: 'All', 
+        icon: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=200&h=200',
+        isAll: true 
+    }];
+
+    const GENERIC_ICONS = [
+        'https://cdn-icons-png.flaticon.com/128/2321/2321801.png',
+        'https://cdn-icons-png.flaticon.com/128/2321/2321831.png',
+    ];
+
+    const SUBCATEGORY_IMAGE_MAP = [
+        { keywords: ['juice', 'dip', 'drink', 'beverage', 'syrup'], url: 'https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?auto=format&fit=crop&q=80&w=200&h=200' },
+        { keywords: ['sprout', 'cut', 'microgreen', 'salad'], url: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&q=80&w=200&h=200' },
+        { keywords: ['organic', 'certified', 'bio', 'farm'], url: 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=200&h=200' },
+        { keywords: ['vegetable', 'veggie', 'green', 'leafy'], url: 'https://images.unsplash.com/photo-1597362925123-77861d3fbac7?auto=format&fit=crop&q=80&w=200&h=200' },
+        { keywords: ['fruit', 'apple', 'banana', 'mango', 'berry', 'citrus'], url: 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?auto=format&fit=crop&q=80&w=200&h=200' },
+        { keywords: ['milk', 'dairy', 'paneer', 'curd', 'butter', 'cheese', 'ghee'], url: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&q=80&w=200&h=200' },
+        { keywords: ['bread', 'bakery', 'toast', 'bun', 'baking'], url: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=200&h=200' },
+        { keywords: ['chip', 'snack', 'biscuit', 'munch', 'namkeen', 'cookie'], url: 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&q=80&w=200&h=200' },
+        { keywords: ['meat', 'chicken', 'fish', 'egg', 'seafood'], url: 'https://images.unsplash.com/photo-1587593810167-a84920ea0781?auto=format&fit=crop&q=80&w=200&h=200' },
+        { keywords: ['beverage', 'soda', 'cold drink', 'water'], url: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&q=80&w=200&h=200' },
+        { keywords: ['clean', 'household', 'detergent', 'toilet', 'wash'], url: 'https://images.unsplash.com/photo-1585421514284-efb74c2b69ba?auto=format&fit=crop&q=80&w=200&h=200' },
+        { keywords: ['personal', 'soap', 'shampoo', 'beauty', 'care', 'skin'], url: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&q=80&w=200&h=200' },
+        { keywords: ['tea', 'coffee', 'chai'], url: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?auto=format&fit=crop&q=80&w=200&h=200' },
+        { keywords: ['spice', 'masala', 'oil', 'dhal', 'dal', 'rice', 'grain', 'atta'], url: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?auto=format&fit=crop&q=80&w=200&h=200' },
+    ];
+
+    const resolveSubcategoryIcon = (name, rawImage) => {
+        if (rawImage && !GENERIC_ICONS.some(g => rawImage.includes(g))) {
+            return rawImage;
+        }
+        const lower = (name || '').toLowerCase();
+        const matched = SUBCATEGORY_IMAGE_MAP.find(m => m.keywords.some(k => lower.includes(k)));
+        return matched ? matched.url : 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=200&h=200';
+    };
+
     const hasValidLocation =
         Number.isFinite(currentLocation?.latitude) &&
         Number.isFinite(currentLocation?.longitude);
@@ -104,7 +141,7 @@ const CategoryProductsPage = () => {
                     const subs = (currentCat.children || []).map(s => ({
                         id: s._id,
                         name: s.name,
-                        icon: s.image || 'https://cdn-icons-png.flaticon.com/128/2321/2321801.png'
+                        icon: resolveSubcategoryIcon(s.name, s.image)
                     }));
                     subCategories = [...DEFAULT_SUBCATEGORIES, ...subs];
                 }
@@ -186,32 +223,56 @@ const CategoryProductsPage = () => {
                 ) : (
                     <>
                         {/* Sidebar */}
-                        <aside className="w-[70px] border-r border-gray-50 flex flex-col bg-white overflow-y-auto hide-scrollbar sticky top-[60px] h-[calc(100vh-60px)] pb-32 flex-shrink-0">
-                            {subCategories.map((cat) => (
-                                <button
-                                    key={cat.id}
-                                    onClick={() => setSelectedSubCategory(cat.id)}
-                                    className={cn(
-                                        "flex flex-col items-center py-4 px-1 gap-2 transition-all relative border-l-4",
-                                        selectedSubCategory === cat.id
-                                            ? "bg-[#F7FCF5] border-primary"
-                                            : "border-transparent hover:bg-gray-50"
-                                    )}
-                                >
-                                    <div className={cn(
-                                        "w-14 h-14 rounded-2xl flex items-center justify-center p-1.5 transition-all duration-300",
-                                        selectedSubCategory === cat.id ? "scale-110" : "opacity-100"
-                                    )}>
-                                        <img src={applyCloudinaryTransform(cat.icon)} alt={cat.name} loading="lazy" className="w-full h-full object-contain" />
-                                    </div>
-                                    <span className={cn(
-                                        "text-[10px] text-center font-bold font-sans leading-tight px-1",
-                                        selectedSubCategory === cat.id ? "text-primary" : "text-gray-600"
-                                    )}>
-                                        {cat.name}
-                                    </span>
-                                </button>
-                            ))}
+                        <aside className="w-[84px] border-r border-slate-100 flex flex-col bg-white overflow-y-auto hide-scrollbar sticky top-[60px] h-[calc(100vh-60px)] pb-32 flex-shrink-0 select-none">
+                            {subCategories.map((cat) => {
+                                const isSelected = selectedSubCategory === cat.id;
+                                return (
+                                    <button
+                                        key={cat.id}
+                                        onClick={() => setSelectedSubCategory(cat.id)}
+                                        className={cn(
+                                            "relative flex flex-col items-center py-3 px-1 gap-1.5 transition-all duration-200 group cursor-pointer border-r-2",
+                                            isSelected
+                                                ? "bg-emerald-50/60 border-primary"
+                                                : "border-transparent hover:bg-gray-50/80"
+                                        )}
+                                    >
+                                        {/* Active Indicator Bar */}
+                                        {isSelected && (
+                                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r-full shadow-xs" />
+                                        )}
+
+                                        {/* Subcategory Image Container */}
+                                        <div className={cn(
+                                            "w-[48px] h-[48px] rounded-xl flex items-center justify-center p-0.5 overflow-hidden transition-all duration-200 shadow-xs",
+                                            isSelected
+                                                ? "bg-white border-2 border-primary scale-105 shadow-sm ring-2 ring-primary/10"
+                                                : "bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:border-slate-200"
+                                        )}>
+                                            {cat.isAll ? (
+                                                <div className="w-full h-full rounded-[10px] bg-emerald-600 text-white flex items-center justify-center font-black text-xs uppercase tracking-wider shadow-inner">
+                                                    ALL
+                                                </div>
+                                            ) : (
+                                                <img
+                                                    src={applyCloudinaryTransform(cat.icon)}
+                                                    alt={cat.name}
+                                                    loading="lazy"
+                                                    className="w-full h-full object-cover rounded-[10px]"
+                                                />
+                                            )}
+                                        </div>
+
+                                        {/* Subcategory Label */}
+                                        <span className={cn(
+                                            "text-[10.5px] text-center font-semibold leading-[1.25] max-w-[76px] px-0.5 transition-colors line-clamp-2 break-words",
+                                            isSelected ? "text-primary font-bold" : "text-slate-600 group-hover:text-slate-900"
+                                        )}>
+                                            {cat.name}
+                                        </span>
+                                    </button>
+                                );
+                            })}
                         </aside>
 
                         {/* Content */}

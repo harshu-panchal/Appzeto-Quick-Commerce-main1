@@ -1,0 +1,926 @@
+[
+  {
+    "name": "Home & Kitchen",
+    "type": "header",
+    "slug": "home-kitchen",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115767/categories/abf1kdcn11bieppxzrfx.png"
+  },
+  {
+    "name": "Soup",
+    "type": "subcategory",
+    "slug": "soup",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115767/categories/acy3xhtgaciyjbh3qb5o.png"
+  },
+  {
+    "name": "Paneer & Tofu",
+    "type": "subcategory",
+    "slug": "paneer-tofu",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115767/categories/aeatqgaevxoxolzkt086.png"
+  },
+  {
+    "name": "Asian Sauces",
+    "type": "subcategory",
+    "slug": "asian-sauces",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115769/categories/afbjz9ykutk7uhfdrrpj.png"
+  },
+  {
+    "name": "Jam & Spreads",
+    "type": "subcategory",
+    "slug": "jam-spreads",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115769/categories/amh20fwitzbpfnaggayv.jpg"
+  },
+  {
+    "name": "Powdered Spices",
+    "type": "subcategory",
+    "slug": "powdered-spices",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115769/categories/arrbfmaclrmwk03c92cn.jpg"
+  },
+  {
+    "name": "Cat Food",
+    "type": "category",
+    "slug": "cat-food",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115769/categories/b5w9njwstil0grrj3dff.png"
+  },
+  {
+    "name": "Tomato & Chilli Ketchup",
+    "type": "subcategory",
+    "slug": "tomato-chilli-ketchup",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115769/categories/blyywgwt1ee3vz27zk9n.png"
+  },
+  {
+    "name": "Kids",
+    "type": "header",
+    "slug": "kids",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115770/categories/bpxvfysfmymrciq4gh77.jpg"
+  },
+  {
+    "name": "Skin & Hair Care",
+    "type": "subcategory",
+    "slug": "skin-hair-care",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115770/categories/bqlwtpmhk3whembph6za.png"
+  },
+  {
+    "name": "Curd & Yogurt",
+    "type": "subcategory",
+    "slug": "curd-yogurt",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115770/categories/brhvzpmcomooqm1h0x7c.png"
+  },
+  {
+    "name": "Muesli & Granola",
+    "type": "subcategory",
+    "slug": "muesli-granola",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115770/categories/bukvrrvtg9fhyl5dax0l.png"
+  },
+  {
+    "name": "Healthy Proteins",
+    "type": "subcategory",
+    "slug": "healthy-proteins",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115770/categories/bwe7sscx8bcxmqmubdtr.webp"
+  },
+  {
+    "name": "wedding",
+    "type": "header",
+    "slug": "wedding",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115772/categories/by9ntdsozgatkkxgkdio.png"
+  },
+  {
+    "name": "TV & Mobiles",
+    "type": "category",
+    "slug": "tv-mobiles",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115772/categories/bzms8tjii2vxuguwsq3x.png"
+  },
+  {
+    "name": "Cream Biscuits",
+    "type": "subcategory",
+    "slug": "cream-biscuits",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115772/categories/c1fkw4d1xj58ggsmsocj.png"
+  },
+  {
+    "name": "Millet & Other Flours",
+    "type": "subcategory",
+    "slug": "millet-other-flours",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115772/categories/c9tq3etczon0muvrug4p.png"
+  },
+  {
+    "name": "Fresh Juice & Dips",
+    "type": "subcategory",
+    "slug": "fresh-juice-dips",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115772/categories/c9ypxkmrhrdj5itpvxfg.png"
+  },
+  {
+    "name": "Dessert & Cake Mixes",
+    "type": "subcategory",
+    "slug": "dessert-cake-mixes",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115774/categories/ca1xh8yjrbw98xweemmw.png"
+  },
+  {
+    "name": "Pet Supplies",
+    "type": "header",
+    "slug": "pet-supplies",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115774/categories/cd6a6mct7xcgyw6s3ddc.png"
+  },
+  {
+    "name": "Whole Spices",
+    "type": "subcategory",
+    "slug": "whole-spices",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115774/categories/cdcd8aq4ludkgabmyi3i.webp"
+  },
+  {
+    "name": "Cooking Essentials",
+    "type": "subcategory",
+    "slug": "cooking-essentials",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115774/categories/che3es4hv5mgzyi7weee.webp"
+  },
+  {
+    "name": "Test",
+    "type": "header",
+    "slug": "test",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115774/categories/cqvhv1vgn6b8fwgy65nx.png"
+  },
+  {
+    "name": "Toor, Urad & Chana",
+    "type": "subcategory",
+    "slug": "toor-urad-chana",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115776/categories/d5hogktmmnxkehz2dtze.webp"
+  },
+  {
+    "name": "Cream & Whitener",
+    "type": "subcategory",
+    "slug": "cream-whitener",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115776/categories/dgwxpwrazpqpntikij48.jpg"
+  },
+  {
+    "name": "Peanut Butter",
+    "type": "subcategory",
+    "slug": "peanut-butter",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115776/categories/dharotlkhjr5hgikxyud.jpg"
+  },
+  {
+    "name": "Ice Cream & Frozen Dessert",
+    "type": "subcategory",
+    "slug": "ice-cream-frozen-dessert",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115776/categories/dhxqf8ym17bs3z1en5za.png"
+  },
+  {
+    "name": "Indian Sweets",
+    "type": "subcategory",
+    "slug": "indian-sweets",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115776/categories/dljlktxsqpidpcvuufyt.svg"
+  },
+  {
+    "name": "Cleaning Gadgets",
+    "type": "category",
+    "slug": "cleaning-gadgets",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115779/categories/dqomxa9hk5dnzntuo8oj.png"
+  },
+  {
+    "name": "Dog Food",
+    "type": "category",
+    "slug": "dog-food",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115779/categories/drryumd6pknzvxs892j7.jpg"
+  },
+  {
+    "name": "Oats",
+    "type": "subcategory",
+    "slug": "oats",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115779/categories/e2azsxibnhdp3gx8se6g.png"
+  },
+  {
+    "name": "Dates & Seeds",
+    "type": "subcategory",
+    "slug": "dates-seeds",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115779/categories/e5c0cfswlyqmtaiupj3j.png"
+  },
+  {
+    "name": "Kids Food",
+    "type": "category",
+    "slug": "kids-food",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115779/categories/ebvjbfeipyhm0hbb0mfb.png"
+  },
+  {
+    "name": "Baby Gifting & Toys",
+    "type": "subcategory",
+    "slug": "baby-gifting-toys",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115780/categories/egnbtkg1crknaf2ipmri.webp"
+  },
+  {
+    "name": "Imported Noodles & Pasta",
+    "type": "subcategory",
+    "slug": "imported-noodles-pasta",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115780/categories/ek5llnq15mijm42p7aua.png"
+  },
+  {
+    "name": "Pet Grooming",
+    "type": "category",
+    "slug": "pet-grooming",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115779/categories/evzuvhjitbmplxq7jxwe.png"
+  },
+  {
+    "name": "Imported Beverages",
+    "type": "subcategory",
+    "slug": "imported-beverages",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115780/categories/fc1iyrdxbugxxjnbtvf3.png"
+  },
+  {
+    "name": "Freshly Cut Sprouts",
+    "type": "subcategory",
+    "slug": "freshly-cut-sprouts",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115780/categories/fcsbqzltkvkghtubqf6l.svg"
+  },
+  {
+    "name": "Baby Wipes",
+    "type": "subcategory",
+    "slug": "baby-wipes",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115781/categories/fuhfecmnkrr8rqb3fy6p.png"
+  },
+  {
+    "name": "Ready to Cook & Eat",
+    "type": "subcategory",
+    "slug": "ready-to-cook-eat",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115781/categories/g9ii24ye2ufpanxjbtnc.png"
+  },
+  {
+    "name": "Makhana & More",
+    "type": "subcategory",
+    "slug": "makhana-more",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115781/categories/gcpvx8oybwxliiisyowk.webp"
+  },
+  {
+    "name": "Health & Safety",
+    "type": "subcategory",
+    "slug": "health-safety",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115781/categories/gqdqpq2iocboblc5geie.png"
+  },
+  {
+    "name": "Pasta",
+    "type": "subcategory",
+    "slug": "pasta",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115783/categories/grpwb6ebjaloyp4kshwi.png"
+  },
+  {
+    "name": "Flavoured Yougurts",
+    "type": "subcategory",
+    "slug": "flavoured-yougurts",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115784/categories/h1mxor5j1xkofmnaoqxx.png"
+  },
+  {
+    "name": "Green & Flavoured Tea",
+    "type": "subcategory",
+    "slug": "green-flavoured-tea",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115784/categories/h81ujodntdlru8ieuouu.png"
+  },
+  {
+    "name": "Cricket",
+    "type": "category",
+    "slug": "cricket",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115784/categories/h8flcjdsr5ktqrvmd4bh.webp"
+  },
+  {
+    "name": "Honey & Chyawnprash",
+    "type": "subcategory",
+    "slug": "honey-chyawnprash",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115784/categories/hmqrrtv5h8uv55ibbq2q.svg"
+  },
+  {
+    "name": "Basketball",
+    "type": "category",
+    "slug": "basketball",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115784/categories/houfaes7mw2e32btjrgg.png"
+  },
+  {
+    "name": "Cheese",
+    "type": "subcategory",
+    "slug": "cheese",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115786/categories/hv9l5fh9mhtboarje16r.webp"
+  },
+  {
+    "name": "Certified Organic",
+    "type": "subcategory",
+    "slug": "certified-organic",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115786/categories/infr8u91hewem7ykxxtf.png"
+  },
+  {
+    "name": "Fresh Vegetables",
+    "type": "subcategory",
+    "slug": "fresh-vegetables",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115786/categories/iwtfcmkp16pjuirxmkgo.png"
+  },
+  {
+    "name": "Syrups",
+    "type": "subcategory",
+    "slug": "syrups",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115786/categories/j80sbxpwgmosbghatgn3.png"
+  },
+  {
+    "name": "Leafies & Herbs",
+    "type": "subcategory",
+    "slug": "leafies-herbs",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115786/categories/japccqmya0nuhxgaqidt.png"
+  },
+  {
+    "name": "Imported Snacks",
+    "type": "subcategory",
+    "slug": "imported-snacks",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115787/categories/jcbjv6za12jgewiiow7j.png"
+  },
+  {
+    "name": "Electronics",
+    "type": "header",
+    "slug": "electronics",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115787/categories/jdujexlsru8uqglslvdi.png"
+  },
+  {
+    "name": "Fruits & Vegetables",
+    "type": "category",
+    "slug": "fruitsandvegetables",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115787/categories/jha7vzohtbyfvfejhowk.webp"
+  },
+  {
+    "name": "Fresh Fruits",
+    "type": "subcategory",
+    "slug": "fresh-fruits",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115787/categories/jt6hqo5acwrhozwgl9p1.png"
+  },
+  {
+    "name": "Rajma, Chhole & Others",
+    "type": "subcategory",
+    "slug": "rajma-chhole-others",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115787/categories/jyoshogwmnmiqg23usfd.png"
+  },
+  {
+    "name": "Cakes & Rolls",
+    "type": "subcategory",
+    "slug": "cakes-rolls",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115788/categories/k6zgrzrx5hdzm2bgjq4h.png"
+  },
+  {
+    "name": "Rusks & Wafers",
+    "type": "subcategory",
+    "slug": "rusks-wafers",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115789/categories/k85leo5hnmf9bw7htca6.png"
+  },
+  {
+    "name": "Milk Drinks",
+    "type": "subcategory",
+    "slug": "milk-drinks",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115788/categories/kaa7bxsfwzjyfeshgjzc.webp"
+  },
+  {
+    "name": "Test sub catagory 1",
+    "type": "subcategory",
+    "slug": "test-sub-catagory-1",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115788/categories/kbvwainpserjbx0x2vhj.jpg"
+  },
+  {
+    "name": "Combo & Recipes",
+    "type": "subcategory",
+    "slug": "combo-recipes",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115788/categories/kjbzlacjy5nxwaj00udx.png"
+  },
+  {
+    "name": "Oral & Nasal Care",
+    "type": "subcategory",
+    "slug": "oral-nasal-care",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115790/categories/kqwddzoxzpyt4q5lbnmu.png"
+  },
+  {
+    "name": "Sweet & Salty",
+    "type": "subcategory",
+    "slug": "sweet-salty",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115790/categories/kzkpjbztvkhctwka08he.png"
+  },
+  {
+    "name": "Salt, Sugar & Jaggery",
+    "type": "subcategory",
+    "slug": "salt-sugar-jaggery",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115790/categories/l17axs9epi3chf147ij7.webp"
+  },
+  {
+    "name": "Chocolates",
+    "type": "subcategory",
+    "slug": "chocolates",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115790/categories/l5bkao0hkhvqn2bvayiy.png"
+  },
+  {
+    "name": "Bhujia & Mixtures",
+    "type": "subcategory",
+    "slug": "bhujia-mixtures",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115790/categories/lc6gvq1julwb8w8cljbg.png"
+  },
+  {
+    "name": "Masala & Spices",
+    "type": "category",
+    "slug": "masalas",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115791/categories/lch2qjarhntnyhc66kqw.png"
+  },
+  {
+    "name": "Atta",
+    "type": "subcategory",
+    "slug": "atta",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115791/categories/licjqog9lqtdddi6niea.webp"
+  },
+  {
+    "name": "Rice",
+    "type": "subcategory",
+    "slug": "rice",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115791/categories/lr4nunpz3jciwzr5yw7z.webp"
+  },
+  {
+    "name": "Namkeen Snacks",
+    "type": "subcategory",
+    "slug": "namkeen-snacks",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115791/categories/m1aceb1rzf9ogo4ynmul.png"
+  },
+  {
+    "name": "Noodles",
+    "type": "subcategory",
+    "slug": "noodles",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115791/categories/m7fq3avdhhqv3lexl28q.webp"
+  },
+  {
+    "name": "Sausage, Salami & Ham",
+    "type": "subcategory",
+    "slug": "sausage-salami-ham",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115792/categories/m9a9x2l9lnvzagv3lidf.webp"
+  },
+  {
+    "name": "Nachos",
+    "type": "subcategory",
+    "slug": "nachos",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115792/categories/m9ccoomqc20hniczt306.png"
+  },
+  {
+    "name": "Fitness",
+    "type": "category",
+    "slug": "fitness",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115793/categories/mcuejdbrkmiq2cd1ggii.jpg"
+  },
+  {
+    "name": "Bathing Needs",
+    "type": "subcategory",
+    "slug": "bathing-needs",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115792/categories/mf2hbakll1slxwt2pshp.webp"
+  },
+  {
+    "name": "Healthy & Digestive",
+    "type": "subcategory",
+    "slug": "healthy-digestive",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115792/categories/mg28itnlg9r8lvde2xxw.jpg"
+  },
+  {
+    "name": "Flakes & Kids Cereals",
+    "type": "subcategory",
+    "slug": "flakes-kids-cereals",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115794/categories/mkhwynreuiatsn8xhre3.webp"
+  },
+  {
+    "name": "Cookies & Wafers",
+    "type": "subcategory",
+    "slug": "cookies-wafers",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115794/categories/mkro67dfqnre4tvx1kzd.png"
+  },
+  {
+    "name": "Indian Chutney & Pickle",
+    "type": "subcategory",
+    "slug": "indian-chutney-pickle",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115794/categories/mngetqb1qt7jecj3ehvd.png"
+  },
+  {
+    "name": "Coconut Water",
+    "type": "subcategory",
+    "slug": "coconut-water",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115794/categories/myvjgugscrizjmsbld52.png"
+  },
+  {
+    "name": "Moong & Masoor",
+    "type": "subcategory",
+    "slug": "moong-masoor",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115794/categories/n0h7ffdspowccvoacpoh.png"
+  },
+  {
+    "name": "Baby Food",
+    "type": "subcategory",
+    "slug": "baby-food",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115795/categories/n4us5xcch3onl3jmwlqd.png"
+  },
+  {
+    "name": "Concentrates & Syrups",
+    "type": "subcategory",
+    "slug": "concentrates-syrups",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115795/categories/nd5yn2qclotlc48lpnso.png"
+  },
+  {
+    "name": "Hydroponic",
+    "type": "subcategory",
+    "slug": "hydroponic",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115795/categories/nfnebvfnpc2dwwywiuzu.webp"
+  },
+  {
+    "name": "Dry Fruits",
+    "type": "subcategory",
+    "slug": "dry-fruits",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115795/categories/nigwvhaaclzkeyr7cgji.png"
+  },
+  {
+    "name": "Coolers & Fans",
+    "type": "category",
+    "slug": "coolers-fans",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115795/categories/njujx6yncidbfcreypcd.png"
+  },
+  {
+    "name": "Dispers & More",
+    "type": "subcategory",
+    "slug": "dispers-more",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115796/categories/noowgirmdhqigj9cwlaz.png"
+  },
+  {
+    "name": "Glucose & Marie",
+    "type": "subcategory",
+    "slug": "glucose-marie",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115796/categories/okqqmo6ola0cgvlxaxmt.png"
+  },
+  {
+    "name": "Mongo Drinks",
+    "type": "subcategory",
+    "slug": "mongo-drinks",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115796/categories/ornmh2yxeizzkqyodd4p.png"
+  },
+  {
+    "name": "Water & Ice Cubes",
+    "type": "subcategory",
+    "slug": "water-ice-cubes",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115796/categories/ou6akc4unvuzejid7auq.jpg"
+  },
+  {
+    "name": "Breakfast & More",
+    "type": "subcategory",
+    "slug": "breakfast-more",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115796/categories/pdna0j0bkwb0ycyvyr6d.png"
+  },
+  {
+    "name": "Popcorn",
+    "type": "subcategory",
+    "slug": "popcorn",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115797/categories/pnrpckccqnrksao72kld.png"
+  },
+  {
+    "name": "Test category 1",
+    "type": "category",
+    "slug": "test-category-1",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115797/categories/pt1adyvufevu4lci5peb.png"
+  },
+  {
+    "name": "Grocery",
+    "type": "header",
+    "slug": "grocery",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115797/categories/pusyygzdijwjvo9eimin.png"
+  },
+  {
+    "name": "Fish & Seafood",
+    "type": "subcategory",
+    "slug": "fish-seafood",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115797/categories/qat7itkloieqximrqobs.png"
+  },
+  {
+    "name": "Coffee",
+    "type": "subcategory",
+    "slug": "coffee",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115797/categories/qg0eb6oyo82gmmvfmnw0.png"
+  },
+  {
+    "name": "Electronicss",
+    "type": "header",
+    "slug": "electronicss",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115798/categories/qgcilujelyozgjpqx3mn.png"
+  },
+  {
+    "name": "Milk",
+    "type": "subcategory",
+    "slug": "milk",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115798/categories/qjoov3xqgrfgk3cr0xcm.webp"
+  },
+  {
+    "name": "Cookware",
+    "type": "category",
+    "slug": "cookware",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115798/categories/qp1hsg5gas5wbraqvtns.png"
+  },
+  {
+    "name": "Poha, Daliya & Other Grains",
+    "type": "subcategory",
+    "slug": "poha-daliya-other-grains",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115798/categories/qsy21mhugunpxrf8kyfe.png"
+  },
+  {
+    "name": "Cold Coffe & Ice Tea",
+    "type": "subcategory",
+    "slug": "cold-coffe-ice-tea",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115798/categories/qunqixxcl7donejzeyl6.webp"
+  },
+  {
+    "name": "Pure Juices",
+    "type": "subcategory",
+    "slug": "pure-juices",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115799/categories/quvficztzdf6xrsena3i.png"
+  },
+  {
+    "name": "Energy Bars",
+    "type": "subcategory",
+    "slug": "energy-bars",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115799/categories/qyzvjzraimhkl3jcae5a.png"
+  },
+  {
+    "name": "Breakfast Mixes",
+    "type": "subcategory",
+    "slug": "breakfast-mixes",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115799/categories/r0od78vpvm5c72sm2wrx.png"
+  },
+  {
+    "name": "Condensed Milk",
+    "type": "subcategory",
+    "slug": "condensed-milk",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115799/categories/r3e4e2wl68wtaijjgvl3.png"
+  },
+  {
+    "name": "Herbal Drinks",
+    "type": "subcategory",
+    "slug": "herbal-drinks",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115799/categories/rbxxtavghmk6jyelzidr.png"
+  },
+  {
+    "name": "Soft Drinks",
+    "type": "subcategory",
+    "slug": "soft-drinks",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115801/categories/re2gmxpbswmmgg9n8btc.png"
+  },
+  {
+    "name": "Ghee & Vanaspati",
+    "type": "subcategory",
+    "slug": "ghee-vanaspati",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115801/categories/re2ntpfqhjrqamjof0nf.webp"
+  },
+  {
+    "name": "Toys",
+    "type": "category",
+    "slug": "toys",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115801/categories/rh6mynkxjeolf8uxtfgc.jpg"
+  },
+  {
+    "name": "Aata, Dal & Rice",
+    "type": "category",
+    "slug": "aata-dal-rice",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115801/categories/rxdupraez8tte9r3ek8l.png"
+  },
+  {
+    "name": "Butter & More",
+    "type": "subcategory",
+    "slug": "butter-more",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115801/categories/sbqmj92en4cx7bmxlcu9.jpg"
+  },
+  {
+    "name": "Wipe & Dry Essentials",
+    "type": "category",
+    "slug": "wipe-dry-essentials",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115803/categories/sbuvgmefvsquyi8l7vuz.png"
+  },
+  {
+    "name": "Herbs & Seasoning",
+    "type": "subcategory",
+    "slug": "herbs-seasoning",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115803/categories/sbuyagvmfbcgcxdoilfq.png"
+  },
+  {
+    "name": "Energy Drinks",
+    "type": "subcategory",
+    "slug": "energy-drinks",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115803/categories/sg00r6g6fpropyifgyj2.png"
+  },
+  {
+    "name": "Batter",
+    "type": "subcategory",
+    "slug": "batter",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115803/categories/smrgd5obanx5erz0eoul.webp"
+  },
+  {
+    "name": "Kids Essentials",
+    "type": "category",
+    "slug": "kids-essentials",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115803/categories/spcvzfr2hib47i4qtenr.png"
+  },
+  {
+    "name": "Baby Accessories & Apparel",
+    "type": "subcategory",
+    "slug": "baby-accessories-apparel",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115804/categories/sqseigdqromqkokhax4k.png"
+  },
+  {
+    "name": "Frozen Veg",
+    "type": "subcategory",
+    "slug": "frozen-veg",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115804/categories/ssekdzmuhs4c3xpyoi0q.png"
+  },
+  {
+    "name": "Papad & Fryums",
+    "type": "subcategory",
+    "slug": "papad-fryums",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115804/categories/suxex0788rmyyqo9fsxv.png"
+  },
+  {
+    "name": "Besan, Sooji & Maida",
+    "type": "subcategory",
+    "slug": "besan-sooji-maida",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115804/categories/t3mkgpbfq8qhzvtzjlxi.png"
+  },
+  {
+    "name": "Oil",
+    "type": "subcategory",
+    "slug": "oil",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115804/categories/tfxk5tfumzr7wjithqvh.png"
+  },
+  {
+    "name": "Candies & Gum",
+    "type": "subcategory",
+    "slug": "candies-gum",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115805/categories/tmwkgrmmnl6ae06gvhsz.webp"
+  },
+  {
+    "name": "Mouth Fresheners",
+    "type": "subcategory",
+    "slug": "mouth-fresheners",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115805/categories/tqsfqu5ukocebui5k1md.png"
+  },
+  {
+    "name": "Imported Tea & Coffee",
+    "type": "subcategory",
+    "slug": "imported-tea-coffee",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115805/categories/tumrtmsw61oxwvwfavs6.webp"
+  },
+  {
+    "name": "Cooking Sauces & Vinegar",
+    "type": "subcategory",
+    "slug": "cooking-sauces-vinegar",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115805/categories/twpahv4o8evplkrhr5vk.png"
+  },
+  {
+    "name": "Instant Mixes",
+    "type": "subcategory",
+    "slug": "instant-mixes",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115805/categories/u6d3zpzxl3vis4gti7as.webp"
+  },
+  {
+    "name": "Mom Care Needs",
+    "type": "subcategory",
+    "slug": "mom-care-needs",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115806/categories/u7rar8zcdeje6aakstvc.png"
+  },
+  {
+    "name": "Fruit Juices",
+    "type": "subcategory",
+    "slug": "fruit-juices",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115806/categories/uejdb4nlckngjkxlwcjk.png"
+  },
+  {
+    "name": "Dry Fruits Gift Packs",
+    "type": "subcategory",
+    "slug": "dry-fruits-gift-packs",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115806/categories/ujgdvdmakldaur9ywamn.png"
+  },
+  {
+    "name": "Bridal",
+    "type": "category",
+    "slug": "bridal",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115806/categories/ux4iecsygp2oqshmvhsq.webp"
+  },
+  {
+    "name": "Pet Toys",
+    "type": "category",
+    "slug": "pet-toys",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115806/categories/v2qtiolxdssgwoyhx9ua.webp"
+  },
+  {
+    "name": "Bread & Pav",
+    "type": "subcategory",
+    "slug": "bread-pav",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115807/categories/vad0sylwgfvyhmkuevjz.png"
+  },
+  {
+    "name": "Beverages Gift Packs",
+    "type": "subcategory",
+    "slug": "beverages-gift-packs",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115807/categories/vbszyrjs7glwegketei5.png"
+  },
+  {
+    "name": "Vermicelli",
+    "type": "subcategory",
+    "slug": "vermicelli",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115807/categories/vc87eb15zxs9azenpsaq.png"
+  },
+  {
+    "name": "Flowers & Leaves",
+    "type": "subcategory",
+    "slug": "flowers-leaves",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115807/categories/vl6hrxw0rxldk51smumw.webp"
+  },
+  {
+    "name": "Nursing",
+    "type": "subcategory",
+    "slug": "nursing",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115807/categories/vmig9g2kj9vfbhluqfar.png"
+  },
+  {
+    "name": "Cookies",
+    "type": "subcategory",
+    "slug": "cookies",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115808/categories/vnoxd7n7bk3kojf269cn.png"
+  },
+  {
+    "name": "Soda & Mixers",
+    "type": "subcategory",
+    "slug": "soda-mixers",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115808/categories/vwfq2zaamsdypwzeo0rb.png"
+  },
+  {
+    "name": "Dry Fruits, Nuts & Seeds",
+    "type": "subcategory",
+    "slug": "dry-fruits-nuts-seeds",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115808/categories/vzs2duj4e4fot8idxwve.png"
+  },
+  {
+    "name": "Chips & Crisps",
+    "type": "subcategory",
+    "slug": "chips-crisps",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115808/categories/wazv0pxvryi8lgpgy2my.webp"
+  },
+  {
+    "name": "Hygiene",
+    "type": "subcategory",
+    "slug": "hygiene",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115808/categories/wh4bl16adj9rch8vhcgg.jpg"
+  },
+  {
+    "name": "Sports",
+    "type": "header",
+    "slug": "sports",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115809/categories/whxlzuq0vxwhrbiv6ofj.jpg"
+  },
+  {
+    "name": "Iron & More",
+    "type": "category",
+    "slug": "iron-more",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115809/categories/wpxoutvsrpbhssy9nydh.webp"
+  },
+  {
+    "name": "Dairy & Breads",
+    "type": "category",
+    "slug": "dairy",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115809/categories/wv1b4adm5vcaap3yzcre.jpg"
+  },
+  {
+    "name": "Swimming",
+    "type": "category",
+    "slug": "swimming",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115809/categories/wvgpjlh6n79bx9vqy1cd.png"
+  },
+  {
+    "name": "Feeding",
+    "type": "subcategory",
+    "slug": "feeding",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115809/categories/x4kfn0va0byvgv36rxos.png"
+  },
+  {
+    "name": "Eggs",
+    "type": "subcategory",
+    "slug": "eggs",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115810/categories/x4mrwglpyknfzhhbzdyp.webp"
+  },
+  {
+    "name": "Munchies Gift Packs",
+    "type": "subcategory",
+    "slug": "munchies-gift-packs",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115810/categories/xrvftymrbygs8kfsamhp.png"
+  },
+  {
+    "name": "Hot Chocolate",
+    "type": "subcategory",
+    "slug": "hot-chocolate",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115810/categories/xu8nrezek6xz2nlblxhn.webp"
+  },
+  {
+    "name": "Tea",
+    "type": "subcategory",
+    "slug": "tea",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115810/categories/xx8ejsuzkpauo7jhrxwy.webp"
+  },
+  {
+    "name": "All",
+    "type": "header",
+    "slug": "all",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115810/categories/xxaisfq6cwzqfdcdwe8v.png"
+  },
+  {
+    "name": "Granola",
+    "type": "subcategory",
+    "slug": "granola",
+    "image": "https://res.cloudinary.com/appzeto-master-product/image/upload/v1789115812/categories/y4jfhbggmabb3yoajtpr.png"
+  }
+]

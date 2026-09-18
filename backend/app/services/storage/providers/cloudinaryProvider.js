@@ -22,7 +22,8 @@ import logger from "../../logger.js";
 // provider get resized/compressed without requiring manual env
 // configuration. New uploads only; never touches already-stored media.
 function getOptimizedImageFormat() {
-  return String(process.env.CLOUDINARY_IMAGE_UPLOAD_FORMAT ?? "auto").trim().toLowerCase();
+  const raw = String(process.env.CLOUDINARY_IMAGE_UPLOAD_FORMAT ?? "").trim().toLowerCase();
+  return raw === "auto" ? "" : raw;
 }
 
 function getOptimizedImageQuality() {
@@ -53,7 +54,7 @@ function getImageUploadOptions() {
   const format = getOptimizedImageFormat();
   const transformation = buildImageUploadTransformation();
   return {
-    ...(format ? { format } : {}),
+    ...(format && format !== "auto" ? { format } : {}),
     ...(transformation ? { transformation } : {}),
   };
 }

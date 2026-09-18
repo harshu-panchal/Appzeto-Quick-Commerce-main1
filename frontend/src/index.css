@@ -53,15 +53,18 @@
 
 body {
   margin: 0;
-  font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   font-size: 13px;
-  overscroll-behavior-y: none; /* Prevent pull-to-refresh feel if not needed, or use bounce sparingly */
-  -webkit-tap-highlight-color: transparent; /* Remove the gray tap highlight for a cleaner feel */
-  touch-action: manipulation; /* Faster taps */
+  color: #111827;
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 /* Custom scrollbar */
@@ -298,14 +301,7 @@ html.customer-no-scrollbar body::-webkit-scrollbar {
     @apply relative after:absolute after:inset-0 after:bg-primary/20 after:blur-2xl after:-z-10;
   }
 
-  /* Global typography tweaks – make text less dull */
-  .font-normal {
-    font-weight: 500; /* was 400 */
-  }
 
-  .font-medium {
-    font-weight: 600; /* was 500 */
-  }
 
   /* Custom Scrollbar Utilities */
   .custom-scrollbar::-webkit-scrollbar {

@@ -415,18 +415,20 @@ const ProductDetailSheet = () => {
 
                                         {/* Main image viewer */}
                                         <div className="flex-1 flex items-center justify-center p-6 lg:p-8 relative min-h-[350px]">
-                                            <AnimatePresence mode="wait">
-                                                <motion.img
-                                                    key={activeImageIndex}
-                                                    initial={{ scale: 0.93, opacity: 0 }}
-                                                    animate={{ scale: 1, opacity: 1 }}
-                                                    exit={{ scale: 0.93, opacity: 0 }}
-                                                    transition={{ duration: 0.15 }}
-                                                    src={applyCloudinaryTransform(allImages[activeImageIndex], "f_auto,q_auto:best,w_1200,dpr_auto")}
-                                                    alt={`${selectedProduct.name} ${activeImageIndex + 1}`}
-                                                    className="w-full h-full object-contain mix-blend-multiply drop-shadow-2xl hover:scale-[1.03] transition-transform duration-500 absolute inset-0 m-auto p-12"
-                                                />
-                                            </AnimatePresence>
+                                            <div className="relative w-full h-full max-w-[480px] max-h-[420px] rounded-2xl lg:rounded-3xl overflow-hidden shadow-md border border-slate-100/80 bg-white flex items-center justify-center">
+                                                <AnimatePresence mode="wait">
+                                                    <motion.img
+                                                        key={activeImageIndex}
+                                                        initial={{ scale: 0.93, opacity: 0 }}
+                                                        animate={{ scale: 1, opacity: 1 }}
+                                                        exit={{ scale: 0.93, opacity: 0 }}
+                                                        transition={{ duration: 0.15 }}
+                                                        src={applyCloudinaryTransform(allImages[activeImageIndex], "f_auto,q_auto:best,w_1200,dpr_auto")}
+                                                        alt={`${selectedProduct.name} ${activeImageIndex + 1}`}
+                                                        className="w-full h-full object-cover object-center rounded-2xl lg:rounded-3xl hover:scale-[1.03] transition-transform duration-500"
+                                                    />
+                                                </AnimatePresence>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -853,16 +855,17 @@ const ProductDetailSheet = () => {
                                     }}
                                 >
                                     {allImages.map((img, i) => (
-                                        <div key={i} className="flex-shrink-0 w-full h-full snap-center flex items-center justify-center px-0 sm:px-4">
-                                            <motion.img
-                                                initial={{ scale: 0.8, opacity: 0 }}
-                                                animate={{ scale: 1, opacity: 1 }}
-                                                transition={{ duration: 0.4 }}
-                                                src={applyCloudinaryTransform(img, "f_auto,q_auto:best,w_1200,dpr_auto")}
-                                                alt={`${selectedProduct.name} ${i + 1}`}
-                                                className="w-full h-full object-contain mix-blend-multiply drop-shadow-xl"
-                                                style={{ objectPosition: 'center calc(50% - 40px)' }}
-                                            />
+                                        <div key={i} className="flex-shrink-0 w-full h-full snap-center flex items-center justify-center p-4 sm:p-6">
+                                            <div className="relative w-full h-full max-w-[420px] max-h-[360px] rounded-2xl sm:rounded-3xl overflow-hidden shadow-md border border-slate-100/80 bg-white flex items-center justify-center">
+                                                <motion.img
+                                                    initial={{ scale: 0.8, opacity: 0 }}
+                                                    animate={{ scale: 1, opacity: 1 }}
+                                                    transition={{ duration: 0.4 }}
+                                                    src={applyCloudinaryTransform(img, "f_auto,q_auto:best,w_1200,dpr_auto")}
+                                                    alt={`${selectedProduct.name} ${i + 1}`}
+                                                    className="w-full h-full object-cover object-center rounded-2xl sm:rounded-3xl"
+                                                />
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -884,21 +887,39 @@ const ProductDetailSheet = () => {
                             </div>
 
                             {/* Product Info Container */}
-                            <div className="px-5 pt-2 pb-6">
-                                {/* Delivery Time Badge */}
-                                <div className="inline-flex items-center gap-1.5 bg-[#F0FDF4] border border-brand-100 text-primary px-2.5 py-1 rounded-lg text-[10px] font-black uppercase mb-3">
-                                    <Clock size={12} strokeWidth={3} />
-                                    {selectedProduct.deliveryTime || "8 Mins"}
+                            <div className="px-5 pt-3 pb-6">
+                                {/* Vendor / Brand & Delivery Badge */}
+                                <div className="flex items-center justify-between gap-2 mb-1.5">
+                                    <span className="text-sm font-bold text-slate-900 tracking-tight">
+                                        {selectedProduct.brand || selectedProduct.categoryId?.name || "Pantaloons Baby"}
+                                    </span>
+                                    <div className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-100/80 px-2.5 py-0.5 rounded-full text-xs font-semibold">
+                                        <Clock size={12} />
+                                        {selectedProduct.deliveryTime || "8-15 mins"}
+                                    </div>
                                 </div>
 
-                                <h2 className="text-xl font-black text-[#1A1A1A] leading-tight mb-2">
+                                <h2 className="text-base font-normal text-slate-700 leading-snug mb-3">
                                     {selectedProduct.name}
                                 </h2>
 
+                                {/* Price Section */}
+                                <div className="flex items-baseline gap-2.5 mb-4">
+                                    <span className="text-2xl font-bold text-slate-900">
+                                        ₹{selectedVariant?.salePrice || selectedVariant?.price || selectedProduct.price}
+                                    </span>
+                                    {((selectedVariant?.salePrice && selectedVariant.salePrice < selectedVariant.price) || 
+                                       (!selectedVariant && selectedProduct.originalPrice > selectedProduct.price)) && (
+                                        <span className="text-sm font-normal text-slate-400 line-through">
+                                            ₹{selectedVariant?.price || selectedProduct.originalPrice}
+                                        </span>
+                                    )}
+                                </div>
+
                                 {/* Variants Selection (Mobile) */}
                                 {selectedProduct.variants && selectedProduct.variants.length > 0 && (
-                                    <div className="mt-4 mb-2">
-                                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Select Variant</h4>
+                                    <div className="mt-4 mb-3">
+                                        <h4 className="text-sm font-bold text-slate-900 mb-2.5">Select Variant</h4>
                                         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
                                             {selectedProduct.variants.map((v, idx) => (
                                                 <motion.button
@@ -1091,10 +1112,10 @@ const ProductDetailSheet = () => {
                                             whileHover={{ scale: 1.02 }}
                                             whileTap={{ scale: 0.95 }}
                                             onClick={handleAddToCart}
-                                            className="flex-1 bg-gradient-to-r from-primary to-[var(--brand-400)] text-white h-[56px] rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-xl shadow-brand-100 transition-all border border-white/20 uppercase tracking-[0.05em] whitespace-nowrap px-4"
+                                            className="flex-1 bg-primary text-white h-[52px] rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-md hover:bg-primary/95 transition-all border border-primary/20 whitespace-nowrap px-4"
                                         >
-                                            <ShoppingBag size={18} strokeWidth={3} />
-                                            ADD TO CART
+                                            <ShoppingBag size={18} strokeWidth={2.5} />
+                                            Add to cart
                                         </motion.button>
                                     )}
                                 </div>

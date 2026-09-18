@@ -130,12 +130,12 @@ const SectionRenderer = ({ sections = [], productsById = {}, categoriesById = {}
                         navigate(`/category/${cat._id}`);
                       }}
                     >
-                      <div className="relative aspect-square w-full rounded-2xl bg-[#F8F9FA] border border-slate-100/80 flex items-center justify-center overflow-hidden p-1 transition-all duration-200 group-hover:border-primary/40 group-hover:bg-white group-hover:shadow-[0_10px_25px_rgba(15,23,42,0.08)]">
+                      <div className="relative aspect-square w-full rounded-2xl bg-[#F8F9FA] border border-slate-100/80 flex items-center justify-center overflow-hidden transition-all duration-200 group-hover:border-primary/40 group-hover:bg-white group-hover:shadow-[0_10px_25px_rgba(15,23,42,0.08)]">
                         {cat.image ? (
                           <img
                             src={cat.image}
                             alt={cat.name}
-                            className="w-full h-full object-contain object-center mix-blend-multiply transition-transform duration-200 group-hover:scale-105"
+                            className="w-full h-full object-cover object-center rounded-2xl transition-transform duration-200 group-hover:scale-105"
                           />
                         ) : (
                           <div className="h-6 w-6 rounded-full bg-slate-100" />
@@ -212,12 +212,12 @@ const SectionRenderer = ({ sections = [], productsById = {}, categoriesById = {}
                         }
                       }}
                     >
-                      <div className="relative aspect-square w-full rounded-2xl bg-[#F8F9FA] border border-slate-100/80 flex items-center justify-center overflow-hidden p-1 transition-all duration-200 group-hover:border-primary/40 group-hover:bg-white group-hover:shadow-[0_10px_25px_rgba(15,23,42,0.08)]">
+                      <div className="relative aspect-square w-full rounded-2xl bg-[#F8F9FA] border border-slate-100/80 flex items-center justify-center overflow-hidden transition-all duration-200 group-hover:border-primary/40 group-hover:bg-white group-hover:shadow-[0_10px_25px_rgba(15,23,42,0.08)]">
                         {cat.image ? (
                           <img
                             src={cat.image}
                             alt={cat.name}
-                            className="w-full h-full object-contain object-center mix-blend-multiply transition-transform duration-200 group-hover:scale-105"
+                            className="w-full h-full object-cover object-center rounded-2xl transition-transform duration-200 group-hover:scale-105"
                           />
                         ) : (
                           <div className="h-6 w-6 rounded-full bg-slate-100" />

@@ -9,8 +9,10 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const getOptimizedImageFormat = () =>
-    String(process.env.CLOUDINARY_IMAGE_UPLOAD_FORMAT || '').trim().toLowerCase();
+const getOptimizedImageFormat = () => {
+    const raw = String(process.env.CLOUDINARY_IMAGE_UPLOAD_FORMAT || '').trim().toLowerCase();
+    return raw === 'auto' ? '' : raw;
+};
 
 const getOptimizedImageQuality = () =>
     String(process.env.CLOUDINARY_IMAGE_UPLOAD_QUALITY || '').trim();
@@ -22,7 +24,7 @@ const getImageUploadOptions = () => {
     const format = getOptimizedImageFormat();
     const quality = getOptimizedImageQuality();
     return {
-        ...(format ? { format } : {}),
+        ...(format && format !== 'auto' ? { format } : {}),
         ...(quality ? { transformation: `q_${quality}` } : {}),
     };
 };

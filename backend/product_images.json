@@ -1,0 +1,803 @@
+[
+  {
+    "name": "Fortune Premium Kachi Ghani Pure Mustard Oil",
+    "slug": "fortune-premium-kachi-ghani-pure-mustard-oil",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868895/orangebasket/categories/y9tze1zek1xd0ci1ty9n.jpg"
+  },
+  {
+    "name": "Dabur Cold Pressed Mustard Oi",
+    "slug": "dabur-cold-pressed-mustard-oi",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868895/orangebasket/categories/y9tze1zek1xd0ci1ty9n.jpg"
+  },
+  {
+    "name": "Millets & More Cheese Millet Bhel",
+    "slug": "millets-more-cheese-millet-bhel",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868897/orangebasket/categories/hnix0mnsaphlneqvmeoz.jpg"
+  },
+  {
+    "name": "Catch Cumin Seeds  Jeera Seeds",
+    "slug": "catch-cumin-seeds-jeera-seeds",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868884/orangebasket/categories/sonighuml71pviy9odgm.jpg"
+  },
+  {
+    "name": "Avocado",
+    "brand": "Fresh Farm",
+    "slug": "avocado-5a8fd4",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Fig",
+    "brand": "Fresh Farm",
+    "slug": "fig-5a8fd4",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Lychee",
+    "brand": "Fresh Farm",
+    "slug": "lychee-27cc54",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Whole Farm Premium WatermelonMagaj Seeds",
+    "slug": "whole-farm-premium-watermelonmagaj-seeds",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Whole Farm Premium Kashmiri Red Rajma",
+    "slug": "whole-farm-premium-kashmiri-red-rajma",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868963/orangebasket/categories/yinb9wqgawh7ht8dcutr.jpg"
+  },
+  {
+    "name": "Pear",
+    "brand": "Fresh Farm",
+    "slug": "pear-5a8fd4",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Test",
+    "brand": "Amulllll",
+    "slug": "test",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "24 Mantra Organic White Poha",
+    "slug": "24-mantra-organic-white-poha",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868893/orangebasket/categories/s01rr5nghpyea8dqpns6.jpg"
+  },
+  {
+    "name": "True Elements Super Grains Oat Flour",
+    "slug": "true-elements-super-grains-oat-flour",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868893/orangebasket/categories/s01rr5nghpyea8dqpns6.jpg"
+  },
+  {
+    "name": "Organic Tattva Organic Urad Dal (Dhuli)",
+    "slug": "organic-tattva-organic-urad-dal-dhuli",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868963/orangebasket/categories/yinb9wqgawh7ht8dcutr.jpg"
+  },
+  {
+    "name": "Farmley Mexican Peri-Peri Mix Nuts",
+    "slug": "farmley-mexican-peri-peri-mix-nuts",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Rajdhani Besan (1 kg)",
+    "slug": "rajdhani-besan-1-kg",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868893/orangebasket/categories/s01rr5nghpyea8dqpns6.jpg"
+  },
+  {
+    "name": "Daawat Pulav Basmati Rice (Slender Grains)",
+    "slug": "daawat-pulav-basmati-rice-slender-grains",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868898/orangebasket/categories/uen1rj5ekpb5vtwggfjc.jpg"
+  },
+  {
+    "name": "Kapiva Desi A2 Ghee (Cow)",
+    "slug": "kapiva-desi-a2-ghee-cow",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868909/orangebasket/categories/oc5pmbmrswvva2shluqi.jpg"
+  },
+  {
+    "name": "Madhur Pure & Hygienic Sulphurless Sugar",
+    "slug": "madhur-pure-hygienic-sulphurless-sugar",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Jackfruit",
+    "brand": "Fresh Farm",
+    "slug": "jackfruit-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868889/orangebasket/categories/g4h67wxn5wfmzrok6ysz.jpg"
+  },
+  {
+    "name": "Kiwi",
+    "brand": "Fresh Farm",
+    "slug": "kiwi-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Date",
+    "brand": "Fresh Farm",
+    "slug": "date-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Mulberry",
+    "brand": "Fresh Farm",
+    "slug": "mulberry-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Grapes",
+    "brand": "Fresh Farm",
+    "slug": "grapes-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868889/orangebasket/categories/g4h67wxn5wfmzrok6ysz.jpg"
+  },
+  {
+    "name": "Kiwi",
+    "brand": "Fresh Farm",
+    "slug": "kiwi-5a8fd4",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Ferrero Rocher",
+    "brand": "Nestle/Cadbury",
+    "slug": "ferrero-rocher-ac461b",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Kiwi",
+    "brand": "Fresh Farm",
+    "slug": "kiwi-27cc54",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Paras Desi Ghee",
+    "slug": "paras-desi-ghee",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868909/orangebasket/categories/oc5pmbmrswvva2shluqi.jpg"
+  },
+  {
+    "name": "Organic India Organic Cow Ghee",
+    "slug": "organic-india-organic-cow-ghee",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868909/orangebasket/categories/oc5pmbmrswvva2shluqi.jpg"
+  },
+  {
+    "name": "Farmley Date Bites",
+    "slug": "farmley-date-bites",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Whole Farm Premium Saunf Seeds",
+    "slug": "whole-farm-premium-saunf-seeds",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Lime",
+    "brand": "Fresh Farm",
+    "slug": "lime-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Pineapple",
+    "brand": "Fresh Farm",
+    "slug": "pineapple-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868916/orangebasket/products/x4oxlo7kv650rgjwar9e.jpg"
+  },
+  {
+    "name": "Plum",
+    "brand": "Fresh Farm",
+    "slug": "plum-27cc54",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Peach",
+    "brand": "Fresh Farm",
+    "slug": "peach-27cc54",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Cherry",
+    "brand": "Fresh Farm",
+    "slug": "cherry-27cc54",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "KitKat",
+    "brand": "Nestle/Cadbury",
+    "slug": "kitkat-27cc54",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "narangi",
+    "brand": "orange",
+    "slug": "narangi-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Cranberry",
+    "brand": "Fresh Farm",
+    "slug": "cranberry-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Plum",
+    "brand": "Fresh Farm",
+    "slug": "plum-5a8fd4",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Peach",
+    "brand": "Fresh Farm",
+    "slug": "peach-5a8fd4",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Pear",
+    "brand": "Fresh Farm",
+    "slug": "pear-ac461b",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Avocado",
+    "brand": "Fresh Farm",
+    "slug": "avocado-ac461b",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Jackfruit",
+    "brand": "Fresh Farm",
+    "slug": "jackfruit-27cc54",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868889/orangebasket/categories/g4h67wxn5wfmzrok6ysz.jpg"
+  },
+  {
+    "name": "Basic Moong Dal (Dhuli)",
+    "slug": "basic-moong-dal-dhuli",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868963/orangebasket/categories/yinb9wqgawh7ht8dcutr.jpg"
+  },
+  {
+    "name": "MP'S BEST Lokwan Wheat",
+    "slug": "mps-best-lokwan-wheat",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868893/orangebasket/categories/s01rr5nghpyea8dqpns6.jpg"
+  },
+  {
+    "name": "shirts",
+    "brand": "nike",
+    "slug": "shirts",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Dragon Fruit",
+    "brand": "Fresh Farm",
+    "slug": "dragon-fruit-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868889/orangebasket/categories/g4h67wxn5wfmzrok6ysz.jpg"
+  },
+  {
+    "name": "Pomegranate",
+    "brand": "Fresh Farm",
+    "slug": "pomegranate-5a8fd4",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Kiwi",
+    "brand": "Fresh Farm",
+    "slug": "kiwi-ac461b",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Plum",
+    "brand": "Fresh Farm",
+    "slug": "plum-ac461b",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Ferrero Rocher",
+    "brand": "Nestle/Cadbury",
+    "slug": "ferrero-rocher-27cc54",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Tata Sampann Unpolished Green Moong (Sabut) Whole Dal",
+    "slug": "tata-sampann-unpolished-green-moong-sabut-whole-dal",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868963/orangebasket/categories/yinb9wqgawh7ht8dcutr.jpg"
+  },
+  {
+    "name": "Parry's White Label Sulphurless Sugar",
+    "slug": "parrys-white-label-sulphurless-sugar",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Natureland Chana Organic Besan",
+    "slug": "natureland-chana-organic-besan",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868893/orangebasket/categories/s01rr5nghpyea8dqpns6.jpg"
+  },
+  {
+    "name": "Organic Tattva Organic Ajwain Seeds",
+    "slug": "organic-tattva-organic-ajwain-seeds",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "apple",
+    "brand": "",
+    "slug": "apple",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868916/orangebasket/products/x4oxlo7kv650rgjwar9e.jpg"
+  },
+  {
+    "name": "Banana",
+    "brand": "",
+    "slug": "banana",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Dairy Milk Silk",
+    "brand": "Nestle/Cadbury",
+    "slug": "dairy-milk-silk-5a8fd4",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868899/orangebasket/categories/z06r7lqmndvmhddotzop.jpg"
+  },
+  {
+    "name": "Fig",
+    "brand": "Fresh Farm",
+    "slug": "fig-27cc54",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "K-Pra Thalipeeth Bhajani Flour Mix",
+    "slug": "k-pra-thalipeeth-bhajani-flour-mix",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868893/orangebasket/categories/s01rr5nghpyea8dqpns6.jpg"
+  },
+  {
+    "name": "Tata Sampann Unpolished Kali Urad (Sabut)",
+    "slug": "tata-sampann-unpolished-kali-urad-sabut",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868963/orangebasket/categories/yinb9wqgawh7ht8dcutr.jpg"
+  },
+  {
+    "name": "Farmley Fard Omani Dates",
+    "slug": "farmley-fard-omani-dates",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Fortune Indori Thick Poha",
+    "slug": "fortune-indori-thick-poha",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868893/orangebasket/categories/s01rr5nghpyea8dqpns6.jpg"
+  },
+  {
+    "name": "Mishriq Kimia Gold Dates",
+    "slug": "mishriq-kimia-gold-dates",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Pomegranate",
+    "brand": "Fresh Farm",
+    "slug": "pomegranate-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Blueberry",
+    "brand": "Fresh Farm",
+    "slug": "blueberry-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Dragon Fruit",
+    "brand": "Fresh Farm",
+    "slug": "dragon-fruit-5a8fd4",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868889/orangebasket/categories/g4h67wxn5wfmzrok6ysz.jpg"
+  },
+  {
+    "name": "KitKat",
+    "brand": "Nestle/Cadbury",
+    "slug": "kitkat-5a8fd4",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Fig",
+    "brand": "Fresh Farm",
+    "slug": "fig-ac461b",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Tata Sampann 100% Chana Dal Fine BesanGram Flour",
+    "slug": "tata-sampann-100-chana-dal-fine-besangram-flour",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868893/orangebasket/categories/s01rr5nghpyea8dqpns6.jpg"
+  },
+  {
+    "name": "Whole Farm Premium Green Cardamom Whole  Elaichi",
+    "slug": "whole-farm-premium-green-cardamom-whole-elaichi",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Happilo Essentials Cashew & Almonds",
+    "slug": "happilo-essentials-cashew-almonds",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Everest Turmeric PowderHaldi",
+    "slug": "everest-turmeric-powderhaldi",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Fortune Chakki Fresh (100% Atta, 0% Maida) Atta",
+    "slug": "fortune-chakki-fresh-100-atta-0-maida-atta",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868893/orangebasket/categories/s01rr5nghpyea8dqpns6.jpg"
+  },
+  {
+    "name": "Peach",
+    "brand": "Fresh Farm",
+    "slug": "peach-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Cherry",
+    "brand": "Fresh Farm",
+    "slug": "cherry-5a8fd4",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Pear",
+    "brand": "Fresh Farm",
+    "slug": "pear-27cc54",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Gowardhan Premium Cow Ghee",
+    "slug": "gowardhan-premium-cow-ghee",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868909/orangebasket/categories/oc5pmbmrswvva2shluqi.jpg"
+  },
+  {
+    "name": "Whole Farm Grocery Gram  Chana Dal",
+    "slug": "whole-farm-grocery-gram-chana-dal",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868963/orangebasket/categories/yinb9wqgawh7ht8dcutr.jpg"
+  },
+  {
+    "name": "Farmley Protein Rich Mix Seeds",
+    "slug": "farmley-protein-rich-mix-seeds",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Plum",
+    "brand": "Fresh Farm",
+    "slug": "plum-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Strawberry",
+    "brand": "Fresh Farm",
+    "slug": "strawberry-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Pro Nature Whole Wheat Organic Atta",
+    "slug": "pro-nature-whole-wheat-organic-atta",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868893/orangebasket/categories/s01rr5nghpyea8dqpns6.jpg"
+  },
+  {
+    "name": "Samrat MP SoojiRava",
+    "slug": "samrat-mp-soojirava",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868893/orangebasket/categories/s01rr5nghpyea8dqpns6.jpg"
+  },
+  {
+    "name": "Tata Sampann Unpolished Yellow Moong Dal (Dhuli) Split",
+    "slug": "tata-sampann-unpolished-yellow-moong-dal-dhuli-split",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868963/orangebasket/categories/yinb9wqgawh7ht8dcutr.jpg"
+  },
+  {
+    "name": "Nutrela Soya Granules",
+    "slug": "nutrela-soya-granules",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Raspberry",
+    "brand": "Fresh Farm",
+    "slug": "raspberry-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Apple",
+    "brand": "Fresh Farm",
+    "slug": "apple-a7b11c-1",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868916/orangebasket/products/x4oxlo7kv650rgjwar9e.jpg"
+  },
+  {
+    "name": "KitKat",
+    "brand": "Nestle/Cadbury",
+    "slug": "kitkat-ac461b",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Dragon Fruit",
+    "brand": "Fresh Farm",
+    "slug": "dragon-fruit-27cc54",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868889/orangebasket/categories/g4h67wxn5wfmzrok6ysz.jpg"
+  },
+  {
+    "name": "Daawat Rozana Super Basmati Rice",
+    "slug": "daawat-rozana-super-basmati-rice",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868898/orangebasket/categories/uen1rj5ekpb5vtwggfjc.jpg"
+  },
+  {
+    "name": "Fortune Rice Bran Oil",
+    "slug": "fortune-rice-bran-oil",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868895/orangebasket/categories/y9tze1zek1xd0ci1ty9n.jpg"
+  },
+  {
+    "name": "Badshah Chat Masala",
+    "slug": "badshah-chat-masala",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Everest Tikhalal Red Chilli Powder",
+    "slug": "everest-tikhalal-red-chilli-powder",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Tata Salt Lite (15% Less Sodium)",
+    "slug": "tata-salt-lite-15-less-sodium",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Rasagola",
+    "brand": "Banchram",
+    "slug": "rasagola",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "apple",
+    "brand": "washing ton",
+    "slug": "apple-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868916/orangebasket/products/x4oxlo7kv650rgjwar9e.jpg"
+  },
+  {
+    "name": "Blackberry",
+    "brand": "Fresh Farm",
+    "slug": "blackberry-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Guava",
+    "brand": "Fresh Farm",
+    "slug": "guava-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868889/orangebasket/categories/g4h67wxn5wfmzrok6ysz.jpg"
+  },
+  {
+    "name": "Lemon",
+    "brand": "Fresh Farm",
+    "slug": "lemon-5a8fd4",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Pomegranate",
+    "brand": "Fresh Farm",
+    "slug": "pomegranate-ac461b",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Dragon Fruit",
+    "brand": "Fresh Farm",
+    "slug": "dragon-fruit-ac461b",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868889/orangebasket/categories/g4h67wxn5wfmzrok6ysz.jpg"
+  },
+  {
+    "name": "Dairy Milk Silk",
+    "brand": "Nestle/Cadbury",
+    "slug": "dairy-milk-silk-27cc54",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868899/orangebasket/categories/z06r7lqmndvmhddotzop.jpg"
+  },
+  {
+    "name": "Mango",
+    "brand": "Amul",
+    "slug": "mango",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868913/orangebasket/products/tntdbhowrcpotchdqtqc.jpg"
+  },
+  {
+    "name": "India Gate Kolam Rice",
+    "slug": "india-gate-kolam-rice",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868898/orangebasket/categories/uen1rj5ekpb5vtwggfjc.jpg"
+  },
+  {
+    "name": "Whole Farm Premium Red Chilli Whole",
+    "slug": "whole-farm-premium-red-chilli-whole",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Aashirvaad Superior MP Whole Wheat Atta",
+    "slug": "aashirvaad-superior-mp-whole-wheat-atta",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868893/orangebasket/categories/s01rr5nghpyea8dqpns6.jpg"
+  },
+  {
+    "name": "Banana",
+    "brand": "Fresh Farm",
+    "slug": "banana-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Orange",
+    "brand": "Fresh Farm",
+    "slug": "orange-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Lychee",
+    "brand": "Fresh Farm",
+    "slug": "lychee-5a8fd4",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Jackfruit",
+    "brand": "Fresh Farm",
+    "slug": "jackfruit-ac461b",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868889/orangebasket/categories/g4h67wxn5wfmzrok6ysz.jpg"
+  },
+  {
+    "name": "Lychee",
+    "brand": "Fresh Farm",
+    "slug": "lychee-ac461b",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Dairy Milk Silk",
+    "brand": "Nestle/Cadbury",
+    "slug": "dairy-milk-silk-ac461b",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868899/orangebasket/categories/z06r7lqmndvmhddotzop.jpg"
+  },
+  {
+    "name": "Avocado",
+    "brand": "Fresh Farm",
+    "slug": "avocado-27cc54",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Saffola Gold Healthy Lifestyle & Heart Edible Oil",
+    "slug": "saffola-gold-healthy-lifestyle-heart-edible-oil",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868895/orangebasket/categories/y9tze1zek1xd0ci1ty9n.jpg"
+  },
+  {
+    "name": "Tata Salt (Vacuum Evaporated Iodised Salt)",
+    "slug": "tata-salt-vacuum-evaporated-iodised-salt",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Everest Coriander PowderDhania",
+    "slug": "everest-coriander-powderdhania",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Rajdhani Chana Sattu",
+    "slug": "rajdhani-chana-sattu",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868963/orangebasket/categories/yinb9wqgawh7ht8dcutr.jpg"
+  },
+  {
+    "name": "Cherry",
+    "brand": "Fresh Farm",
+    "slug": "cherry-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Apricot",
+    "brand": "Fresh Farm",
+    "slug": "apricot-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Farid",
+    "brand": "G p",
+    "slug": "nice-",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Fortune Maida",
+    "slug": "fortune-maida",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868893/orangebasket/categories/s01rr5nghpyea8dqpns6.jpg"
+  },
+  {
+    "name": "Whole Farm Premium Plain MakhanaFoxnuts",
+    "slug": "whole-farm-premium-plain-makhanafoxnuts",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Whole Farm Grocery Kabuli Chana (Medium Size)",
+    "slug": "whole-farm-grocery-kabuli-chana-medium-size",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868963/orangebasket/categories/yinb9wqgawh7ht8dcutr.jpg"
+  },
+  {
+    "name": "Lychee",
+    "brand": "Fresh Farm",
+    "slug": "lychee-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Avocado",
+    "brand": "Fresh Farm",
+    "slug": "avocado-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Lemon",
+    "brand": "Fresh Farm",
+    "slug": "lemon-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Mango",
+    "brand": "Fresh Farm",
+    "slug": "mango-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868913/orangebasket/products/tntdbhowrcpotchdqtqc.jpg"
+  },
+  {
+    "name": "Papaya",
+    "brand": "Fresh Farm",
+    "slug": "papaya-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868889/orangebasket/categories/g4h67wxn5wfmzrok6ysz.jpg"
+  },
+  {
+    "name": "Ferrero Rocher",
+    "brand": "Nestle/Cadbury",
+    "slug": "ferrero-rocher-5a8fd4",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Peach",
+    "brand": "Fresh Farm",
+    "slug": "peach-ac461b",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Pomegranate",
+    "brand": "Fresh Farm",
+    "slug": "pomegranate-27cc54",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Whole Farm Premium Raw Peanuts",
+    "slug": "whole-farm-premium-raw-peanuts",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Guava",
+    "brand": "",
+    "slug": "guava",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868889/orangebasket/categories/g4h67wxn5wfmzrok6ysz.jpg"
+  },
+  {
+    "name": "Unibic cookies",
+    "brand": "",
+    "slug": "unibic-cookies",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868891/orangebasket/categories/t7edxf5kqnrliywcjupx.jpg"
+  },
+  {
+    "name": "Pear",
+    "brand": "Fresh Farm",
+    "slug": "pear-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Fig",
+    "brand": "Fresh Farm",
+    "slug": "fig-a7b11c",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Jackfruit",
+    "brand": "Fresh Farm",
+    "slug": "jackfruit-5a8fd4",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868889/orangebasket/categories/g4h67wxn5wfmzrok6ysz.jpg"
+  },
+  {
+    "name": "Cherry",
+    "brand": "Fresh Farm",
+    "slug": "cherry-ac461b",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Lemon",
+    "brand": "Fresh Farm",
+    "slug": "lemon-ac461b",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  },
+  {
+    "name": "Best Rice",
+    "brand": "India Gate",
+    "slug": "best-rice",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868898/orangebasket/categories/uen1rj5ekpb5vtwggfjc.jpg"
+  },
+  {
+    "name": "Maggi",
+    "brand": "Nestle",
+    "slug": "maggi",
+    "image": "https://res.cloudinary.com/b5hik8gu/image/upload/v1788868886/orangebasket/categories/airdnmojpyitfnud5km5.jpg"
+  }
+]
