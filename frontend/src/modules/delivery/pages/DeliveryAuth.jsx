@@ -456,7 +456,6 @@ const DeliveryAuth = () => {
                               <input
                                 type="file"
                                 accept="image/*"
-                                capture="user"
                                 id="profile-upload"
                                 className="hidden"
                                 onChange={(e) => {
