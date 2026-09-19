@@ -1,24 +1,18 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, useScroll, useTransform } from "framer-motion";
-import Lottie from "lottie-react";
+import { motion } from "framer-motion";
 import LocationDrawer from "./LocationDrawer";
 import { useLocation } from "../../context/LocationContext";
 import { useProductDetail } from "../../context/ProductDetailContext";
 import { useSettings } from "@core/context/SettingsContext";
 import { cn } from "@/lib/utils";
 import { applyCloudinaryTransform } from "@/core/utils/imageUtils";
-import {
-  buildHeaderGradient,
-  buildMiniCartColor,
-  buildSearchBarBackgroundColor,
-  shiftHex,
-} from "../../utils/headerTheme";
+import { buildMiniCartColor, shiftHex } from "../../utils/headerTheme";
 import LogoImage from "../../../../assets/Logo.png";
 
 // MUI Icons
-import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
+import BoltIcon from "@mui/icons-material/Bolt";
 import SearchIcon from "@mui/icons-material/Search";
 import MicIcon from "@mui/icons-material/Mic";
 import ChevronDownIcon from "@mui/icons-material/KeyboardArrowDown";
@@ -27,121 +21,184 @@ import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import NotificationsNoneOutlinedIcon from "@mui/icons-material/NotificationsNoneOutlined";
 
-/** Full-width bottom stroke + tab curve; l/r are 0–100% of column where the inner bump sits. */
-function buildActiveTabPath(l, r) {
-  const y = 20;
-  const mapX = (x) => l + ((x - 1.5) / (98.5 - 1.5)) * (r - l);
-  // Softer shoulders + flatter crown for a cleaner active tab curve.
-  return `M 0 ${y} L ${l} ${y} L ${l} 12 C ${mapX(2.6)} 7 ${mapX(8.2)} 1.55 ${mapX(15)} 1.55 L ${mapX(85)} 1.55 C ${mapX(91.8)} 1.55 ${mapX(97.4)} 7 ${mapX(98.5)} 12 V ${y} L 100 ${y}`;
+const SEARCH_PREFIX = "Search ";
+const SEARCH_PHRASES = ['"bread"', '"milk"', '"chocolate"', '"eggs"', '"chips"'];
+
+/** Types out / erases rotating example queries for the search placeholder. */
+function useTypingPlaceholder() {
+  const [text, setText] = useState(SEARCH_PREFIX);
+  const [state, setState] = useState({
+    textIndex: 0,
+    charIndex: 0,
+    isDeleting: false,
+    isPaused: false,
+  });
+
+  useEffect(() => {
+    const { textIndex, charIndex, isDeleting, isPaused } = state;
+    const phrase = SEARCH_PHRASES[textIndex];
+
+    if (isPaused) {
+      const t = setTimeout(
+        () => setState((p) => ({ ...p, isPaused: false, isDeleting: true })),
+        2000,
+      );
+      return () => clearTimeout(t);
+    }
+
+    const t = setTimeout(
+      () => {
+        if (!isDeleting) {
+          if (charIndex < phrase.length) {
+            setText(SEARCH_PREFIX + phrase.substring(0, charIndex + 1));
+            setState((p) => ({ ...p, charIndex: p.charIndex + 1 }));
+          } else {
+            setState((p) => ({ ...p, isPaused: true }));
+          }
+        } else if (charIndex > 0) {
+          setText(SEARCH_PREFIX + phrase.substring(0, charIndex - 1));
+          setState((p) => ({ ...p, charIndex: p.charIndex - 1 }));
+        } else {
+          setState((p) => ({
+            ...p,
+            isDeleting: false,
+            textIndex: (p.textIndex + 1) % SEARCH_PHRASES.length,
+          }));
+        }
+      },
+      isDeleting ? 50 : 100,
+    );
+    return () => clearTimeout(t);
+  }, [state]);
+
+  return text;
 }
 
-function CategoryNavColumn({
-  cat,
-  isActive,
-  categoryAccent,
-  onCategorySelect,
-  headerFontColor,
-  headerIconColor,
-}) {
-  const iconColor = headerIconColor || "#111111";
-  const colRef = useRef(null);
-  const labelRef = useRef(null);
-  const [lr, setLr] = useState({ l: 22, r: 78 });
+/**
+ * Scroll-linked fold. The two sections shrink 1px per 1px of scroll (top section first, then the
+ * tabs), so the header's bottom edge moves up exactly as fast as the page content beneath it and
+ * never leaves a gap. Heights are written straight to the DOM to avoid a re-render per scroll event.
+ */
+function useScrollFold(hasTabs) {
+  const topRef = useRef(null);
+  const topInnerRef = useRef(null);
+  const tabsRef = useRef(null);
+  const tabsInnerRef = useRef(null);
 
-  const measure = () => {
-    if (!isActive || !colRef.current || !labelRef.current) return;
-    const col = colRef.current.getBoundingClientRect();
-    const lab = labelRef.current.getBoundingClientRect();
-    if (col.width < 4) return;
-    const pad = 5;
-    const l = Math.max(0, ((lab.left - col.left - pad) / col.width) * 100);
-    const r = Math.min(100, ((lab.right - col.left + pad) / col.width) * 100);
-    if (r - l > 6) setLr({ l, r });
-  };
+  useEffect(() => {
+    const sizes = { top: 0, tabs: 0 };
 
-  useLayoutEffect(() => {
+    const setSection = (el, natural, consumed) => {
+      if (!el) return;
+      const h = Math.max(0, natural - consumed);
+      el.style.height = `${h}px`;
+      el.style.opacity = natural > 0 ? String(h / natural) : "1";
+      el.style.visibility = h === 0 ? "hidden" : "visible";
+    };
+
+    const apply = () => {
+      const y = Math.max(0, window.scrollY);
+      setSection(topRef.current, sizes.top, y);
+      setSection(tabsRef.current, sizes.tabs, Math.max(0, y - sizes.top));
+    };
+
+    const measure = () => {
+      // offsetHeight is 0 while a section is display:none (e.g. the mobile-only top block on desktop).
+      sizes.top = topInnerRef.current?.offsetHeight || 0;
+      sizes.tabs = tabsInnerRef.current?.offsetHeight || 0;
+      apply();
+    };
+
     measure();
     const ro = new ResizeObserver(measure);
-    if (colRef.current) ro.observe(colRef.current);
-    window.addEventListener("resize", measure);
+    [topInnerRef.current, tabsInnerRef.current].forEach((el) => el && ro.observe(el));
+    window.addEventListener("scroll", apply, { passive: true });
     return () => {
       ro.disconnect();
-      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", apply);
     };
-  }, [isActive, cat.name]);
+  }, [hasTabs]);
 
-  const pathD = isActive ? buildActiveTabPath(lr.l, lr.r) : "";
+  return { topRef, topInnerRef, tabsRef, tabsInnerRef };
+}
+
+function SearchField({ placeholder, onClick, className }) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => e.key === "Enter" && onClick()}
+      className={cn(
+        "flex h-11 cursor-pointer items-center gap-2.5 rounded-lg bg-slate-100 px-3 transition-colors hover:bg-slate-200/70 active:bg-slate-200",
+        className,
+      )}>
+      <SearchIcon sx={{ fontSize: 20 }} className="shrink-0 text-slate-500" />
+      <span className="flex-1 truncate text-[14px] text-slate-500">
+        {placeholder}
+      </span>
+      <MicIcon sx={{ fontSize: 20 }} className="shrink-0 text-slate-500" />
+    </div>
+  );
+}
+
+function IconButton({ label, onClick, children, className }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className={cn(
+        "flex h-10 w-10 items-center justify-center rounded-full text-slate-800 transition-colors hover:bg-slate-100 active:bg-slate-200",
+        className,
+      )}>
+      {children}
+    </button>
+  );
+}
+
+function CategoryTab({ cat, isActive, accent, onSelect }) {
+  const isComponentIcon =
+    typeof cat.icon === "function" ||
+    (typeof cat.icon === "object" && cat.icon?.$$typeof);
 
   return (
-    <motion.div
-      ref={colRef}
-      layout
-      whileTap={{ scale: 0.96 }}
-      transition={{
-        layout: { type: "spring", stiffness: 520, damping: 38, mass: 0.55 },
-      }}
-      onClick={() => onCategorySelect && onCategorySelect(cat)}
-      style={{
-        borderBottomColor: isActive ? "transparent" : categoryAccent,
-      }}
-      className="relative z-[2] flex min-w-[48px] shrink-0 cursor-pointer flex-col items-center gap-0.5 border-b-2 px-2 pb-0.5 pt-0.5 snap-start md:min-w-[58px]">
-      <div className="relative z-10 flex h-9 w-9 items-center justify-center md:h-11 md:w-11">
-        {typeof cat.icon === "function" ||
-        (typeof cat.icon === "object" && cat.icon.$$typeof) ? (
-          <cat.icon
-            sx={{
-              fontSize: { xs: 20, md: 24 },
-              color: iconColor,
-              opacity: isActive ? 1 : 0.62,
-              transition: "opacity 0.2s, transform 0.2s",
-            }}
-          />
+    <button
+      type="button"
+      onClick={() => onSelect?.(cat)}
+      className="relative flex h-[60px] min-w-[68px] shrink-0 snap-start flex-col items-center justify-center gap-1 px-3 active:opacity-70">
+      <span
+        className={cn(
+          "flex h-6 w-6 items-center justify-center transition-opacity",
+          isActive ? "opacity-100" : "opacity-55",
+        )}>
+        {isComponentIcon ? (
+          <cat.icon sx={{ fontSize: 24, color: "#0f172a" }} />
         ) : (
           <img
             src={applyCloudinaryTransform(cat.icon, "f_auto,q_auto,w_100")}
-            alt={cat.name}
+            alt=""
             loading="lazy"
-            className="h-5 w-5 object-contain md:h-6 md:w-6"
-            style={{ opacity: isActive ? 1 : 0.62 }}
+            className="h-6 w-6 object-contain"
           />
         )}
-      </div>
-      <div className="relative mt-px w-full">
-        <span
-          ref={labelRef}
-          className={cn(
-            "relative z-10 mx-auto block max-w-[72px] truncate px-1 pb-0.5 text-center text-[8px] uppercase tracking-tight md:max-w-[88px] md:text-[10px]",
-            isActive ? "font-black" : "font-semibold",
-          )}
-          style={{
-            color: isActive ? iconColor : (headerFontColor || "#111111"),
-            opacity: isActive ? 1 : 0.68,
-          }}>
-          {cat.name}
-        </span>
-      </div>
+      </span>
+      <span
+        className={cn(
+          "max-w-[84px] truncate text-[11px] leading-none",
+          isActive ? "font-semibold text-slate-900" : "font-medium text-slate-500",
+        )}>
+        {cat.name}
+      </span>
       {isActive && (
-        <motion.svg
-          layoutId="active-category-curve"
-          aria-hidden
-          className="pointer-events-none absolute bottom-0 left-0 right-0 z-[6] h-[22px] w-full overflow-visible"
-          viewBox="0 0 100 20"
-          preserveAspectRatio="none"
-          shapeRendering="geometricPrecision"
-          transition={{
-            layout: { type: "spring", stiffness: 560, damping: 40, mass: 0.5 },
-          }}>
-          <path
-            d={pathD}
-            fill="none"
-            stroke={categoryAccent}
-            strokeWidth="2"
-            strokeLinecap="butt"
-            strokeLinejoin="round"
-          />
-        </motion.svg>
+        <motion.span
+          layoutId="header-tab-indicator"
+          transition={{ type: "spring", stiffness: 520, damping: 40 }}
+          className="absolute inset-x-2 bottom-0 h-[3px] rounded-t-full"
+          style={{ backgroundColor: accent }}
+        />
       )}
-    </motion.div>
+    </button>
   );
 }
 
@@ -150,432 +207,184 @@ const MainLocationHeader = ({
   activeCategory,
   onCategorySelect,
 }) => {
-  const { scrollY } = useScroll();
+  const navigate = useNavigate();
   const [isLocationOpen, setIsLocationOpen] = useState(false);
-  const [cartAnimData, setCartAnimData] = useState(null);
-
-  // Dynamically load shopping-cart Lottie on mount
-  useEffect(() => {
-    import("../../../../assets/lottie/shopping-cart.json")
-      .then((m) => setCartAnimData(m.default))
-      .catch(() => {});
-  }, []);
-  const { currentLocation, refreshLocation, isFetchingLocation } =
-    useLocation();
+  const { currentLocation, isFetchingLocation } = useLocation();
   const { isOpen: isProductDetailOpen } = useProductDetail();
   const { settings } = useSettings();
+  const searchPlaceholder = useTypingPlaceholder();
+  const fold = useScrollFold(categories.length > 0);
+
   const appName = settings?.appName || "App";
   const logoUrl = settings?.logoUrl || LogoImage;
   const deliveryEta =
     settings?.estimatedDeliveryTime?.trim() ||
     currentLocation?.time ||
     "12-15 mins";
-  const navigate = useNavigate();
+  const locationLabel = isFetchingLocation
+    ? "Detecting location..."
+    : currentLocation?.name || "Select location";
 
-  // Search Logic
-  const handleSearchClick = () => {
-    navigate("/search");
-  };
-
-  const handleSearchKeyDown = (e) => {
-    if (e.key === "Enter") {
-      navigate("/search", { state: { query: e.target.value } });
-    }
-  };
-
-  // Search placeholder animation
-  const [searchPlaceholder, setSearchPlaceholder] = useState("Search ");
-  const [typingState, setTypingState] = useState({
-    textIndex: 0,
-    charIndex: 0,
-    isDeleting: false,
-    isPaused: false,
-  });
-
-  const staticText = "Search ";
-  const typingPhrases = [
-    '"bread"',
-    '"milk"',
-    '"chocolate"',
-    '"eggs"',
-    '"chips"',
-  ];
+  const baseColor = activeCategory?.headerColor || "var(--primary)";
+  // Darkened so the accent stays visible on white even for pastel category colours.
+  const accent = shiftHex(baseColor, -40);
 
   useEffect(() => {
-    const { textIndex, charIndex, isDeleting, isPaused } = typingState;
-    const currentPhrase = typingPhrases[textIndex];
-
-    if (isPaused) {
-      const timeout = setTimeout(() => {
-        setTypingState((prev) => ({
-          ...prev,
-          isPaused: false,
-          isDeleting: true,
-        }));
-      }, 2000); // Pause after full phrase
-      return () => clearTimeout(timeout);
-    }
-
-    const timeout = setTimeout(
-      () => {
-        if (!isDeleting) {
-          // Typing
-          if (charIndex < currentPhrase.length) {
-            setSearchPlaceholder(
-              staticText + currentPhrase.substring(0, charIndex + 1),
-            );
-            setTypingState((prev) => ({
-              ...prev,
-              charIndex: prev.charIndex + 1,
-            }));
-          } else {
-            // Finished typing
-            setTypingState((prev) => ({ ...prev, isPaused: true }));
-          }
-        } else {
-          // Deleting
-          if (charIndex > 0) {
-            setSearchPlaceholder(
-              staticText + currentPhrase.substring(0, charIndex - 1),
-            );
-            setTypingState((prev) => ({
-              ...prev,
-              charIndex: prev.charIndex - 1,
-            }));
-          } else {
-            // Finished deleting
-            setTypingState((prev) => ({
-              ...prev,
-              isDeleting: false,
-              textIndex: (prev.textIndex + 1) % typingPhrases.length,
-            }));
-          }
-        }
-      },
-      isDeleting ? 50 : 100,
-    ); // 50ms deleting speed, 100ms typing speed
-
-    return () => clearTimeout(timeout);
-  }, [typingState]);
-
-  // Smooth scroll interpolations
-  const headerTopPadding = useTransform(scrollY, [0, 160], [16, 16]);
-  const headerBottomPadding = useTransform(scrollY, [0, 160], [4, 4]);
-  const headerRoundness = useTransform(scrollY, [0, 160], [0, 0]);
-  const bgOpacity = useTransform(scrollY, [0, 160], [1, 1]);
-
-  // Content animations
-  const contentHeight = useTransform(scrollY, [0, 160], ["64px", "64px"]);
-  const contentOpacity = useTransform(scrollY, [0, 160], [1, 1]);
-  const navHeight = useTransform(scrollY, [0, 200], ["60px", "60px"]);
-  const navOpacity = useTransform(scrollY, [0, 200], [1, 1]);
-  const navMargin = useTransform(scrollY, [0, 200], [4, 4]);
-  const categorySpacing = useTransform(scrollY, [0, 200], [3, 3]);
-  const cartOpacity = useTransform(scrollY, [0, 110, 150], [1, 1, 1]);
-  const cartScale = useTransform(scrollY, [0, 110, 150], [1, 1, 1]);
-
-  // Helper to hide elements completely when collapsed to prevent clicks
-  const displayContent = useTransform(scrollY, (value) => "block");
-  const displayNav = useTransform(scrollY, (value) => "flex");
-  const displayCart = useTransform(scrollY, (value) => "block");
-
-  const baseHeaderColor = activeCategory?.headerColor || "var(--primary)";
-  const headerFontColor = activeCategory?.headerFontColor || "#111827";
-  const headerIconColor = activeCategory?.headerIconColor || "#111111";
-  
-  const headerGradient = buildHeaderGradient(baseHeaderColor);
-  const searchBarBg = buildSearchBarBackgroundColor(baseHeaderColor);
-  const categoryAccent = headerIconColor;
-
-  useEffect(() => {
-    const c = buildMiniCartColor(baseHeaderColor);
-    document.documentElement.style.setProperty("--customer-mini-cart-color", c);
+    document.documentElement.style.setProperty(
+      "--customer-mini-cart-color",
+      buildMiniCartColor(baseColor),
+    );
     return () => {
       document.documentElement.style.removeProperty(
         "--customer-mini-cart-color",
       );
     };
-  }, [baseHeaderColor]);
+  }, [baseColor]);
+
+  const goSearch = () => navigate("/search");
+
+  const locationButton = (
+    <button
+      type="button"
+      data-lenis-prevent
+      data-lenis-prevent-touch
+      onClick={() => setIsLocationOpen(true)}
+      className="flex max-w-full items-center gap-0.5 border-0 bg-transparent p-0 text-left text-slate-500 hover:text-slate-800 active:opacity-70">
+      <LocationOnIcon sx={{ fontSize: 14 }} className="shrink-0" />
+      <span className="truncate text-[12px] font-medium md:max-w-[300px]">
+        {locationLabel}
+      </span>
+      <ChevronDownIcon sx={{ fontSize: 16 }} className="shrink-0" />
+    </button>
+  );
 
   return (
     <>
       <div
         className={cn(
-          "fixed top-0 left-0 right-0 z-[200]",
+          "fixed left-0 right-0 top-0 z-[200] border-b border-slate-200 bg-white",
           isProductDetailOpen && "hidden md:block",
-        )}>
-        <motion.div
-          initial={false}
-          style={{
-            paddingTop: headerTopPadding,
-            paddingBottom: headerBottomPadding,
-            borderBottomLeftRadius: headerRoundness,
-            borderBottomRightRadius: headerRoundness,
-            opacity: bgOpacity,
-            backgroundImage: headerGradient,
-          }}
-          className="px-4 shadow-[0_4px_20px_rgba(0,0,0,0.15)] overflow-hidden transform-gpu will-change-transform">
-          {/* Subtle Glow Overlay */}
-          <div className="absolute inset-0 bg-white/8 pointer-events-none" />
-
-          {/* Corner Lottie */}
-          <motion.button
-            initial={{ opacity: 0, scale: 0.9, y: -8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.15, ease: "easeOut" }}
-            style={{
-              opacity: cartOpacity,
-              scale: cartScale,
-              display: displayCart,
-            }}
-            type="button"
-            aria-label="Open cart"
-            onClick={() => navigate("/checkout")}
-            className="absolute top-3 right-5 sm:top-4 sm:right-6 md:top-5 md:right-8 z-20 w-12 h-12 sm:w-14 sm:h-14 md:w-20 md:h-20 cursor-pointer">
-            {cartAnimData ? (
-              <Lottie
-                animationData={cartAnimData}
-                loop
-                className="w-full h-full pointer-events-none drop-shadow-[0_8px_18px_rgba(0,0,0,0.14)]"
-              />
-            ) : (
-              <div className="w-full h-full" />
-            )}
-          </motion.button>
-
-          {/* Notification Icon (Mobile) */}
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => navigate("/notifications")}
-            className="absolute top-5 right-20 sm:top-6 sm:right-24 md:hidden z-20 cursor-pointer"
-            style={{ color: headerFontColor }}
-          >
-            <NotificationsNoneOutlinedIcon sx={{ fontSize: 28 }} />
-          </motion.button>
-
-          {/* Desktop/Tablet Header Layout (md and above) */}
-          <div className="hidden md:flex items-center justify-between relative z-20 px-2 lg:px-6 mb-4 mt-1">
-            {/* Left Section: Logo + Location row */}
-            <div className="flex items-center gap-4 lg:gap-8">
-              <div
+        )}
+        style={{
+          backgroundImage: `linear-gradient(to bottom, color-mix(in srgb, ${baseColor} 58%, white) 0%, color-mix(in srgb, ${baseColor} 28%, white) 55%, white 100%)`,
+        }}>
+        {/* Mobile: location + actions, then search */}
+        <div className="px-4 pt-2.5 md:hidden">
+          <div ref={fold.topRef} className="overflow-hidden">
+          <div ref={fold.topInnerRef} className="pb-2">
+            <div className="flex h-10 items-center justify-between gap-3">
+              <button
+                type="button"
                 onClick={() => navigate("/")}
-                className="flex items-center gap-3 cursor-pointer group shrink-0">
-                <div className="group-hover:scale-110 transition-all duration-300 drop-shadow-[0_2px_8px_rgba(255,255,255,0.2)]">
+                className="flex min-w-0 items-center gap-2 border-0 bg-transparent p-0">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1 shadow-[0_1px_4px_rgba(0,0,0,0.15)] ring-1 ring-black/5">
                   <img
                     src={logoUrl}
                     alt={`${appName} Logo`}
-                    loading="lazy"
-                    className="h-10 w-auto object-contain"
+                    className="h-full w-full object-contain"
                   />
-                </div>
-              </div>
-
-              {/* Location Block (Desktop inline row) */}
-              <div className="flex flex-col border-l border-black/10 pl-4 lg:pl-8 h-10 justify-center">
-                <div className="flex items-center gap-1.5 opacity-70">
-                  <AccessTimeIcon sx={{ fontSize: 13, color: headerFontColor }} />
-                  <span 
-                    className="text-[11px] font-bold uppercase tracking-wider leading-none"
-                    style={{ color: headerFontColor }}
-                  >
-                    {deliveryEta}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  data-lenis-prevent
-                  data-lenis-prevent-touch
-                  onClick={() => {
-                    setIsLocationOpen(true);
-                  }}
-                  className="flex items-center gap-1 text-slate-900 hover:text-slate-700 cursor-pointer group active:scale-95 transition-all border-0 bg-transparent p-0 text-left">
-                  <LocationOnIcon sx={{ fontSize: 14, color: "inherit" }} />
-                  <div 
-                    className="text-[13px] font-bold leading-tight max-w-[250px] lg:max-w-[320px] truncate"
-                    style={{ color: headerFontColor }}
-                  >
-                    {isFetchingLocation
-                      ? "Detecting location..."
-                      : currentLocation?.name || "Select location"}
-                  </div>
-                  <ChevronDownIcon
-                    sx={{ fontSize: 12, opacity: 0.5, color: headerFontColor }}
-                  />
-                </button>
-              </div>
-            </div>
-
-            {/* Center Section: Search Bar */}
-            <div className="flex-1 max-w-[450px] lg:max-w-2xl px-6">
-              <motion.div
-                onClick={handleSearchClick}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
-                style={{ backgroundColor: searchBarBg }}
-                className="rounded-full px-4 h-11 shadow-md flex items-center border border-white/50 transition-all duration-200 focus-within:ring-2 focus-within:ring-brand-400/60 cursor-pointer">
-                <SearchIcon sx={{ color: "#000000", fontSize: 20 }} />
-                <input
-                  type="text"
-                  placeholder={searchPlaceholder || "Search Products..."}
-                  readOnly
-                  className="flex-1 bg-transparent border-none outline-none pl-2 text-slate-800 font-semibold placeholder:text-black text-[15px] cursor-pointer"
-                />
-                <div className="flex items-center gap-2 border-l border-slate-100 pl-3">
-                  <MicIcon sx={{ color: "#000000", fontSize: 20 }} />
-                </div>
-              </motion.div>
-            </div>
-
-            {/* Right Section: Action Icons */}
-            <div className="flex items-center gap-5 lg:gap-8 shrink-0">
-              <motion.button
-                whileHover={{ scale: 1.15, rotate: 5 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => navigate("/wishlist")}
-                className="transition-all hover:text-red-500"
-                style={{ color: headerFontColor }}
-              >
-                <FavoriteBorderOutlinedIcon sx={{ fontSize: 24 }} />
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.15, rotate: 5 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => navigate("/notifications")}
-                className="transition-all hover:text-slate-700 relative group"
-                style={{ color: headerFontColor }}
-              >
-                <NotificationsNoneOutlinedIcon sx={{ fontSize: 24 }} />
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.15, rotate: -5 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => navigate("/checkout")}
-                className="transition-all hover:text-slate-700 relative group"
-                style={{ color: headerFontColor }}
-              >
-                <ShoppingCartOutlinedIcon sx={{ fontSize: 24 }} />
-                <span className="absolute -top-1.5 -right-1.5 bg-yellow-400 text-brand-900 text-[9px] font-black w-4.5 h-4.5 rounded-full flex items-center justify-center border-2 border-brand-800 shadow-sm transition-transform group-hover:-translate-y-0.5">
-                  0
                 </span>
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.15 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => navigate("/profile")}
-                className="lg:bg-white/30 p-1.5 lg:rounded-full hover:bg-white transition-all"
-                style={{ color: headerFontColor }}
-              >
-                <AccountCircleOutlinedIcon sx={{ fontSize: 28 }} />
-              </motion.button>
-            </div>
-          </div>
-
-          {/* Collapsible Delivery Info & Location (MOBILE ONLY) */}
-          <div className="md:hidden">
-            <motion.div
-              className="relative z-10 mb-4">
-              <div className="mb-1">
-                <span 
-                  className="inline-flex items-center rounded-full border border-black/10 bg-white/18 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm"
-                  style={{ color: headerFontColor }}
-                >
+                <span className="truncate text-[16px] font-extrabold leading-tight tracking-tight text-slate-900">
                   {appName}
                 </span>
+              </button>
+              <div className="-mr-2 flex shrink-0 items-center">
+                <IconButton
+                  label="Notifications"
+                  onClick={() => navigate("/notifications")}>
+                  <NotificationsNoneOutlinedIcon sx={{ fontSize: 24 }} />
+                </IconButton>
+                <IconButton label="Open cart" onClick={() => navigate("/checkout")}>
+                  <ShoppingCartOutlinedIcon sx={{ fontSize: 24 }} />
+                </IconButton>
               </div>
-              <div className="flex justify-between items-start">
-                <div className="flex flex-col gap-0 leading-none">
-                  <div className="flex items-center gap-1.5">
-                    <AccessTimeIcon sx={{ fontSize: 15, color: headerFontColor }} />
-                    <span 
-                      className="text-[15px] font-bold tracking-tight leading-none"
-                      style={{ color: headerFontColor }}
-                    >
-                      {deliveryEta}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    data-lenis-prevent
-                    data-lenis-prevent-touch
-                    onClick={() => {
-                      setIsLocationOpen(true);
-                    }}
-                    className="flex items-center gap-1 text-slate-800 cursor-pointer group active:scale-95 transition-transform border-0 bg-transparent p-0 text-left leading-none">
-                    <LocationOnIcon sx={{ fontSize: 13, color: headerFontColor }} />
-                    <div 
-                      className="text-[10px] font-medium leading-none max-w-[280px] truncate"
-                      style={{ color: headerFontColor }}
-                    >
-                      {isFetchingLocation
-                        ? "Detecting location..."
-                        : currentLocation?.name || "Select location"}
-                    </div>
-                    <ChevronDownIcon
-                      sx={{ fontSize: 12, opacity: 0.5, color: headerFontColor }}
-                    />
-                  </button>
-                </div>
+            </div>
+            <div className="mt-1 min-w-0">
+              <div className="flex items-center gap-0.5 text-slate-900">
+                <BoltIcon sx={{ fontSize: 20, color: accent }} className="-ml-1" />
+                <span className="text-[18px] font-extrabold leading-none tracking-tight">
+                  {deliveryEta}
+                </span>
               </div>
-            </motion.div>
+              <div className="mt-1.5">{locationButton}</div>
+            </div>
           </div>
+          </div>
+          <SearchField
+            placeholder={searchPlaceholder}
+            onClick={goSearch}
+          />
+          <div className="h-2" />
+        </div>
 
-          {/* Search Bar (MOBILE ONLY) */}
-          <div className="relative z-10 mt-[1.5px] flex items-center gap-2 md:hidden">
-            <motion.div
-              onClick={handleSearchClick}
-              whileTap={{ scale: 0.98 }}
-              style={{ backgroundColor: searchBarBg }}
-              className="flex-1 rounded-[10px] px-3 h-10 shadow-md flex items-center border border-white/50 transition-all duration-200 focus-within:ring-2 focus-within:ring-brand-400/60 cursor-pointer">
-              <SearchIcon sx={{ color: "#000000", fontSize: 18 }} />
-              <input
-                type="text"
-                placeholder={searchPlaceholder || "Search Products..."}
-                readOnly
-                className="flex-1 bg-transparent border-none outline-none pl-2 text-slate-800 font-semibold placeholder:text-black text-[14px] cursor-pointer"
+        {/* Tablet / desktop: one row */}
+        <div className="mx-auto hidden h-[68px] max-w-[1400px] items-center gap-6 px-6 md:flex">
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="flex shrink-0 items-center gap-2.5 border-0 bg-transparent p-0">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1 shadow-[0_1px_4px_rgba(0,0,0,0.15)] ring-1 ring-black/5">
+              <img
+                src={logoUrl}
+                alt={`${appName} Logo`}
+                className="h-full w-full object-contain"
               />
-              <div className="flex items-center gap-2 border-l border-slate-100 pl-2.5">
-                <MicIcon sx={{ color: "#000000", fontSize: 18 }} />
-              </div>
-            </motion.div>
+            </span>
+            <span className="max-w-[180px] truncate text-[18px] font-extrabold tracking-tight text-slate-900">
+              {appName}
+            </span>
+          </button>
+
+          <div className="flex h-9 shrink-0 flex-col justify-center border-l border-slate-200 pl-6">
+            <div className="flex items-center gap-0.5 text-slate-900">
+              <BoltIcon sx={{ fontSize: 16, color: accent }} className="-ml-0.5" />
+              <span className="text-[14px] font-extrabold leading-none">
+                {deliveryEta}
+              </span>
+            </div>
+            <div className="mt-1">{locationButton}</div>
           </div>
 
-          {/* Categories Navigation - Smooth Collapse */}
-          {categories.length > 0 && (
-            <motion.div
-              layout
-              transition={{
-                layout: {
-                  type: "spring",
-                  stiffness: 420,
-                  damping: 34,
-                  mass: 0.6,
-                },
-              }}
-              className="relative flex items-end md:justify-center gap-0 overflow-x-auto no-scrollbar -mx-2 px-2 md:mx-0 md:px-0 z-10 snap-x pt-1 min-h-[68px] md:min-h-[76px] pb-0.5 mt-3">
-              {categories.map((cat) => {
-                const isActive = activeCategory?.id === cat.id;
-                return (
-                  <CategoryNavColumn
-                    key={cat.id}
-                    cat={cat}
-                    isActive={isActive}
-                    categoryAccent={categoryAccent}
-                    onCategorySelect={onCategorySelect}
-                    headerFontColor={headerFontColor}
-                    headerIconColor={headerIconColor}
-                  />
-                );
-              })}
-            </motion.div>
-          )}
+          <SearchField
+            placeholder={searchPlaceholder}
+            onClick={goSearch}
+            className="max-w-2xl flex-1"
+          />
 
-          {/* Background Decorative patterns */}
-          <div className="absolute top-0 right-0 w-80 h-80 bg-white/5 rounded-full blur-[100px] -mr-40 -mt-40 pointer-events-none" />
-        </motion.div>
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            <IconButton label="Wishlist" onClick={() => navigate("/wishlist")}>
+              <FavoriteBorderOutlinedIcon sx={{ fontSize: 22 }} />
+            </IconButton>
+            <IconButton
+              label="Notifications"
+              onClick={() => navigate("/notifications")}>
+              <NotificationsNoneOutlinedIcon sx={{ fontSize: 22 }} />
+            </IconButton>
+            <IconButton label="Open cart" onClick={() => navigate("/checkout")}>
+              <ShoppingCartOutlinedIcon sx={{ fontSize: 22 }} />
+            </IconButton>
+            <IconButton label="Profile" onClick={() => navigate("/profile")}>
+              <AccountCircleOutlinedIcon sx={{ fontSize: 26 }} />
+            </IconButton>
+          </div>
+        </div>
+
+        {/* Category tabs */}
+        {categories.length > 0 && (
+          <div ref={fold.tabsRef} className="overflow-hidden">
+            <div ref={fold.tabsInnerRef} className="no-scrollbar flex snap-x overflow-x-auto px-2 md:mx-auto md:max-w-[1400px] md:justify-center md:px-6 md:pt-1">
+              {categories.map((cat) => (
+                <CategoryTab
+                  key={cat.id}
+                  cat={cat}
+                  isActive={activeCategory?.id === cat.id}
+                  accent={accent}
+                  onSelect={onCategorySelect}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <LocationDrawer
@@ -587,4 +396,3 @@ const MainLocationHeader = ({
 };
 
 export default MainLocationHeader;
-

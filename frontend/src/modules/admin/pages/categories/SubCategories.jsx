@@ -11,6 +11,7 @@ import {
   Edit,
   Trash,
   Image,
+  X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { adminApi } from "../../services/adminApi";
