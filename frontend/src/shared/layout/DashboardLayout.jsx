@@ -190,6 +190,17 @@ const DashboardLayout = ({ children, navItems, title }) => {
                     shownOrderIdsRef.current = existingIds;
                     isFirstLoadRef.current = false;
                     setShownOrderIds(existingIds);
+
+                    // After a refresh, restore the popup for an order still awaiting acceptance.
+                    // Only orders with a real server expiry qualify (isSellerAlertEligible already
+                    // drops expired ones); the countdown resumes from that expiry, not from 60s.
+                    const stillOpen = pendingOrders.find(
+                        (o) => o.sellerPendingExpiresAt ?? o.expiresAt,
+                    );
+                    if (stillOpen) {
+                        setNewOrderAlert(stillOpen);
+                        newOrderAlertRef.current = stillOpen;
+                    }
                     return;
                 }
 

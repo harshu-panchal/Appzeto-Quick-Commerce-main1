@@ -35,7 +35,7 @@ import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-quer
 
 const RIDER_AVATAR_FALLBACK = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 const riderAvatar = (rider) =>
-    rider.avatar && !rider.avatar.includes('emoji') && !rider.avatar.includes('avatar') ? rider.avatar : RIDER_AVATAR_FALLBACK;
+    /^https?:\/\//i.test(rider.avatar || '') ? rider.avatar : RIDER_AVATAR_FALLBACK;
 
 const ACTIVE_DELIVERY_BOYS_QUERY_ROOT = ['admin', 'activeDeliveryBoys'];
 
@@ -91,6 +91,7 @@ const ActiveDeliveryBoys = () => {
                 name: r.name,
                 phone: r.phone,
                 email: r.email,
+                avatar: r.profileImage || r.documents?.profileImage || '',
                 status: r.isOnline ? 'available' : 'offline',
                 vehicle: r.vehicleType,
                 vehicleNum: r.vehicleNumber || 'N/A',
