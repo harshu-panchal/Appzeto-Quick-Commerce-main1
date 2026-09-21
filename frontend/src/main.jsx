@@ -3,6 +3,9 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 import { ensureStorageSchema } from '@core/utils/storage';
+import { installChunkErrorRecovery } from '@core/utils/chunkReload';
+
+installChunkErrorRecovery();
 
 // Wipe legacy persisted blobs from previous schema versions on the very first
 // load after a deploy. Runs synchronously before React mounts so no component

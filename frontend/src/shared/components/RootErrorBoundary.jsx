@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useRouteError, useNavigate, isRouteErrorResponse } from 'react-router-dom';
 import { ShoppingBag, RefreshCw, Home, AlertCircle } from 'lucide-react';
 import { useSettings } from '@core/context/SettingsContext';
+import { isChunkLoadError, reloadOnceForNewDeploy } from '@core/utils/chunkReload';
 
 const RootErrorBoundary = () => {
     const error = useRouteError();
@@ -10,10 +11,18 @@ const RootErrorBoundary = () => {
     const appName = settings?.appName || 'App';
     console.error('Route Error:', error);
 
+    // A failed lazy chunk means this tab is running an outdated build: reload into the new one.
+    const isStaleBuild = isChunkLoadError(error);
+    useEffect(() => {
+        if (isStaleBuild) reloadOnceForNewDeploy();
+    }, [isStaleBuild]);
+
     let errorMessage = "An unexpected error occurred.";
     let errorStatus = 500;
 
-    if (isRouteErrorResponse(error)) {
+    if (isStaleBuild) {
+        errorMessage = "A newer version of the app is available. Please refresh to continue.";
+    } else if (isRouteErrorResponse(error)) {
         errorStatus = error.status;
         errorMessage = error.statusText || error.data?.message || errorMessage;
     } else if (error instanceof Error) {
@@ -33,7 +42,7 @@ const RootErrorBoundary = () => {
                 <div className="space-y-3">
                     <button
                         onClick={() => window.location.reload()}
-                        className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary-200"
+                        className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg"
                     >
                         <RefreshCw className="w-5 h-5" />
                         Refresh Page
@@ -55,7 +64,7 @@ const RootErrorBoundary = () => {
                 </div>
             </div>
 
-            <div className="mt-8 flex items-center gap-2 text-primary-600 font-semibold">
+            <div className="mt-8 flex items-center gap-2 text-slate-800 font-semibold">
                 <ShoppingBag className="w-6 h-6" />
                 <span className="text-xl tracking-tight">{appName}</span>
             </div>
