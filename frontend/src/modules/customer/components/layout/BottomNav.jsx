@@ -32,9 +32,9 @@ const BottomNav = () => {
         <nav
             role="navigation"
             aria-label="Mobile Navigation"
-            className="fixed bottom-0 left-0 right-0 z-[500] bg-white/95 backdrop-blur-md border-t border-slate-200/75 md:hidden shadow-[0_-8px_30px_rgba(0,0,0,0.06)] pb-[max(0.35rem,env(safe-area-inset-bottom,0px))]"
+            className="fixed bottom-0 left-0 right-0 z-[500] bg-white/95 backdrop-blur-md border-t border-slate-200/75 md:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.06)]"
         >
-            <div className="w-full max-w-md mx-auto h-[64px] grid grid-cols-4 items-center px-2">
+            <div className="w-full max-w-md mx-auto h-[56px] grid grid-cols-4 items-center px-2">
                 {navItems.map((item) => {
                     const isActive = isItemActive(item);
 
@@ -42,13 +42,13 @@ const BottomNav = () => {
                         <Link
                             key={item.path}
                             to={item.path}
-                            className="relative flex flex-col items-center justify-center h-full py-1 group select-none"
+                            className="relative flex flex-col items-center justify-center h-full group select-none"
                         >
                             {/* Top Accent Indicator */}
                             {isActive && (
                                 <motion.div
                                     layoutId="customer-bottom-nav-indicator"
-                                    className="absolute top-0 w-8 h-[3px] bg-primary rounded-full z-20"
+                                    className="absolute top-0 w-8 h-[2.5px] bg-primary rounded-full z-20"
                                     transition={{ type: "spring", stiffness: 400, damping: 32 }}
                                 />
                             )}
@@ -57,7 +57,7 @@ const BottomNav = () => {
                             {isActive && (
                                 <motion.div
                                     layoutId="customer-bottom-nav-pill"
-                                    className="absolute inset-y-1.5 inset-x-1.5 sm:inset-x-2 bg-primary/8 rounded-2xl -z-10 border border-primary/10"
+                                    className="absolute inset-y-1 inset-x-1 sm:inset-x-2 bg-primary/8 rounded-xl -z-10 border border-primary/10"
                                     transition={{ type: "spring", stiffness: 350, damping: 30 }}
                                 />
                             )}
@@ -71,7 +71,7 @@ const BottomNav = () => {
                                     )}
                                 >
                                     <item.icon
-                                        size={22}
+                                        size={21}
                                         strokeWidth={isActive ? 2.4 : 2}
                                         className="transition-colors duration-200"
                                     />
@@ -79,7 +79,7 @@ const BottomNav = () => {
 
                                 <span
                                     className={cn(
-                                        "text-[10.5px] tracking-tight mt-1 transition-all duration-200 leading-tight",
+                                        "text-[10px] tracking-tight mt-0.5 transition-all duration-200 leading-none",
                                         isActive ? "font-bold text-primary" : "font-medium text-slate-500 group-hover:text-slate-700"
                                     )}
                                 >
