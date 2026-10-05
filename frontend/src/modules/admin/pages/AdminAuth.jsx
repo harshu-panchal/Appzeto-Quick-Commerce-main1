@@ -161,7 +161,7 @@ const AdminAuth = () => {
                                 >
                                     {isLogin ? 'Login' : 'Sign Up'}
                                 </motion.h1>
-                                <p className="text-base font-medium text-slate-400">
+                                <p className="text-base font-medium text-slate-500">
                                     {isLogin
                                         ? `Welcome to ${appName} Admin Platform`
                                         : 'Start managing your platform today'}
@@ -177,7 +177,7 @@ const AdminAuth = () => {
                                             exit={{ height: 0, opacity: 0, y: -10 }}
                                             className="group relative"
                                         >
-                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-primary">
+                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 transition-colors group-focus-within:text-primary">
                                                 <User size={18} />
                                             </div>
                                             <input
@@ -192,14 +192,14 @@ const AdminAuth = () => {
                                                     handleChange(e);
                                                 }}
                                                 placeholder="Full Name"
-                                                className="w-full rounded-xl border-2 border-transparent bg-slate-50 py-4 pl-12 pr-4 text-sm font-bold text-slate-700 outline-none transition-all placeholder:text-slate-300 focus:border-primary/20 focus:bg-white focus:ring-4 focus:ring-primary/10"
+                                                className="w-full rounded-xl border-2 border-transparent bg-slate-50 py-4 pl-12 pr-4 text-sm font-bold text-slate-700 outline-none transition-all placeholder:text-slate-500 focus:border-primary/20 focus:bg-white focus:ring-4 focus:ring-primary/10"
                                             />
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
 
                                 <div className="group relative">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-primary">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 transition-colors group-focus-within:text-primary">
                                         <Mail size={18} />
                                     </div>
                                     <input
@@ -209,12 +209,12 @@ const AdminAuth = () => {
                                         value={formData.email}
                                         onChange={handleChange}
                                         placeholder="Username or email"
-                                        className="w-full rounded-xl border-2 border-transparent bg-slate-50 py-4 pl-12 pr-4 text-sm font-bold text-slate-700 outline-none transition-all placeholder:text-slate-300 focus:border-primary/20 focus:bg-white focus:ring-4 focus:ring-primary/10"
+                                        className="w-full rounded-xl border-2 border-transparent bg-slate-50 py-4 pl-12 pr-4 text-sm font-bold text-slate-700 outline-none transition-all placeholder:text-slate-500 focus:border-primary/20 focus:bg-white focus:ring-4 focus:ring-primary/10"
                                     />
                                 </div>
 
                                 <div className="group relative">
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-primary">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 transition-colors group-focus-within:text-primary">
                                         <Lock size={18} />
                                     </div>
                                     <input
@@ -227,12 +227,13 @@ const AdminAuth = () => {
                                         value={formData.password}
                                         onChange={handleChange}
                                         placeholder="Password (min 10 chars)"
-                                        className="w-full rounded-xl border-2 border-transparent bg-slate-50 py-4 pl-12 pr-12 text-sm font-bold text-slate-700 outline-none transition-all placeholder:text-slate-300 focus:border-primary/20 focus:bg-white focus:ring-4 focus:ring-primary/10"
+                                        className="w-full rounded-xl border-2 border-transparent bg-slate-50 py-4 pl-12 pr-12 text-sm font-bold text-slate-700 outline-none transition-all placeholder:text-slate-500 focus:border-primary/20 focus:bg-white focus:ring-4 focus:ring-primary/10"
                                     />
                                     <button
                                         type="button"
+                                        aria-label={showPassword ? "Hide password" : "Show password"}
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-primary focus:outline-none"
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 transition-colors hover:text-primary focus:outline-none"
                                     >
                                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                     </button>
@@ -309,7 +310,7 @@ const AdminAuth = () => {
             </motion.div>
 
             {/* Verification Label */}
-            <div className="absolute bottom-8 flex items-center gap-3 text-[10px] font-bold uppercase tracking-[5px] text-slate-400">
+            <div className="absolute bottom-8 flex items-center gap-3 text-[10px] font-bold uppercase tracking-[5px] text-slate-500">
                 <div className="h-px w-8 bg-slate-200"></div>
                 {`Protected by ${appName} Security`}
                 <div className="h-px w-8 bg-slate-200"></div>

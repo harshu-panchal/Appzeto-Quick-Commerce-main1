@@ -1,4 +1,5 @@
 import Order from "../models/order.js";
+import { WORKFLOW_STATUS } from "../constants/orderWorkflow.js";
 import handleResponse from "../utils/helper.js";
 import {
   checkoutPreviewSchema,
@@ -215,9 +216,18 @@ export const markOrderDeliveredAndSettle = async (req, res) => {
     if (!orderKey) {
       return handleResponse(res, 404, "Order not found");
     }
-    const order = await Order.findOne(orderKey).select("_id deliveryBoy seller").lean();
+    const order = await Order.findOne(orderKey).select("_id deliveryBoy seller workflowStatus status").lean();
     if (!order) {
       return handleResponse(res, 404, "Order not found");
+    }
+
+    const ws = order.workflowStatus || order.status;
+    const ALLOWED_FOR_DELIVERY = [
+      WORKFLOW_STATUS.OUT_FOR_DELIVERY,
+      "out_for_delivery",
+    ];
+    if (!ALLOWED_FOR_DELIVERY.includes(ws)) {
+      return handleResponse(res, 400, `Order cannot be marked delivered from status "${ws}"`);
     }
 
     if (

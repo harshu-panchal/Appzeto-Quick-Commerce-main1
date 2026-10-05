@@ -45,11 +45,18 @@ export const createPaymentOrder = async (req, res) => {
       },
     );
   } catch (error) {
+    const causeCode = error?.code || error?.cause?.code || "";
+    const isGatewayError =
+      ["ECONNREFUSED", "ETIMEDOUT", "ENOTFOUND", "ECONNRESET", "EHOSTUNREACH"].includes(causeCode) ||
+      (error?.response?.status >= 500 && error?.response?.status < 600);
+
+    const statusCode = error.statusCode || error.status || (isGatewayError ? 502 : 500);
+
     logger.error("createPaymentOrder failed", {
       scope: "PaymentController.createPaymentOrder",
       message: error?.message,
-      statusCode: error?.statusCode || error?.status || 500,
-      code: error?.code || error?.cause?.code || null,
+      statusCode,
+      code: causeCode || null,
       responseStatus: error?.response?.status || null,
       responseStatusText: error?.response?.statusText || null,
       orderRef: req.body?.orderRef || req.body?.orderId || null,
@@ -58,8 +65,8 @@ export const createPaymentOrder = async (req, res) => {
     });
     return handleResponse(
       res,
-      error.statusCode || error.status || 500,
-      resolvePaymentErrorMessage(error),
+      statusCode,
+      isGatewayError ? "Payment gateway temporarily unavailable" : resolvePaymentErrorMessage(error),
     );
   }
 };

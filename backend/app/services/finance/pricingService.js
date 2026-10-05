@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Product from "../../models/product.js";
 import Category from "../../models/category.js";
 import {
@@ -320,6 +321,14 @@ export async function hydrateOrderItems(
     .map((item) => item.product || item.productId || item._id || item.id)
     .filter(Boolean);
 
+  for (const pid of productIds) {
+    if (!mongoose.isValidObjectId(pid)) {
+      const err = new Error(`Invalid product ID: ${pid}`);
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+
   const productQuery = Product.find({ _id: { $in: productIds } })
     .select("_id name salePrice price mainImage headerId sellerId status approvalStatus variants")
     .lean();
@@ -332,13 +341,19 @@ export async function hydrateOrderItems(
     const productId = String(item.product || item.productId || item._id || item.id);
     const product = productMap.get(productId);
     if (!product) {
-      throw new Error(`Product not found for line item: ${productId}`);
+      const err = new Error(`Product not found for line item: ${productId}`);
+      err.statusCode = 404;
+      throw err;
     }
     if (product.status !== "active") {
-      throw new Error(`Product is not available for purchase: ${product.name}`);
+      const err = new Error(`Product is not available for purchase: ${product.name}`);
+      err.statusCode = 400;
+      throw err;
     }
     if (resolveProductApprovalStatus(product) !== PRODUCT_APPROVAL_STATUS.APPROVED) {
-      throw new Error(`Product is not approved for purchase: ${product.name}`);
+      const err = new Error(`Product is not approved for purchase: ${product.name}`);
+      err.statusCode = 400;
+      throw err;
     }
 
     const rawVariantSku = String(item.variantSku || item.variantSlot || "").trim();

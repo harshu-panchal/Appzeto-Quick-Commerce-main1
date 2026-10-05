@@ -1,0 +1,100 @@
+name: E2E (Playwright)
+
+# Runs the Appzeto Quick Commerce end-to-end suite. Requires repository secrets
+# for a dedicated TEST database and app secrets (never use production values).
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'playwright/**'
+      - '.github/workflows/e2e.yml'
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      PW_MANAGE_SERVERS: 'false'
+      # Secrets — configure in repo settings. Use a DEDICATED test DB.
+      MONGO_URI: ${{ secrets.E2E_MONGO_URI }}
+      JWT_SECRET: ${{ secrets.E2E_JWT_SECRET }}
+      JWT_EXPIRES_IN: '7d'
+      REDIS_DISABLED: 'true'
+      USE_MOCK_OTP: 'true'
+      USE_REAL_SMS: 'false'
+      OTP_LENGTH: '4'
+      NODE_ENV: 'development'
+      PORT: '5000'
+      PROCESS_ROLE: 'api'
+      PLAYWRIGHT_BASE_URL: 'http://localhost:5173'
+      API_BASE_URL: 'http://localhost:5000/api'
+      VITE_API_URL: 'http://localhost:5000/api'
+      FRONTEND_URL: 'http://localhost:5173'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci || npm install
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci || npm install
+
+      - name: Install e2e deps + browsers
+        working-directory: playwright
+        run: |
+          npm ci || npm install
+          npx playwright install --with-deps chromium
+
+      - name: Write backend .env for E2E
+        working-directory: backend
+        run: |
+          cat > .env <<EOF
+          MONGO_URI=${MONGO_URI}
+          JWT_SECRET=${JWT_SECRET}
+          JWT_EXPIRES_IN=${JWT_EXPIRES_IN}
+          REDIS_DISABLED=${REDIS_DISABLED}
+          USE_MOCK_OTP=${USE_MOCK_OTP}
+          USE_REAL_SMS=${USE_REAL_SMS}
+          OTP_LENGTH=${OTP_LENGTH}
+          NODE_ENV=${NODE_ENV}
+          PORT=${PORT}
+          PROCESS_ROLE=${PROCESS_ROLE}
+          FRONTEND_URL=${FRONTEND_URL}
+          EOF
+
+      - name: Start backend
+        working-directory: backend
+        run: node index.js &
+
+      - name: Start frontend
+        working-directory: frontend
+        run: npm run dev &
+
+      - name: Wait for services
+        run: |
+          npx --yes wait-on http://localhost:5000/health http://localhost:5173
+
+      - name: Run E2E
+        working-directory: playwright
+        run: npm run test:e2e
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright/playwright-report
+            playwright/test-results
+          retention-days: 7

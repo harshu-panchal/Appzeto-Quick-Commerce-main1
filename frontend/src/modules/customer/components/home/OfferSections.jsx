@@ -118,7 +118,7 @@ const OfferSections = ({ sections, noServiceData }) => {
                           <div className="w-32 h-32" />
                         )}
                       </div>
-                      <p className="text-sm md:text-base text-slate-400 font-bold">
+                      <p className="text-sm md:text-base text-slate-500 font-bold">
                         Looking for the best items in this category...
                       </p>
                     </div>
@@ -130,7 +130,7 @@ const OfferSections = ({ sections, noServiceData }) => {
                             {seller.image ? (
                               <img src={applyCloudinaryTransform(seller.image, "f_auto,q_auto,w_100")} alt={seller.name} className="w-full h-full object-cover" />
                             ) : (
-                              <span className="text-xl font-bold text-slate-300">{seller.name.charAt(0).toUpperCase()}</span>
+                              <span className="text-xl font-bold text-slate-500">{seller.name.charAt(0).toUpperCase()}</span>
                             )}
                           </div>
                           <h4 className="text-xs font-bold text-slate-800 line-clamp-2 leading-tight px-1">{seller.name}</h4>

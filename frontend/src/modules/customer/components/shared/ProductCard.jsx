@@ -325,7 +325,7 @@ const ProductCard = React.memo(
               {defaultVariant?.displayOriginalPrice && (
                 <span
                   className={cn(
-                    "font-medium text-gray-400 line-through leading-none",
+                    "font-medium text-gray-500 line-through leading-none",
                     compact ? "text-[8px]" : "text-[9px] sm:text-[10px]",
                   )}>
                   ₹{defaultVariant.displayOriginalPrice}

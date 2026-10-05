@@ -385,14 +385,14 @@ const CustomerAuth = () => {
                                     <div className="flex bg-gray-50 rounded-2xl p-1.5 border border-gray-100">
                                         <button
                                             onClick={() => setIsLogin(true)}
-                                            className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${isLogin ? 'bg-white shadow-sm' : 'text-gray-400'}`}
+                                            className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${isLogin ? 'bg-white shadow-sm' : 'text-gray-500'}`}
                                             style={{ color: isLogin ? activeCategory.theme : undefined }}
                                         >
                                             Login
                                         </button>
                                         <button
                                             onClick={() => setIsLogin(false)}
-                                            className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${!isLogin ? 'bg-white shadow-sm' : 'text-gray-400'}`}
+                                            className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${!isLogin ? 'bg-white shadow-sm' : 'text-gray-500'}`}
                                             style={{ color: !isLogin ? activeCategory.theme : undefined }}
                                         >
                                             Sign Up
@@ -403,7 +403,7 @@ const CustomerAuth = () => {
                                         <h3 className="text-xl font-black text-gray-900 tracking-tight">
                                             {isLogin ? 'Welcome Back!' : 'Create Account'}
                                         </h3>
-                                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest leading-none">
+                                        <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest leading-none">
                                             OTP will be sent for verification
                                         </p>
                                     </div>
@@ -411,7 +411,7 @@ const CustomerAuth = () => {
                                     <form onSubmit={handleSendOtp} className="space-y-4">
                                         {!isLogin && (
                                             <div className="relative group">
-                                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 transition-colors" style={{ color: 'inherit' }}>
+                                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 transition-colors" style={{ color: 'inherit' }}>
                                                     <User size={18} className="group-focus-within:text-[var(--theme-color)]" style={{ color: 'inherit' }} />
                                                 </div>
                                                 <input
@@ -430,10 +430,10 @@ const CustomerAuth = () => {
                                             </div>
                                         )}
                                         <div className="relative group">
-                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 transition-colors">
+                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 transition-colors">
                                                 <Phone size={18} />
                                             </div>
-                                            <div className="absolute left-11 top-1/2 -translate-y-1/2 font-black text-sm text-gray-400 border-r border-gray-200 pr-2">
+                                            <div className="absolute left-11 top-1/2 -translate-y-1/2 font-black text-sm text-gray-500 border-r border-gray-200 pr-2">
                                                 +91
                                             </div>
                                             <input
@@ -466,7 +466,7 @@ const CustomerAuth = () => {
 
                                     {/* Legal Agreement Footer */}
                                     <div className="pt-2 flex flex-col items-center gap-1">
-                                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest text-center">
+                                        <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest text-center">
                                             By continuing, you agree to our
                                         </p>
                                         <div className="flex items-center gap-1.5 underline decoration-gray-200 underline-offset-4">
@@ -477,7 +477,7 @@ const CustomerAuth = () => {
                                             >
                                                 Terms & Condition
                                             </button>
-                                            <span className="text-[8px] text-gray-300">•</span>
+                                            <span className="text-[8px] text-gray-500">•</span>
                                             <button 
                                                 onClick={() => navigate('/privacy')}
                                                 className="text-[10px] font-black uppercase tracking-widest hover:text-gray-900 transition-colors"
@@ -498,13 +498,13 @@ const CustomerAuth = () => {
                                     <div className="flex items-center gap-4">
                                         <button
                                             onClick={() => setShowOtp(false)}
-                                            className="w-10 h-10 bg-gray-50 border border-gray-100 rounded-full flex items-center justify-center text-gray-400"
+                                            className="w-10 h-10 bg-gray-50 border border-gray-100 rounded-full flex items-center justify-center text-gray-500"
                                         >
                                             <ChevronLeft size={20} />
                                         </button>
                                         <div>
                                             <h3 className="text-xl font-black text-gray-900 tracking-tight">Verify Device</h3>
-                                            <p className="text-[10px] font-black tracking-widest text-gray-400 uppercase">+91 {formData.phone}</p>
+                                            <p className="text-[10px] font-black tracking-widest text-gray-500 uppercase">+91 {formData.phone}</p>
                                         </div>
                                     </div>
 
@@ -548,7 +548,7 @@ const CustomerAuth = () => {
                                                     type="button"
                                                     disabled={timer > 0}
                                                     onClick={handleSendOtp}
-                                                    className={`text-[10px] font-black uppercase tracking-widest ${timer > 0 ? 'text-gray-300' : 'underline'}`}
+                                                    className={`text-[10px] font-black uppercase tracking-widest ${timer > 0 ? 'text-gray-500' : 'underline'}`}
                                                     style={{ color: timer > 0 ? undefined : activeCategory.theme }}
                                                 >
                                                     {timer > 0 ? `Resend Code in ${timer}s` : 'Resend Now'}

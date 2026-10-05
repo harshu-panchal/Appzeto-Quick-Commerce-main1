@@ -799,6 +799,22 @@ export async function placeOrderAtomic({
       }
     }
 
+    const isWriteConflict = error?.code === 112 ||
+      error?.codeName === "WriteConflict" ||
+      /WriteConflict/i.test(String(error.message || ""));
+
+    if (isWriteConflict && retryCount < 2) {
+      if (idempotencyKey) {
+        await releaseIdempotencyLock(idempotencyKey);
+      }
+      return placeOrderAtomic({
+        customerId,
+        payload: normalizedPayload,
+        idempotencyKey,
+        retryCount: retryCount + 1,
+      });
+    }
+
     if (error?.code === 11000) {
       if (idempotencyKey) {
         const existing = await findExistingCheckoutByIdempotency(customerId, idempotencyKey);
