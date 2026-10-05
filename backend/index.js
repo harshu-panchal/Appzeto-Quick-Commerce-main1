@@ -1,12 +1,14 @@
+// MUST be the first import: loads backend/.env before any other module
+// (e.g. securityMiddlewares.js's rate limiters) reads process.env at its
+// own top level. See app/config/loadEnv.js for the full explanation.
+import "./app/config/loadEnv.js";
+
 import express from "express";
-import dotenv from "dotenv";
 import dns from "node:dns";
 import http from "http";
 import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
-import path from "path";
-import { fileURLToPath } from "url";
 import { Server } from "socket.io";
 import setupRoutes from "./app/routes/index.js";
 import { getStorageRoot as getLocalStorageRoot } from "./app/services/storage/providers/localProvider.js";
@@ -49,10 +51,6 @@ import {
 } from "./app/jobs/firebaseTrackingCleanupJob.js";
 import logger from "./app/services/logger.js";
 import { stopScheduledJobs } from "./app/services/distributedScheduler.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.resolve(__dirname, ".env") });
 
 const PORT = parseInt(process.env.PORT || '7000', 10);
 const HEALTH_CHECK_PORT = parseInt(process.env.HEALTH_CHECK_PORT || '9090', 10);

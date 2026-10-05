@@ -2,3 +2,11 @@ branch_structure.json
 temp_auto_push.bat
 temp_interactive_push.bat
 playwright/
+
+# k6 load-testing suite — node_modules/secrets/generated fixtures only,
+# the suite itself (tests/load/*.js) is tracked.
+tests/load/node_modules/
+tests/load/.env.load
+tests/load/data/seeded-ids.json
+tests/
+docs/
