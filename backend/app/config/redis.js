@@ -48,9 +48,13 @@ export function isRedisEnabled() {
 
 /**
  * Single error handler so ioredis does not emit "Unhandled error event" when
- * Redis is down; logs are rate-limited.
+ * Redis is down; logs are rate-limited. Exported so callers who create their
+ * own ioredis clients outside this module (e.g. the Socket.IO Redis
+ * adapter's duplicated pub/sub connections — duplicate() does NOT inherit
+ * the original client's listeners) can attach the same handler instead of
+ * leaving a client with zero 'error' listeners.
  */
-function attachRedisErrorHandler(client) {
+export function attachRedisErrorHandler(client) {
   if (!client || client.__qcRedisErrorHandler) return;
   client.__qcRedisErrorHandler = true;
 
@@ -126,36 +130,63 @@ export function getRedisClient() {
   return _client;
 }
 
-/**
- * Bull passes (type, config) where config is merged from options.redis.
- * Mirrors bull/lib/queue.js defaults and attaches the same error handler.
- */
-export function createBullRedisClient(type, config) {
-  let client;
-  if (typeof config === "string") {
-    client = new Redis(config, {
-      lazyConnect: true,
-      maxRetriesPerRequest: null,
-      retryStrategy(times) {
-        if (times > 20) return null;
-        return Math.min(times * 200, 3000);
-      },
-    });
-  } else if (["bclient", "subscriber"].includes(type)) {
-    client = new Redis({
-      ...config,
-      lazyConnect: true,
-      maxRetriesPerRequest: null,
-    });
-  } else {
-    client = new Redis({
-      ...config,
-      lazyConnect: true,
-      maxRetriesPerRequest: null,
-    });
-  }
+function buildBullConnection(config) {
+  const client =
+    typeof config === "string"
+      ? new Redis(config, {
+          lazyConnect: true,
+          maxRetriesPerRequest: null,
+          retryStrategy(times) {
+            if (times > 20) return null;
+            return Math.min(times * 200, 3000);
+          },
+        })
+      : new Redis({
+          ...config,
+          lazyConnect: true,
+          maxRetriesPerRequest: null,
+        });
   attachRedisErrorHandler(client);
   return client;
+}
+
+// Shared per-process 'client'/'subscriber' connections for Bull. Found
+// 2026-10-05 (see docs/load-testing/pm2-cluster-deployment.md): every
+// queue file previously got its own createClient callback with no sharing,
+// so N Bull queues in one process meant N×3 Redis connections (client,
+// subscriber, bclient each) — 5 queues in this app (3 in orderQueues.js,
+// 2 in notification.queue.js) meant 15 connections per process that
+// imports them, which is loaded from both API and worker roles. Once
+// Redis was actually enabled in production for the first time (previously
+// always REDIS_DISABLED=true), this started hitting the Redis plan's
+// max-clients limit ("ERR max number of clients reached").
+//
+// Per Bull's own documented connection model: 'client' and 'subscriber'
+// connections are safe to share across multiple Queue instances in the
+// same process (neither enters blocking mode). 'bclient' MUST stay unique
+// per queue — it issues blocking reads (BRPOPLPUSH), and sharing it across
+// queues would make one queue's blocking wait block every other queue
+// sharing that connection. This cuts N queues from 3N connections down to
+// N+2 (N unique bclients + 1 shared client + 1 shared subscriber).
+let _bullClientConnection = null;
+let _bullSubscriberConnection = null;
+
+/**
+ * Bull passes (type, config) where config is merged from options.redis.
+ * Mirrors bull/lib/queue.js's createClient contract and attaches the same
+ * error handler used everywhere else in this module.
+ */
+export function createBullRedisClient(type, config) {
+  if (type === "client") {
+    if (!_bullClientConnection) _bullClientConnection = buildBullConnection(config);
+    return _bullClientConnection;
+  }
+  if (type === "subscriber") {
+    if (!_bullSubscriberConnection) _bullSubscriberConnection = buildBullConnection(config);
+    return _bullSubscriberConnection;
+  }
+  // 'bclient' (or any future/unknown type) — always a fresh connection.
+  return buildBullConnection(config);
 }
 
 /**

@@ -26,7 +26,7 @@
  * more than one).
  */
 import { createAdapter } from "@socket.io/redis-adapter";
-import { getRedisClient, isRedisEnabled } from "../config/redis.js";
+import { getRedisClient, isRedisEnabled, attachRedisErrorHandler } from "../config/redis.js";
 import logger from "../services/logger.js";
 
 /**
@@ -62,6 +62,12 @@ export function createSocketIoRedisAdapter() {
 
   const pubClient = base.duplicate();
   const subClient = base.duplicate();
+  // duplicate() does not inherit the original client's listeners — without
+  // this, an unhandled 'error' event on either connection logs ioredis's
+  // generic "missing 'error' handler on this Redis client" noise instead of
+  // the same rate-limited, informative message the rest of the app uses.
+  attachRedisErrorHandler(pubClient);
+  attachRedisErrorHandler(subClient);
 
   return createAdapter(pubClient, subClient);
 }
