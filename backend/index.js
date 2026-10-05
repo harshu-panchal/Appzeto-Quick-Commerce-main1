@@ -14,6 +14,7 @@ import setupRoutes from "./app/routes/index.js";
 import { getStorageRoot as getLocalStorageRoot } from "./app/services/storage/providers/localProvider.js";
 import { parseAllowedOrigins, buildCorsOriginValidator } from "./app/config/cors.js";
 import { initSocket, getIO } from "./app/socket/socketManager.js";
+import { createSocketIoRedisAdapter } from "./app/socket/socketRedisAdapter.js";
 import { registerOrderSocketGetter } from "./app/services/orderSocketEmitter.js";
 import { registerTicketSocketGetter } from "./app/services/ticketSocketEmitter.js";
 import {
@@ -221,14 +222,16 @@ async function startHttpServer() {
   
   // Initialize Socket.IO
   const allowedOrigins = parseAllowedOrigins();
+  const socketAdapter = createSocketIoRedisAdapter();
   const io = new Server(server, {
     cors: {
       origin: buildCorsOriginValidator(allowedOrigins),
       methods: ["GET", "POST"],
       credentials: true,
     },
+    ...(socketAdapter ? { adapter: socketAdapter } : {}),
   });
-  
+
   initSocket(io);
   registerOrderSocketGetter(getIO);
   registerTicketSocketGetter(getIO);
