@@ -219,8 +219,11 @@ export const getProducts = async (req, res) => {
       lat,
       lng,
       includeOutOfStock,
+      includeOutOfStock,
     } = req.query;
     const enforceRadius = isCustomerVisibilityRequest(req);
+    // Customer browsing hides out-of-stock products; search opts back in to show them greyed out
+    const hideOutOfStock = enforceRadius && String(includeOutOfStock || "").toLowerCase() !== "true";
     // Customer browsing hides out-of-stock products; search opts back in to show them greyed out
     const hideOutOfStock = enforceRadius && String(includeOutOfStock || "").toLowerCase() !== "true";
 
@@ -320,6 +323,9 @@ export const getProducts = async (req, res) => {
       finalQuery = {
         $and: [finalQuery, getApprovedOrLegacyFilter(), ...(hideOutOfStock ? [IN_STOCK_FILTER] : [])],
       };
+      finalQuery = {
+        $and: [finalQuery, getApprovedOrLegacyFilter(), ...(hideOutOfStock ? [IN_STOCK_FILTER] : [])],
+      };
     } else {
       if (status && status !== "all") {
         finalQuery.status = status;
@@ -374,8 +380,47 @@ export const getProducts = async (req, res) => {
       matched.sort((a, b) => rank.get(String(a._id)) - rank.get(String(b._id)));
       return { rawProducts: matched.slice(skip, skip + limit), total: matched.length };
     };
+    const sortKey = String(sort || "newest").toLowerCase();
+    const sortQuery = sortMap[sortKey] || sortMap.newest;
+    const PRODUCT_LIST_FIELDS =
+      "name slug description sku price salePrice stock brand weight mainImage galleryImages headerId categoryId subcategoryId sellerId status approvalStatus approvalRequestedAt approvalReviewedAt approvalReviewedBy approvalNote lastSubmittedByRole isFeatured variants createdAt";
+
+    // sort=trending: products ranked by units ordered in the last 30 days
+    // (cancelled orders excluded). Only products that actually sold are returned;
+    // all other filters (header/category, nearby sellers, approval) still apply.
+    const fetchTrending = async () => {
+      const since = new Date(Date.now() - TRENDING_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+      const ranked = await Order.aggregate([
+        { $match: { createdAt: { $gte: since }, status: { $ne: "cancelled" } } },
+        { $unwind: "$items" },
+        { $group: { _id: "$items.product", units: { $sum: "$items.quantity" } } },
+        { $sort: { units: -1 } },
+        { $limit: 300 },
+      ]);
+      const rank = new Map(ranked.map((r, i) => [String(r._id), i]));
+      if (!rank.size) return { rawProducts: [], total: 0 };
+      const matched = await Product.find({
+        $and: [finalQuery, { _id: { $in: ranked.map((r) => r._id) } }],
+      })
+        .select(PRODUCT_LIST_FIELDS)
+        .lean();
+      matched.sort((a, b) => rank.get(String(a._id)) - rank.get(String(b._id)));
+      return { rawProducts: matched.slice(skip, skip + limit), total: matched.length };
+    };
 
     const fetchFn = async () => {
+      const [rawProducts, total] = sortKey === "trending"
+        ? await fetchTrending().then((r) => [r.rawProducts, r.total])
+        : await Promise.all([
+            Product.find(finalQuery)
+              .select(PRODUCT_LIST_FIELDS)
+              // No .populate() — names resolved via cache-backed entityNameCache
+              .sort(sortQuery)
+              .skip(skip)
+              .limit(limit)
+              .lean(),
+            Product.countDocuments(finalQuery),
+          ]);
       const [rawProducts, total] = sortKey === "trending"
         ? await fetchTrending().then((r) => [r.rawProducts, r.total])
         : await Promise.all([
@@ -457,6 +502,7 @@ export const getSellerProducts = async (req, res) => {
   try {
     const sellerId = req.user.id;
     const { stockStatus, sort, approvalStatus, search, categoryId } = req.query;
+    const { stockStatus, sort, approvalStatus, search, categoryId } = req.query;
     const { page, limit, skip } = getPagination(req, {
       defaultLimit: 20,
       maxLimit: 100,
@@ -473,9 +519,19 @@ export const getSellerProducts = async (req, res) => {
     if (categoryId && categoryId !== "all" && mongoose.isValidObjectId(categoryId)) {
       query.$and = [{ $or: [{ categoryId }, { headerId: categoryId }] }];
     }
+    // Search / category apply to the whole catalogue, not just the current page
+    const term = String(search || "").trim();
+    if (term) {
+      const regex = buildSearchRegex(term, { anchored: false });
+      query.$or = [{ name: regex }, { sku: regex }, { "variants.sku": regex }];
+    }
+    if (categoryId && categoryId !== "all" && mongoose.isValidObjectId(categoryId)) {
+      query.$and = [{ $or: [{ categoryId }, { headerId: categoryId }] }];
+    }
     if (stockStatus === "in") {
       query.stock = { $gt: 0 };
     } else if (stockStatus === "out") {
+      query.stock = { $lte: 0 };
       query.stock = { $lte: 0 };
     }
 
@@ -573,6 +629,7 @@ export const getSellerProducts = async (req, res) => {
           ],
         },
       }),
+      Product.countDocuments({ ...baseSellerQuery, stock: { $lte: 0 } }),
       Product.countDocuments({ ...baseSellerQuery, stock: { $lte: 0 } }),
       Product.countDocuments({
         ...baseSellerQuery,
@@ -725,6 +782,9 @@ export const createProduct = async (req, res) => {
             : makeProductSku(productData.name, idx + 1),
       }));
     }
+
+    const stockError = normalizeStockFields(productData);
+    if (stockError) return handleResponse(res, 400, stockError);
 
     const stockError = normalizeStockFields(productData);
     if (stockError) return handleResponse(res, 400, stockError);
@@ -927,6 +987,9 @@ export const updateProduct = async (req, res) => {
             : makeProductSku(skuBaseName, idx + 1),
       }));
     }
+
+    const stockError = normalizeStockFields(productData);
+    if (stockError) return handleResponse(res, 400, stockError);
 
     const stockError = normalizeStockFields(productData);
     if (stockError) return handleResponse(res, 400, stockError);
