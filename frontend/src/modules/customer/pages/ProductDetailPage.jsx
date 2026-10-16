@@ -11,7 +11,7 @@ import { customerApi } from '../services/customerApi';
 import { useLocation as useAppLocation } from '../context/LocationContext';
 import { applyCloudinaryTransform } from '@/core/utils/imageUtils';
 import { useSettings } from '@core/context/SettingsContext';
-import Lottie from 'lottie-react';
+import NotFoundAnim from '@shared/components/ui/NotFoundAnim';
 
 const ProductDetailPage = () => {
     const { id } = useParams();
@@ -27,14 +27,6 @@ const ProductDetailPage = () => {
     const [isSubmittingReview, setIsSubmittingReview] = useState(false);
     const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
     const [localHasReviewed, setLocalHasReviewed] = useState(false);
-    const [noServiceData, setNoServiceData] = useState(null);
-
-    // Dynamically load no-service Lottie on mount
-    useEffect(() => {
-        import('@/assets/lottie/animation.json')
-            .then((m) => setNoServiceData(m.default))
-            .catch(() => {});
-    }, []);
 
     const hasValidLocation =
         Number.isFinite(currentLocation?.latitude) &&
@@ -173,11 +165,7 @@ const ProductDetailPage = () => {
         return (
             <div className="min-h-screen bg-white py-20 px-8 flex flex-col items-center justify-center text-center">
                 <div className="w-64 h-64 mb-6">
-                    {noServiceData ? (
-                        <Lottie animationData={noServiceData} loop={true} />
-                    ) : (
-                        <div className="w-64 h-64" />
-                    )}
+                    <NotFoundAnim />
                 </div>
                 <h3 className="text-3xl font-[1000] text-slate-800 tracking-tighter mb-4 uppercase">
                     Item <span className="text-primary">Unavailable</span>

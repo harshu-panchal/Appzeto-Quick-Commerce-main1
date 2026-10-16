@@ -9,6 +9,7 @@ export const adminUsersApi = {
     getSidebarBadges: () => axiosInstance.get('/admin/sidebar-badges'),
     getReports: () => axiosInstance.get('/admin/reports'),
 
+    createUser: (data) => axiosInstance.post('/admin/users', data),
     getUsers: (params) => axiosInstance.get('/admin/users', { params }),
     getUserById: (id) => axiosInstance.get(`/admin/users/${id}`),
 

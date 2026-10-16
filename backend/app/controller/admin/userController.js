@@ -1,6 +1,7 @@
 import handleResponse from "../../utils/helper.js";
 import getPagination from "../../utils/pagination.js";
 import {
+  createCustomerData,
   getUserByIdData,
   getUsersData,
 } from "../../services/admin/userAdminService.js";
@@ -16,6 +17,16 @@ export const getUsers = async (req, res) => {
     return handleResponse(res, 200, "Users fetched successfully", data);
   } catch (error) {
     return handleResponse(res, 500, error.message);
+  }
+};
+
+export const createCustomer = async (req, res) => {
+  try {
+    const { name, phone, email } = req.body || {};
+    const customer = await createCustomerData({ name, phone, email });
+    return handleResponse(res, 201, "Customer created successfully", customer);
+  } catch (error) {
+    return handleResponse(res, error.status || 500, error.message);
   }
 };
 

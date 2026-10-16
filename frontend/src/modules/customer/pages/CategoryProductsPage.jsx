@@ -17,7 +17,7 @@ import MiniCart from '../components/shared/MiniCart';
 import SectionRenderer from "../components/experience/SectionRenderer";
 import { useLocation as useAppLocation } from '../context/LocationContext';
 import { useSettings } from '@core/context/SettingsContext';
-import Lottie from 'lottie-react';
+import NotFoundAnim from '@shared/components/ui/NotFoundAnim';
 
 const CategoryProductsPage = () => {
     const { categoryName: catId } = useParams();
@@ -28,14 +28,6 @@ const CategoryProductsPage = () => {
     const initialSubcategoryId = location.state?.activeSubcategoryId || 'all';
     const { isOpen: isProductDetailOpen } = useProductDetail();
     const [selectedSubCategory, setSelectedSubCategory] = useState(initialSubcategoryId);
-    const [noServiceData, setNoServiceData] = useState(null);
-
-    // Dynamically load no-service Lottie on mount
-    useEffect(() => {
-        import('@/assets/lottie/animation.json')
-            .then((m) => setNoServiceData(m.default))
-            .catch(() => {});
-    }, []);
 
     const DEFAULT_SUBCATEGORIES = [{ 
         id: 'all', 
@@ -202,92 +194,79 @@ const CategoryProductsPage = () => {
             </header>
 
             <div className="flex flex-1 relative items-start">
+                {/* Sidebar — always visible */}
+                <aside className="w-[84px] border-r border-slate-100 flex flex-col bg-white overflow-y-auto hide-scrollbar sticky top-[60px] h-[calc(100vh-60px)] pb-32 flex-shrink-0 select-none">
+                    {subCategories.map((cat) => {
+                        const isSelected = selectedSubCategory === cat.id;
+                        return (
+                            <button
+                                key={cat.id}
+                                onClick={() => setSelectedSubCategory(cat.id)}
+                                className={cn(
+                                    "relative flex flex-col items-center py-3 px-1 gap-1.5 transition-all duration-200 group cursor-pointer border-r-2",
+                                    isSelected
+                                        ? "bg-emerald-50/60 border-primary"
+                                        : "border-transparent hover:bg-gray-50/80"
+                                )}
+                            >
+                                {isSelected && (
+                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r-full shadow-xs" />
+                                )}
+                                <div className={cn(
+                                    "w-[48px] h-[48px] rounded-xl flex items-center justify-center p-0.5 overflow-hidden transition-all duration-200 shadow-xs",
+                                    isSelected
+                                        ? "bg-white border-2 border-primary scale-105 shadow-sm ring-2 ring-primary/10"
+                                        : "bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:border-slate-200"
+                                )}>
+                                    {cat.isAll ? (
+                                        <div className="w-full h-full rounded-[10px] bg-emerald-600 text-white flex items-center justify-center font-black text-xs uppercase tracking-wider shadow-inner">
+                                            ALL
+                                        </div>
+                                    ) : (
+                                        <img
+                                            src={applyCloudinaryTransform(cat.icon)}
+                                            alt={cat.name}
+                                            loading="lazy"
+                                            className="w-full h-full object-cover rounded-[10px]"
+                                        />
+                                    )}
+                                </div>
+                                <span className={cn(
+                                    "text-[10.5px] text-center font-semibold leading-[1.25] max-w-[76px] px-0.5 transition-colors line-clamp-2 break-words",
+                                    isSelected ? "text-primary font-bold" : "text-slate-600 group-hover:text-slate-900"
+                                )}>
+                                    {cat.name}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </aside>
+
+                {/* Right side — products or unavailable state */}
                 {(safeProducts.length === 0 && !isLoading) ? (
-                    <div className="w-full flex-1 py-20 px-8 flex flex-col items-center justify-center text-center">
-                        <div className="w-64 h-64 mb-6">
-                            {noServiceData ? (
-                                <Lottie animationData={noServiceData} loop={true} />
-                            ) : (
-                                <div className="w-64 h-64" />
-                            )}
-                        </div>
-                        <h3 className="text-3xl font-[1000] text-slate-800 tracking-tighter mb-4 uppercase">
+                    <div className="flex-1 flex flex-col items-center justify-center py-12 px-4 text-center">
+                        <NotFoundAnim />
+                        <h3 className="text-xl font-[1000] text-slate-800 tracking-tighter mb-2 uppercase">
                             Service <span className="text-primary">Unavailable</span>
                         </h3>
-                        <p className="text-slate-500 font-bold text-sm max-w-[280px] mb-8 leading-relaxed">
-                            {settings?.appName || 'Our service'} is not available in your area yet. We're expanding fast!
+                        <p className="text-slate-500 font-bold text-xs max-w-[200px] mb-6 leading-relaxed">
+                            {settings?.appName || 'Our service'} is not available in your area yet.
                         </p>
-                        <button 
+                        <button
                             onClick={fetchData}
-                            className="px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-800 active:scale-95 transition-all shadow-xl shadow-black/10"
+                            className="px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 active:scale-95 transition-all shadow-xl shadow-black/10"
                         >
                             Try Refreshing
                         </button>
                     </div>
                 ) : (
-                    <>
-                        {/* Sidebar */}
-                        <aside className="w-[84px] border-r border-slate-100 flex flex-col bg-white overflow-y-auto hide-scrollbar sticky top-[60px] h-[calc(100vh-60px)] pb-32 flex-shrink-0 select-none">
-                            {subCategories.map((cat) => {
-                                const isSelected = selectedSubCategory === cat.id;
-                                return (
-                                    <button
-                                        key={cat.id}
-                                        onClick={() => setSelectedSubCategory(cat.id)}
-                                        className={cn(
-                                            "relative flex flex-col items-center py-3 px-1 gap-1.5 transition-all duration-200 group cursor-pointer border-r-2",
-                                            isSelected
-                                                ? "bg-emerald-50/60 border-primary"
-                                                : "border-transparent hover:bg-gray-50/80"
-                                        )}
-                                    >
-                                        {/* Active Indicator Bar */}
-                                        {isSelected && (
-                                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r-full shadow-xs" />
-                                        )}
-
-                                        {/* Subcategory Image Container */}
-                                        <div className={cn(
-                                            "w-[48px] h-[48px] rounded-xl flex items-center justify-center p-0.5 overflow-hidden transition-all duration-200 shadow-xs",
-                                            isSelected
-                                                ? "bg-white border-2 border-primary scale-105 shadow-sm ring-2 ring-primary/10"
-                                                : "bg-slate-50 border border-slate-100 group-hover:bg-white group-hover:border-slate-200"
-                                        )}>
-                                            {cat.isAll ? (
-                                                <div className="w-full h-full rounded-[10px] bg-emerald-600 text-white flex items-center justify-center font-black text-xs uppercase tracking-wider shadow-inner">
-                                                    ALL
-                                                </div>
-                                            ) : (
-                                                <img
-                                                    src={applyCloudinaryTransform(cat.icon)}
-                                                    alt={cat.name}
-                                                    loading="lazy"
-                                                    className="w-full h-full object-cover rounded-[10px]"
-                                                />
-                                            )}
-                                        </div>
-
-                                        {/* Subcategory Label */}
-                                        <span className={cn(
-                                            "text-[10.5px] text-center font-semibold leading-[1.25] max-w-[76px] px-0.5 transition-colors line-clamp-2 break-words",
-                                            isSelected ? "text-primary font-bold" : "text-slate-600 group-hover:text-slate-900"
-                                        )}>
-                                            {cat.name}
-                                        </span>
-                                    </button>
-                                );
-                            })}
-                        </aside>
-
-                        {/* Content */}
-                        <main className="flex-1 p-2 pb-24 bg-white space-y-4 overflow-x-hidden">
-                            <div className="grid grid-cols-2 gap-x-2 gap-y-3">
-                                {filteredProducts.map((product) => (
-                                    <ProductCard key={product.id} product={product} compact={true} />
-                                ))}
-                            </div>
-                        </main>
-                    </>
+                    <main className="flex-1 p-2 pb-24 bg-white space-y-4 overflow-x-hidden">
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-3">
+                            {filteredProducts.map((product) => (
+                                <ProductCard key={product.id} product={product} compact={true} />
+                            ))}
+                        </div>
+                    </main>
                 )}
             </div>
 

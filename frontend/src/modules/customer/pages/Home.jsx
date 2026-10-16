@@ -27,7 +27,7 @@ import SectionRenderer from "../components/experience/SectionRenderer";
 import ExperienceBannerCarousel from "../components/experience/ExperienceBannerCarousel";
 import { useLocation } from "../context/LocationContext";
 import { useSettings } from "@core/context/SettingsContext";
-import Lottie from "lottie-react";
+import NotFoundAnim from '@shared/components/ui/NotFoundAnim';
 import { applyCloudinaryTransform } from "@/core/utils/imageUtils";
 import { getJSON, remove as removeStorage, STORAGE_KEYS } from "@core/utils/storage";
 
@@ -208,7 +208,6 @@ const Home = () => {
   const [subcategoryMap, setSubcategoryMap] = useState(() => cachedHomePageData?.subcategoryMap || {});
   const [pendingReturn, setPendingReturn] = useState(null);
   const [offerSections, setOfferSections] = useState(() => cachedHomePageData?.offerSections || []);
-  const [noServiceData, setNoServiceData] = useState(null);
   // "Service unavailable" only once we have a location and its products
   // finished loading; not while the location is still being detected
   const hasLocation = Number.isFinite(currentLocation?.latitude) && Number.isFinite(currentLocation?.longitude);
@@ -220,11 +219,6 @@ const Home = () => {
     productsRef.current = products || [];
   }, [products]);
 
-  useEffect(() => {
-    if (showNoService) {
-      import("@/assets/lottie/animation.json").then((m) => setNoServiceData(m.default)).catch(() => {});
-    }
-  }, [showNoService]);
 
   const applyHomePageData = (data, { cacheKey, persist = true } = {}) => {
     if (!data) return;
@@ -432,8 +426,8 @@ const Home = () => {
       </div>
 
       {showNoService ? (
-        <div className="flex flex-col items-center justify-center pt-24 pb-48">
-          <div className="w-64 h-64 md:w-96 md:h-96 mb-8">{noServiceData && <Lottie animationData={noServiceData} loop={true} />}</div>
+        <div className="flex flex-col items-center justify-center pt-4 pb-48">
+          <NotFoundAnim />
           <h3 className="text-3xl md:text-5xl font-black text-slate-800 text-center uppercase">Service <span className="text-primary">Unavailable</span></h3>
           <p className="text-slate-500 font-bold max-w-md text-center px-10 text-sm md:text-lg opacity-80">Ah! We haven't reached your neighborhood yet.</p>
           <button onClick={() => window.location.reload()} className="mt-12 px-10 py-4 bg-primary text-white font-black rounded-[24px] uppercase text-[13px] tracking-widest transition-all active:scale-95">Check Again</button>
@@ -459,7 +453,7 @@ const Home = () => {
           <PromoMarquee />
           <QuickCategorySlider categories={effectiveQuickCategories} onCategoryClick={(id) => navigate(`/category/${id}`)} />
           <LowestPriceSection products={products} onSeeAll={() => navigate("/category/all")} />
-          <OfferSections sections={offerSections} noServiceData={noServiceData} />
+          <OfferSections sections={offerSections} />
 
           {sectionsForRenderer.length > 0 && (
             <div className="container mx-auto px-4 md:px-8 lg:px-[50px] py-10 md:py-16">

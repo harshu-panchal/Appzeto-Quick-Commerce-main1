@@ -1,7 +1,8 @@
 import mongoose from "mongoose";
 import User from "../../models/customer.js";
 import Order from "../../models/order.js";
-import { buildKey, getOrSet, getTTL } from "../cacheService.js";
+import { buildKey, getOrSet, getTTL, delPattern } from "../cacheService.js";
+import { normalizePhoneNumber } from "../../utils/phone.js";
 
 // Perf audit BE-D2: the customer-management list sorts by a *computed*
 // field (totalOrders, derived from each customer's full order history), so
@@ -86,6 +87,31 @@ async function fetchUsersData({ page, limit, skip }) {
     total,
     totalPages: Math.ceil(total / limit) || 1,
   };
+}
+
+export async function createCustomerData({ name, phone, email }) {
+  const normalizedPhone = normalizePhoneNumber(String(phone || "").trim());
+  if (!normalizedPhone) throw Object.assign(new Error("A valid phone number is required."), { status: 400 });
+
+  const existing = await User.findOne({ phone: normalizedPhone }).lean();
+  if (existing) throw Object.assign(new Error("A customer with this phone number already exists."), { status: 409 });
+
+  if (email) {
+    const emailExists = await User.findOne({ email: String(email).toLowerCase().trim() }).lean();
+    if (emailExists) throw Object.assign(new Error("A customer with this email already exists."), { status: 409 });
+  }
+
+  const user = await User.create({
+    name: name ? String(name).trim() : undefined,
+    phone: normalizedPhone,
+    email: email ? String(email).toLowerCase().trim() : undefined,
+    role: "user",
+    isVerified: true,
+    isActive: true,
+  });
+
+  await delPattern(`${buildKey("admin", "customerList")}:*`);
+  return { id: user._id, name: user.name, phone: user.phone, email: user.email };
 }
 
 export async function getUserByIdData(id) {

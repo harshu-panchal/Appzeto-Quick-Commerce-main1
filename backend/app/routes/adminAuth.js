@@ -33,6 +33,7 @@ import {
     getRiderCashDetails,
     settleRiderCash,
     getCashSettlementHistory,
+    createCustomer,
     getUsers,
     getUserById,
     getSellers,
@@ -173,6 +174,7 @@ router.put(
     allowRoles("admin"),
     updateStorageSettings
 );
+router.post("/users", verifyToken, allowRoles("admin"), createCustomer);
 router.get("/users", verifyToken, allowRoles("admin"), getUsers);
 router.get("/users/:id", verifyToken, allowRoles("admin"), getUserById);
 router.get("/sellers", verifyToken, allowRoles("admin"), getSellers);

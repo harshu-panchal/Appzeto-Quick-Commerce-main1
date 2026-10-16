@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import Badge from '@shared/components/ui/Badge';
 import Button from '@shared/components/ui/Button';
+import Modal from '@shared/components/ui/Modal';
 import PageHeader from '@shared/components/ui/PageHeader';
 import StatCard from '@shared/components/ui/StatCard';
 import FilterBar from '@shared/components/ui/FilterBar';
@@ -18,21 +19,26 @@ import {
     ShoppingBag,
     MoreVertical,
     UserPlus,
-    RotateCw,
     Activity,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { adminApi } from '../services/adminApi';
 import { toast } from 'sonner';
 
+const EMPTY_FORM = { name: '', phone: '', email: '' };
+
 const CustomerManagement = () => {
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
     const [isExporting, setIsExporting] = useState(false);
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
+    const [showNewModal, setShowNewModal] = useState(false);
+    const [newForm, setNewForm] = useState(EMPTY_FORM);
+    const [isCreating, setIsCreating] = useState(false);
 
     // Perf audit Phase 8: data fetching migrated to React Query (see
     // core/query/queryClient.js) — same 500ms debounce as before, but the
@@ -117,6 +123,23 @@ const CustomerManagement = () => {
             return matchesSearch && matchesStatus;
         });
     }, [customers, searchTerm, filterStatus]);
+
+    const handleCreate = async (e) => {
+        e.preventDefault();
+        if (!newForm.phone.trim()) { toast.error('Phone number is required'); return; }
+        setIsCreating(true);
+        try {
+            await adminApi.createUser({ name: newForm.name.trim() || undefined, phone: newForm.phone.trim(), email: newForm.email.trim() || undefined });
+            toast.success('Customer created successfully');
+            setShowNewModal(false);
+            setNewForm(EMPTY_FORM);
+            queryClient.invalidateQueries({ queryKey: ['admin', 'customers'] });
+        } catch (err) {
+            toast.error(err?.response?.data?.message || 'Could not create customer');
+        } finally {
+            setIsCreating(false);
+        }
+    };
 
     const handleExport = async () => {
         setIsExporting(true);
@@ -260,7 +283,7 @@ const CustomerManagement = () => {
                             {!isExporting && <Download className="h-4 w-4" />}
                             {isExporting ? 'Exporting...' : 'Export'}
                         </Button>
-                        <Button>
+                        <Button onClick={() => { setNewForm(EMPTY_FORM); setShowNewModal(true); }}>
                             <UserPlus className="h-4 w-4" />
                             New Customer
                         </Button>
@@ -331,6 +354,49 @@ const CustomerManagement = () => {
                     />
                 </>
             )}
+            <Modal isOpen={showNewModal} onClose={() => setShowNewModal(false)} title="New Customer" size="sm">
+                <form onSubmit={handleCreate} className="space-y-4 py-2">
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Full Name</label>
+                        <input
+                            type="text"
+                            value={newForm.name}
+                            onChange={(e) => setNewForm(f => ({ ...f, name: e.target.value }))}
+                            placeholder="e.g. Rahul Sharma"
+                            className="h-10 w-full rounded-md border border-slate-200 px-3.5 text-sm text-slate-900 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        />
+                    </div>
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Phone <span className="text-danger">*</span></label>
+                        <input
+                            type="tel"
+                            value={newForm.phone}
+                            onChange={(e) => setNewForm(f => ({ ...f, phone: e.target.value }))}
+                            placeholder="+91 98765 43210"
+                            required
+                            className="h-10 w-full rounded-md border border-slate-200 px-3.5 text-sm text-slate-900 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        />
+                    </div>
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Email <span className="text-slate-300">(optional)</span></label>
+                        <input
+                            type="email"
+                            value={newForm.email}
+                            onChange={(e) => setNewForm(f => ({ ...f, email: e.target.value }))}
+                            placeholder="rahul@example.com"
+                            className="h-10 w-full rounded-md border border-slate-200 px-3.5 text-sm text-slate-900 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                        />
+                    </div>
+                    <p className="text-[11px] text-slate-400">The customer can sign in with their phone number via OTP. No password is set.</p>
+                    <div className="flex justify-end gap-2 pt-1">
+                        <Button type="button" variant="outline" onClick={() => setShowNewModal(false)}>Cancel</Button>
+                        <Button type="submit" isLoading={isCreating}>
+                            <UserPlus className="h-4 w-4" />
+                            Create Customer
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 };
