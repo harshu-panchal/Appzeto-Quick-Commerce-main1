@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import Button from '@shared/components/ui/Button';
 import Badge from '@shared/components/ui/Badge';
 import PageHeader from '@shared/components/ui/PageHeader';
@@ -6,7 +6,7 @@ import StatCard from '@shared/components/ui/StatCard';
 import FilterBar from '@shared/components/ui/FilterBar';
 import DataTable from '@shared/components/ui/DataTable';
 import EmptyState from '@shared/components/ui/EmptyState';
-import { SkeletonStatCard, SkeletonCard } from '@shared/components/ui/Skeleton';
+import { SkeletonStatCard } from '@shared/components/ui/Skeleton';
 import {
     HiOutlineMagnifyingGlass,
     HiOutlineEye,
@@ -37,8 +37,13 @@ import Pagination from '@shared/components/ui/Pagination';
 import { DatePicker } from "@/components/ui/date-picker";
 import { getOrderStatusVariant } from '../components/orders';
 import { useSellerOrders } from '../context/SellerOrdersContext';
+import { onOrderStatusUpdate } from '@/core/services/orderSocket';
+import { createSocketTokenReader } from '@core/utils/authStorage';
+import { STORAGE_KEYS } from '@core/utils/storage';
 import ConfirmDialog from '@shared/components/ui/ConfirmDialog';
 import useConfirmDialog from '@shared/hooks/useConfirmDialog';
+import { orderCustomerName, orderCustomerPhone } from '@/shared/utils/orderCustomer';
+import { orderItemVariant, orderItemImage } from '@/shared/utils/orderItems';
 
 /** Semantic variant (from getOrderStatusVariant) -> select-control tint classes. Shared across the mobile list, desktop table, and details modal so all three read the same colors for the same status. */
 const STATUS_SELECT_STYLES = {
@@ -48,6 +53,12 @@ const STATUS_SELECT_STYLES = {
     secondary: 'bg-slate-100 text-slate-600 focus:ring-slate-300',
     success: 'bg-success/10 text-success focus:ring-success/30',
     error: 'bg-danger/10 text-danger focus:ring-danger/30',
+};
+
+// Today's date (yyyy-MM-dd) in the seller's local time, not UTC
+const localToday = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
 const Orders = () => {
@@ -102,6 +113,26 @@ const Orders = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [ordersFromContext?.length, ordersFromContext?.[0]?.orderId]);
 
+    // Live status changes (rider assigned / picked up / delivered / cancelled):
+    // the backend now pushes these to the seller's room; refresh silently,
+    // debounced so a burst of events triggers one reload.
+    const liveRefreshRef = useRef({ timer: null, page });
+    liveRefreshRef.current.page = page;
+    useEffect(() => {
+        const getToken = createSocketTokenReader(STORAGE_KEYS.AUTH_SELLER);
+        const off = onOrderStatusUpdate(getToken, () => {
+            clearTimeout(liveRefreshRef.current.timer);
+            liveRefreshRef.current.timer = setTimeout(() => {
+                if (hasMountedRef.current) fetchOrders(liveRefreshRef.current.page, false);
+            }, 600);
+        });
+        return () => {
+            off();
+            clearTimeout(liveRefreshRef.current.timer);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const fetchOrders = async (requestedPage = 1, showPageLoader = false) => {
         try {
             if (showPageLoader) {
@@ -123,19 +154,31 @@ const Orders = () => {
                 id: order.orderId,
                 _id: order._id,
                 customer: {
-                    name: order.customer?.name || 'Unknown',
-                    phone: order.customer?.phone || '',
-                    avatar: (order.customer?.name || 'U').charAt(0)
+                    name: orderCustomerName(order),
+                    phone: orderCustomerPhone(order),
+                    avatar: orderCustomerName(order).charAt(0)
                 },
                 items: (order.items || []).map(item => ({
                     name: item.name,
                     price: item.price,
                     qty: item.quantity,
-                    image: item.image
+                    image: orderItemImage(item),
+                    variant: orderItemVariant(item)
                 })),
-                total: order.pricing?.total || 0,
-                subtotal: order.pricing?.subtotal ?? order.paymentBreakdown?.productSubtotal ?? 0,
-                deliveryFee: order.pricing?.deliveryFee ?? order.paymentBreakdown?.deliveryFeeCharged ?? 0,
+                // `paymentBreakdown` is the canonical, frozen finance snapshot;
+                // `pricing` is a legacy mirror that can drift out of sync on
+                // older orders. Prefer the canonical source whenever it has
+                // the field at all (including legitimate 0s), so the summary
+                // card's line items always add up to the same total that was
+                // actually charged.
+                total: order.paymentBreakdown?.grandTotal ?? order.pricing?.total ?? 0,
+                subtotal: order.paymentBreakdown?.productSubtotal ?? order.pricing?.subtotal ?? 0,
+                deliveryFee: order.paymentBreakdown?.deliveryFeeCharged ?? order.pricing?.deliveryFee ?? 0,
+                platformFee: order.paymentBreakdown?.handlingFeeCharged ?? order.pricing?.platformFee ?? 0,
+                gst: order.paymentBreakdown?.taxTotal ?? order.pricing?.gst ?? 0,
+                tip: order.paymentBreakdown?.tipTotal ?? order.pricing?.tip ?? 0,
+                discount: order.paymentBreakdown?.discountTotal ?? order.pricing?.discount ?? 0,
+                walletAmount: order.paymentBreakdown?.walletAmount ?? order.pricing?.walletAmount ?? 0,
                 status: getLegacyStatusFromOrder(order),
                 workflowStatus: order.workflowStatus,
                 workflowVersion: order.workflowVersion,
@@ -183,7 +226,7 @@ const Orders = () => {
     };
 
     const tabs = ['All', 'Pending', 'Confirmed', 'Packed', 'Out for Delivery', 'Delivered', 'Cancelled'];
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = localToday();
 
     const safeOrders = useMemo(
         () => (Array.isArray(orders) ? orders : []),
@@ -248,7 +291,8 @@ const Orders = () => {
             }
         } catch (error) {
             console.error("Failed to update status:", error);
-            showToast("Failed to update status", "error");
+            const message = error.response?.data?.message || "Failed to update status";
+            showToast(message, "error");
         }
     };
 
@@ -314,8 +358,11 @@ const Orders = () => {
                 value={order.status}
                 onChange={(e) => handleStatusUpdate(order.id, e.target.value)}
                 onClick={(e) => e.stopPropagation()}
+                // delivered / cancelled orders are final
+                disabled={['delivered', 'cancelled'].includes(order.status)}
+                title={['delivered', 'cancelled'].includes(order.status) ? 'This order is final and can no longer be changed' : undefined}
                 className={cn(
-                    "w-full text-[10px] pl-2.5 pr-7 py-1.5 rounded-full font-black uppercase tracking-widest cursor-pointer appearance-none focus:ring-2 focus:ring-offset-1 transition-all border-none outline-none shadow-sm",
+                    "w-full text-[10px] pl-2.5 pr-7 py-1.5 rounded-full font-black uppercase tracking-widest cursor-pointer appearance-none focus:ring-2 focus:ring-offset-1 transition-all border-none outline-none shadow-sm disabled:cursor-not-allowed disabled:opacity-90",
                     STATUS_SELECT_STYLES[getStatusColor(order.status)] || STATUS_SELECT_STYLES.secondary
                 )}
             >
@@ -324,7 +371,7 @@ const Orders = () => {
                 <option value="packed" disabled={['out_for_delivery', 'delivered', 'cancelled'].includes(order.status)}>Packed</option>
                 <option value="out_for_delivery" disabled={['delivered', 'cancelled'].includes(order.status)}>Out for Delivery</option>
                 <option value="delivered" disabled={order.status === 'cancelled'}>Delivered</option>
-                <option value="cancelled">Cancelled</option>
+                <option value="cancelled" disabled={['out_for_delivery', 'delivered'].includes(order.status)}>Cancelled</option>
             </select>
             <HiOutlineChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3 w-3 pointer-events-none opacity-60" />
         </div>
@@ -474,7 +521,7 @@ const Orders = () => {
                                                 setPage(1);
                                                 return;
                                             }
-                                            const today = new Date().toISOString().split("T")[0];
+                                            const today = localToday();
                                             if (value > today) {
                                                 showToast("Start date cannot be in the future", "error");
                                                 return;
@@ -504,7 +551,7 @@ const Orders = () => {
                                                 setPage(1);
                                                 return;
                                             }
-                                            const today = new Date().toISOString().split("T")[0];
+                                            const today = localToday();
                                             if (value > today) {
                                                 showToast("End date cannot be in the future", "error");
                                                 return;
@@ -769,6 +816,36 @@ const Orders = () => {
                                                             <span className="font-bold text-slate-500">Delivery Fee</span>
                                                             <span className="font-black text-success">₹{Number(selectedOrder.deliveryFee ?? 0).toFixed(2)}</span>
                                                         </div>
+                                                        {Number(selectedOrder.platformFee) > 0 && (
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="font-bold text-slate-500">Platform Fee</span>
+                                                                <span className="font-black text-slate-900">₹{Number(selectedOrder.platformFee).toFixed(2)}</span>
+                                                            </div>
+                                                        )}
+                                                        {Number(selectedOrder.gst) > 0 && (
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="font-bold text-slate-500">GST / Tax</span>
+                                                                <span className="font-black text-slate-900">₹{Number(selectedOrder.gst).toFixed(2)}</span>
+                                                            </div>
+                                                        )}
+                                                        {Number(selectedOrder.tip) > 0 && (
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="font-bold text-slate-500">Tip</span>
+                                                                <span className="font-black text-slate-900">₹{Number(selectedOrder.tip).toFixed(2)}</span>
+                                                            </div>
+                                                        )}
+                                                        {Number(selectedOrder.discount) > 0 && (
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="font-bold text-slate-500">Discount</span>
+                                                                <span className="font-black text-danger">- ₹{Number(selectedOrder.discount).toFixed(2)}</span>
+                                                            </div>
+                                                        )}
+                                                        {Number(selectedOrder.walletAmount) > 0 && (
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="font-bold text-slate-500">Wallet Used</span>
+                                                                <span className="font-black text-danger">- ₹{Number(selectedOrder.walletAmount).toFixed(2)}</span>
+                                                            </div>
+                                                        )}
                                                         <div className="h-px bg-primary/10 my-2" />
                                                         <div className="flex justify-between text-sm">
                                                             <span className="font-black text-slate-900">Total</span>
@@ -796,6 +873,9 @@ const Orders = () => {
                                                         </div>
                                                         <div>
                                                             <p className="text-xs font-bold text-slate-900">{item.name}</p>
+                                                            {item.variant && (
+                                                                <p className="text-[11px] font-semibold text-slate-500">{item.variant}</p>
+                                                            )}
                                                             <p className="text-xs font-semibold text-slate-500 mt-0.5">₹{item.price.toFixed(2)} × {item.qty}</p>
                                                         </div>
                                                     </div>

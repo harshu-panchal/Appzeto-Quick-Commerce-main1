@@ -271,8 +271,12 @@ describe("Property 38: Search Fallback", () => {
         fc.double({ min: 100, max: 1000, noNaN: true }),
         (priceMin, priceMax) => {
           const mongoQuery = backend.buildQuery({ priceMin, priceMax });
-          expect(mongoQuery.price.$gte).toBe(priceMin);
-          expect(mongoQuery.price.$lte).toBe(priceMax);
+          const [gte, lte] = mongoQuery.$expr.$and;
+          expect(gte.$gte[1]).toBe(priceMin);
+          expect(lte.$lte[1]).toBe(priceMax);
+          // Filters on the effective (customer-paid) price, not raw price.
+          expect(gte.$gte[0].$cond[1]).toBe("$salePrice");
+          expect(mongoQuery.price).toBeUndefined();
         }
       ),
       { numRuns: 50 }

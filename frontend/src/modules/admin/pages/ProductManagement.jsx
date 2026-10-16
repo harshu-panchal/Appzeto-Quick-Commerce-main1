@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Badge from '@shared/components/ui/Badge';
 import Button from '@shared/components/ui/Button';
 import PageHeader from '@shared/components/ui/PageHeader';
@@ -10,7 +10,6 @@ import { SkeletonStatCard, SkeletonCard } from '@shared/components/ui/Skeleton';
 import { adminApi } from '../services/adminApi';
 import { toast } from 'sonner';
 import {
-    HiOutlinePlus,
     HiOutlineCube,
     HiOutlineMagnifyingGlass,
     HiOutlineFunnel,
@@ -19,14 +18,17 @@ import {
     HiOutlinePhoto,
     HiOutlineArchiveBox,
     HiOutlineTag,
-    HiOutlineArrowPath,
     HiOutlineXMark,
     HiOutlineChevronRight,
     HiOutlineCheckCircle,
     HiOutlineExclamationCircle,
     HiOutlineFolderOpen,
     HiOutlineSwatch,
+    HiOutlinePlus,
+    HiOutlineBuildingStorefront,
+    HiOutlineArrowUpTray,
 } from 'react-icons/hi2';
+import { useNavigate } from 'react-router-dom';
 import Modal from '@shared/components/ui/Modal';
 import Pagination from '@shared/components/ui/Pagination';
 import { cn } from '@/lib/utils';
@@ -75,6 +77,7 @@ const ADMIN_PRODUCTS_QUERY_KEY = ['admin', 'productModeration'];
 
 const ProductManagement = () => {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
     const [isSaving, setIsSaving] = useState(false);
@@ -117,9 +120,19 @@ const ProductManagement = () => {
         brand: '',
         mainImage: null,
         galleryImages: [],
+        sellerId: '',
         variants: [
             { id: Date.now(), name: 'Default', price: '', salePrice: '', stock: '', sku: '' }
         ]
+    });
+
+    const { data: sellers = [] } = useQuery({
+        queryKey: ['admin', 'sellerOptions', 'active'],
+        queryFn: async () => {
+            const response = await adminApi.getSellers({ activeOnly: true });
+            if (!response.data.success) return [];
+            return response.data.result || response.data.results || [];
+        },
     });
 
     const [viewingVariants, setViewingVariants] = useState(null);
@@ -199,12 +212,28 @@ const ProductManagement = () => {
     const invalidateProducts = () => queryClient.invalidateQueries({ queryKey: ADMIN_PRODUCTS_QUERY_KEY });
 
     const handleSave = async () => {
-        if (!editingItem) {
-            return toast.error('Only product editing is allowed for admins');
+        const isCreating = !editingItem;
+
+        if (isCreating && !formData.sellerId) {
+            return toast.error('Please select which seller this product belongs to');
         }
 
-        if (!formData.name || !formData.price || !formData.stock || !formData.header || !formData.categoryId || !formData.subcategoryId) {
+        if (!formData.name || !formData.header || !formData.categoryId || !formData.subcategoryId) {
             return toast.error('Please fill all required fields, including categories');
+        }
+
+        const firstVariant = formData.variants?.[0] || {};
+        // When creating, there's no standalone price/stock input — price comes
+        // from the first variant and stock is the sum of all variants, exactly
+        // like the seller's own Add Product form computes it.
+        const effectivePrice = isCreating ? firstVariant.price : formData.price;
+        const effectiveSalePrice = isCreating ? firstVariant.salePrice : formData.salePrice;
+        const effectiveStock = isCreating
+            ? formData.variants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0)
+            : formData.stock;
+
+        if (effectivePrice === '' || effectivePrice == null || effectiveStock === '' || effectiveStock == null) {
+            return toast.error('Please fill price and stock for at least the first variant');
         }
 
         setIsSaving(true);
@@ -214,9 +243,9 @@ const ProductManagement = () => {
             data.append('slug', formData.slug);
             data.append('sku', formData.sku);
             data.append('description', formData.description);
-            data.append('price', Number(formData.price));
-            data.append('salePrice', Number(formData.salePrice) || 0);
-            data.append('stock', Number(formData.stock));
+            data.append('price', Number(effectivePrice));
+            data.append('salePrice', Number(effectiveSalePrice) || 0);
+            data.append('stock', Number(effectiveStock));
             data.append('lowStockAlert', Number(formData.lowStockAlert) || 5);
             data.append('unit', formData.unit);
             data.append('headerId', formData.header);
@@ -236,8 +265,14 @@ const ProductManagement = () => {
                 formData.galleryFiles.forEach((file) => data.append('galleryImages', file));
             }
 
-            await adminApi.updateProduct(editingItem._id, data);
-            toast.success('Product updated successfully');
+            if (isCreating) {
+                data.append('sellerId', formData.sellerId);
+                await adminApi.createProduct(data);
+                toast.success('Product created successfully for seller');
+            } else {
+                await adminApi.updateProduct(editingItem._id, data);
+                toast.success('Product updated successfully');
+            }
             setIsProductModalOpen(false);
             invalidateProducts();
         } catch (error) {
@@ -372,6 +407,7 @@ const ProductManagement = () => {
                 brand: item.brand || '',
                 mainImage: item.mainImage || null,
                 galleryImages: item.galleryImages || item.images || [],
+                sellerId: item.sellerId?._id || item.sellerId || '',
                 variants: (item.variants && item.variants.length > 0) ? item.variants.map(v => ({ ...v, id: v._id || Date.now() })) : [
                     {
                         id: Date.now(),
@@ -390,7 +426,7 @@ const ProductManagement = () => {
                 salePrice: '', stock: '', lowStockAlert: 5, unit: 'packet',
                 header: '', categoryId: '', subcategoryId: '', status: 'active',
                 isFeatured: false, tags: '', weight: '', brand: '',
-                mainImage: null, galleryImages: [],
+                mainImage: null, galleryImages: [], sellerId: '',
                 variants: [
                     { id: Date.now(), name: 'Default', price: '', salePrice: '', stock: '', sku: '' }
                 ]
@@ -558,6 +594,18 @@ const ProductManagement = () => {
                     </span>
                 }
                 description="Track your items, prices, and how many are left in stock."
+                actions={
+                    <>
+                        <Button variant="outline" onClick={() => navigate('/admin/products/bulk-upload')}>
+                            <HiOutlineArrowUpTray className="h-4 w-4" />
+                            Bulk Upload (Excel)
+                        </Button>
+                        <Button onClick={() => openModal(null)}>
+                            <HiOutlinePlus className="h-4 w-4" />
+                            Add Product for Seller
+                        </Button>
+                    </>
+                }
             />
 
             {isLoading && productsList.length === 0 ? (
@@ -726,10 +774,10 @@ const ProductManagement = () => {
                                     </div>
                                     <div>
                                         <h3 className="text-base font-black text-slate-900">
-                                            Edit Product
+                                            {editingItem ? 'Edit Product' : 'Add Product for Seller'}
                                         </h3>
                                         <div className="mt-0.5 flex items-center space-x-2">
-                                            <Badge variant="primary">System</Badge>
+                                            <Badge variant="primary">{editingItem ? 'System' : 'On Behalf Of'}</Badge>
                                             <HiOutlineChevronRight className="h-2.5 w-2.5 text-slate-300" />
                                             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{formData.sku || 'PENDING SKU'}</span>
                                         </div>
@@ -792,6 +840,29 @@ const ProductManagement = () => {
                                 <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain p-4">
                                     {modalTab === 'general' && (
                                         <div className="space-y-5">
+                                            {!editingItem && (
+                                                <div className="flex flex-col space-y-1.5 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                                                    <label className="ml-1 flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-primary">
+                                                        <HiOutlineBuildingStorefront className="h-3.5 w-3.5" />
+                                                        Seller <span className="text-danger">*</span>
+                                                    </label>
+                                                    <select
+                                                        value={formData.sellerId}
+                                                        onChange={(e) => setFormData({ ...formData, sellerId: e.target.value })}
+                                                        className="h-10 w-full cursor-pointer rounded-md border border-primary/30 bg-white px-3.5 text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-primary/20"
+                                                    >
+                                                        <option value="">Select the seller this product belongs to</option>
+                                                        {sellers.map((s) => (
+                                                            <option key={s._id} value={s._id}>
+                                                                {s.shopName || s.name} ({s.email})
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    <p className="ml-1 text-[10px] font-medium text-primary/70">
+                                                        This product will be created and attributed to the selected seller, as if they added it themselves.
+                                                    </p>
+                                                </div>
+                                            )}
                                             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                                                 <div className="flex flex-col space-y-1.5">
                                                     <label className="ml-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">Product Title</label>
@@ -956,10 +1027,15 @@ const ProductManagement = () => {
                                                                 <label className="ml-1 text-[8px] font-bold uppercase tracking-widest text-slate-400">Stock</label>
                                                                 <input
                                                                     type="number"
+                                                                    min="0"
+                                                                    step="1"
+                                                                    inputMode="numeric"
                                                                     value={v.stock}
+                                                                    onKeyDown={e => { if (['-', '+', 'e', 'E', '.', ','].includes(e.key)) e.preventDefault(); }}
                                                                     onChange={e => {
+                                                                        // whole units, never negative
                                                                         const news = [...formData.variants];
-                                                                        news[i].stock = e.target.value;
+                                                                        news[i].stock = e.target.value.replace(/[^\d]/g, '');
                                                                         setFormData({ ...formData, variants: news });
                                                                     }}
                                                                     placeholder="50"
@@ -1074,7 +1150,7 @@ const ProductManagement = () => {
                                     Close
                                 </Button>
                                 <Button onClick={handleSave} isLoading={isSaving}>
-                                    {isSaving ? 'Saving...' : 'Save Changes'}
+                                    {isSaving ? 'Saving...' : (editingItem ? 'Save Changes' : 'Create Product')}
                                 </Button>
                             </div>
                         </motion.div>

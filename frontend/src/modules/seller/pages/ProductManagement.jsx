@@ -8,6 +8,7 @@ import DataTable from "@shared/components/ui/DataTable";
 import { SkeletonStatCard, SkeletonCard } from "@shared/components/ui/Skeleton";
 import {
   HiOutlinePlus,
+  HiOutlineArrowUpTray,
   HiOutlineCube,
   HiOutlineMagnifyingGlass,
   HiOutlineFunnel,
@@ -169,13 +170,28 @@ const ProductManagement = () => {
   // calls — the rendered result is identical either way, since
   // `filteredProducts` re-filters the same fetched page client-side
   // regardless of when it last actually re-fetched.
+  // Search and category go to the server too, so they cover every page of
+  // the catalogue (debounced so typing doesn't fire a request per key)
+  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm.trim());
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 350);
+    return () => clearTimeout(id);
+  }, [searchTerm]);
+
   useEffect(() => {
     setPage(1);
-  }, [filterApproval, sortBy, pageSize]);
+  }, [filterApproval, sortBy, pageSize, debouncedSearch, filterCategory]);
 
   const productsQueryParams = useMemo(
-    () => ({ page, limit: pageSize, sort: sortBy, approvalStatus: filterApproval }),
-    [page, pageSize, sortBy, filterApproval],
+    () => ({
+      page,
+      limit: pageSize,
+      sort: sortBy,
+      approvalStatus: filterApproval,
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+      ...(filterCategory !== "all" ? { categoryId: filterCategory } : {}),
+    }),
+    [page, pageSize, sortBy, filterApproval, debouncedSearch, filterCategory],
   );
 
   const {
@@ -627,10 +643,16 @@ const ProductManagement = () => {
         }
         description="Track your items, prices, and how many are left in stock."
         actions={
-          <Button onClick={() => navigate("/seller/products/add")}>
-            <HiOutlinePlus className="h-4 w-4" />
-            Add New Product
-          </Button>
+          <>
+            <Button variant="outline" onClick={() => navigate("/seller/products/bulk-upload")}>
+              <HiOutlineArrowUpTray className="h-4 w-4" />
+              Bulk Upload (Excel)
+            </Button>
+            <Button onClick={() => navigate("/seller/products/add")}>
+              <HiOutlinePlus className="h-4 w-4" />
+              Add New Product
+            </Button>
+          </>
         }
       />
 
@@ -1136,9 +1158,11 @@ const ProductManagement = () => {
                             </div>
                             <div className="space-y-1">
                               <label className="ml-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">Stock</label>
-                              <input type="number" min="0" value={v.stock} onChange={e => {
-                                const val = e.target.value;
-                                if (val !== '' && Number(val) < 0) return;
+                              <input type="number" min="0" step="1" inputMode="numeric" value={v.stock}
+                                onKeyDown={e => { if (['-', '+', 'e', 'E', '.', ','].includes(e.key)) e.preventDefault(); }}
+                                onChange={e => {
+                                // whole units only (decimals left values like 0.0099 after orders)
+                                const val = e.target.value.replace(/[^\d]/g, '');
                                 const news = [...formData.variants];
                                 news[i].stock = val;
                                 setFormData({ ...formData, variants: news });

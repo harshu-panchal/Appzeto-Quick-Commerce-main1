@@ -1,5 +1,8 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { onOrderStatusUpdate } from '@/core/services/orderSocket';
+import { createSocketTokenReader } from '@core/utils/authStorage';
+import { STORAGE_KEYS } from '@core/utils/storage';
 import { useNavigate, Link } from 'react-router-dom';
 import { Package, ChevronRight, Clock, CheckCircle, Loader2, ChevronLeft } from 'lucide-react';
 import { customerApi } from '../services/customerApi';
@@ -35,6 +38,21 @@ const OrdersPage = () => {
             }
         },
     });
+
+    // Live: refresh the list whenever any of this customer's orders changes status
+    const queryClient = useQueryClient();
+    useEffect(() => {
+        const getToken = createSocketTokenReader(STORAGE_KEYS.AUTH_CUSTOMER);
+        let timer = null;
+        const off = onOrderStatusUpdate(getToken, () => {
+            clearTimeout(timer);
+            timer = setTimeout(() => queryClient.invalidateQueries({ queryKey: ['customer', 'myOrders'] }), 400);
+        });
+        return () => {
+            off();
+            clearTimeout(timer);
+        };
+    }, [queryClient]);
 
     if (loading) {
         return (

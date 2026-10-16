@@ -44,6 +44,7 @@ export const sellerApi = {
 
     // Returns
     getReturns: (params) => axiosInstance.get('/orders/seller-returns', { params }),
+    getActiveReturnDropOtps: () => axiosInstance.get('/orders/seller/active-return-drop-otps'),
     getReturnDetails: (orderId) => axiosInstance.get(`/orders/${orderId}/returns`),
     approveReturn: (orderId, data) => axiosInstance.put(`/orders/returns/${orderId}/approve`, data),
     rejectReturn: (orderId, data) => axiosInstance.put(`/orders/returns/${orderId}/reject`, data),

@@ -1,16 +1,12 @@
-import React, { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Button from "@shared/components/ui/Button";
-import Badge from "@shared/components/ui/Badge";
 import {
   HiOutlineArrowLeft,
-  HiOutlineCube,
   HiOutlineTag,
-  HiOutlineCurrencyDollar,
   HiOutlineSwatch,
   HiOutlineFolderOpen,
   HiOutlinePhoto,
-  HiOutlineScale,
   HiOutlineArrowPath,
   HiOutlineTrash,
   HiOutlinePlus,
@@ -129,10 +125,24 @@ const AddProduct = () => {
     }
 
     const firstVariant = formData.variants[0] || {};
-    if (!firstVariant.price || !firstVariant.stock) {
-      toast.error("Main variant must have price and stock");
+    // Stock 0 is valid (marks the variant out of stock) — only a blank field is missing
+    const isBlank = (v) => v === undefined || v === null || String(v).trim() === "";
+    if (!firstVariant.price || isBlank(firstVariant.stock)) {
+      toast.error("Main variant must have price and stock (0 is allowed)");
       return;
     }
+    const badStockIndex = (formData.variants || []).findIndex(
+      (v) => !isBlank(v.stock) && !/^\d+$/.test(String(v.stock).trim()),
+    );
+    if (badStockIndex !== -1) {
+      toast.error(`Stock must be a whole number (variant ${badStockIndex + 1})`);
+      return;
+    }
+    // Master stock = total of all variants (the server recomputes it the same way)
+    const totalStock = (formData.variants || []).reduce(
+      (sum, v) => sum + (isBlank(v.stock) ? 0 : Number(v.stock)),
+      0,
+    );
 
     // Audit fix: nothing blocked a sale price above the base price — a
     // fat-fingered entry here shows as a live "discount" on the customer
@@ -163,7 +173,7 @@ const AddProduct = () => {
       // Map top-level price/stock from first variant for indexing/listing
       data.append("price", firstVariant.price);
       data.append("salePrice", firstVariant.salePrice || 0);
-      data.append("stock", firstVariant.stock);
+      data.append("stock", totalStock);
 
       // Category IDs
       data.append("headerId", formData.header);
@@ -494,15 +504,18 @@ const AddProduct = () => {
                       <input
                         type="number"
                         min="0"
+                        step="1"
+                        inputMode="numeric"
                         onKeyDown={(e) => {
-                          if (['-', '+', 'e', 'E'].includes(e.key)) {
+                          // whole units only: no sign, exponent or decimal point
+                          if (['-', '+', 'e', 'E', '.', ','].includes(e.key)) {
                             e.preventDefault();
                           }
                         }}
                         value={variant.stock}
                         onChange={(e) => {
-                          const val = e.target.value;
-                          if (val !== '' && Number(val) < 0) return;
+                          // strip anything that isn't a digit (covers paste of "1.5" etc.)
+                          const val = e.target.value.replace(/[^\d]/g, '');
                           const newVariants = [...formData.variants];
                           newVariants[index].stock = val;
                           setFormData({ ...formData, variants: newVariants });

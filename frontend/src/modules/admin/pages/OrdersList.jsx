@@ -33,6 +33,7 @@ import {
     getLegacyStatusFromOrder,
     adminRouteMatchesOrder,
 } from '@/shared/utils/orderStatus';
+import { orderCustomerName, orderCustomerPhone } from '@/shared/utils/orderCustomer';
 
 const STATUS_SELECT_STYLES = {
     pending: 'bg-warning/10 text-warning',
@@ -62,7 +63,7 @@ function formatOrdersResponse(payload, fallbackResults, requestedPage) {
     const formatted = dbOrders.map(o => ({
         id: o.orderId || 'UNSET',
         _id: o._id,
-        customer: o.customer?.name || 'Unknown',
+        customer: orderCustomerName(o),
         seller: o.seller?.shopName || 'Unknown',
         items: o.items?.length || 0,
         amount: o.pricing?.total || 0,
@@ -167,7 +168,8 @@ const OrdersList = () => {
             queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] });
         } catch (error) {
             console.error("Failed to update status:", error);
-            showToast("Failed to update status", "error");
+            const message = error.response?.data?.message || "Failed to update status";
+            showToast(message, "error");
         }
     };
 

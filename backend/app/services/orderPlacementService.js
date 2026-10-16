@@ -10,7 +10,6 @@ import {
   LEDGER_TRANSACTION_TYPE,
   ORDER_PAYMENT_STATUS,
   OWNER_TYPE,
-  isWalletRedemptionReducesPayableEnabled,
   isServerSideCouponEngineEnabled,
   getMaxCustomerTipAmount,
 } from "../constants/finance.js";
@@ -426,9 +425,6 @@ export async function placeOrderAtomic({
       tipAmount,
       discountTotal: Math.max(0, Number(normalizedPayload.discountTotal || 0)),
       walletAmount,
-      couponCode: normalizedPayload.couponCode || null,
-      couponId: normalizedPayload.couponId || null,
-      customerId,
       couponCode: normalizedPayload.couponCode || null,
       couponId: normalizedPayload.couponId || null,
       customerId,

@@ -1,3 +1,4 @@
+import { loadOrderTimeoutSettings } from "../services/orderTimeoutSettings.js";
 /**
  * Startup Orchestration Module
  * 
@@ -118,10 +119,32 @@ async function validateDependencies() {
     requiredVars.push('JWT_SECRET');
     
     // Check for security defaults that should be overridden
-    if (process.env.JWT_SECRET === 'your-secret-key' || 
-        process.env.JWT_SECRET === 'default-secret') {
+    const jwtSecret = String(process.env.JWT_SECRET || '');
+    if (jwtSecret === 'your-secret-key' ||
+        jwtSecret === 'default-secret' ||
+        jwtSecret.startsWith('your_secure_random_secret')) {
       result.valid = false;
       result.errors.push('JWT_SECRET must be overridden in production (not using default value)');
+    } else if (jwtSecret && jwtSecret.length < 32) {
+      // Warn rather than refuse to boot, so an existing deployment with a
+      // short secret keeps running until the secret is rotated.
+      result.checks.jwtSecretStrength = {
+        status: 'WARN',
+        message: 'JWT_SECRET is shorter than 32 characters; rotate it to a long random value.',
+      };
+    }
+
+    if (isComponentEnabled('http')) {
+      if (!process.env.CORS_ALLOWED_ORIGINS && !process.env.FRONTEND_URL) {
+        result.valid = false;
+        result.errors.push('Set CORS_ALLOWED_ORIGINS (or FRONTEND_URL) in production; the localhost fallback must not be used');
+      }
+      if (!process.env.TRUST_PROXY) {
+        result.checks.trustProxy = {
+          status: 'WARN',
+          message: 'TRUST_PROXY is not set; behind a load balancer every client shares the proxy IP for rate limiting.',
+        };
+      }
     }
   }
   
@@ -232,6 +255,8 @@ async function startup() {
     // Step 2: Connect to MongoDB
     const maxMongoRetries = parseInt(process.env.MONGO_MAX_RETRIES || '5', 10);
     await connectMongoDB(maxMongoRetries);
+    // admin-set order accept windows (seller / delivery / return pickup)
+    await loadOrderTimeoutSettings();
     
     // Step 3: Connect to Redis (if enabled)
     if (isRedisEnabled()) {

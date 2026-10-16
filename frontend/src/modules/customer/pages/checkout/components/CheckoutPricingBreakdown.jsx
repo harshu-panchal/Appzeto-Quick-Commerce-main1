@@ -33,6 +33,12 @@ const CheckoutPricingBreakdown = React.memo(function CheckoutPricingBreakdown({
   const handlingFee = pricingPreview?.handlingFeeCharged || 0;
   const tipAmount = pricingPreview?.tipTotal || selectedTip || 0;
   const taxAmount = pricingPreview?.taxTotal || 0;
+  // delivery fee a free-delivery coupon waived (already removed from the total)
+  const freeDeliveryRebate = Number(pricingPreview?.freeDeliveryRebate || 0);
+  const rupees = (n) => {
+    const v = Number(n || 0);
+    return Number.isInteger(v) ? String(v) : v.toFixed(2);
+  };
 
   return (
     <>
@@ -83,7 +89,14 @@ const CheckoutPricingBreakdown = React.memo(function CheckoutPricingBreakdown({
             <span className="text-slate-500 font-bold text-[13px] uppercase tracking-wider">
               Delivery Fee
             </span>
-            <span className="font-black text-slate-800">₹{deliveryFee}</span>
+            {freeDeliveryRebate > 0 ? (
+              <span className="font-black text-slate-800 flex items-center gap-2">
+                <span className="text-slate-400 line-through font-bold">₹{rupees(freeDeliveryRebate)}</span>
+                <span className="text-primary">FREE</span>
+              </span>
+            ) : (
+              <span className="font-black text-slate-800">₹{rupees(deliveryFee)}</span>
+            )}
           </div>
           {pricingPreview &&
             typeof pricingPreview.distanceKmActual === "number" &&
@@ -122,9 +135,16 @@ const CheckoutPricingBreakdown = React.memo(function CheckoutPricingBreakdown({
               className="flex justify-between items-center px-3 py-2 bg-brand-50 rounded-xl border border-brand-100">
               <span className="text-primary font-black text-xs flex items-center gap-2 uppercase tracking-wider">
                 <Tag size={14} />
-                Coupon Reserved
+                Coupon {selectedCoupon.code}
               </span>
-              <span className="font-black text-primary">-₹{discountAmount}</span>
+              {/* a free-delivery saving is already shown on the Delivery Fee row */}
+              <span className="font-black text-primary">
+                {Number(discountAmount || 0) > 0
+                  ? `-₹${rupees(discountAmount)}`
+                  : freeDeliveryRebate > 0
+                    ? "Free delivery"
+                    : "Not applicable"}
+              </span>
             </motion.div>
           )}
 
@@ -162,7 +182,7 @@ const CheckoutPricingBreakdown = React.memo(function CheckoutPricingBreakdown({
                 </span>
               </div>
               <span className="font-[1000] text-primary text-3xl tracking-tighter italic">
-                {isPreviewLoading ? "Calculating..." : `₹${Number(finalAmountToPay).toFixed(0)}`}
+                {isPreviewLoading ? "Calculating..." : `₹${rupees(finalAmountToPay)}`}
               </span>
             </div>
           </div>

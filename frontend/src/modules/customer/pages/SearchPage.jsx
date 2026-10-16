@@ -114,6 +114,30 @@ const SearchPage = () => {
         Number.isFinite(currentLocation?.latitude) &&
         Number.isFinite(currentLocation?.longitude);
 
+    const toSearchProducts = (response) => {
+        if (!response?.data?.success) return [];
+        const rawResult = response.data.result;
+        const dbProds = Array.isArray(response.data.results)
+            ? response.data.results
+            : Array.isArray(rawResult?.items)
+            ? rawResult.items
+            : Array.isArray(rawResult)
+            ? rawResult
+            : [];
+        return dbProds.map(p => ({
+            ...p,
+            id: p._id,
+            image:
+              p.mainImage ||
+              p.image ||
+              "https://images.unsplash.com/photo-1550989460-0adf9ea622e2?auto=format&fit=crop&q=80&w=400&h=400",
+            price: p.salePrice || p.price,
+            originalPrice: p.price,
+            weight: p.weight || '1 unit',
+            deliveryTime: '8-15 mins'
+        }));
+    };
+
     const { data: allProducts = [], isLoading } = useQuery({
         queryKey: ['customer', 'searchAllProducts', hasValidLocation ? currentLocation.latitude : null, hasValidLocation ? currentLocation.longitude : null],
         queryFn: async () => {
@@ -173,14 +197,33 @@ const SearchPage = () => {
         }
     };
 
-    // Real-time filtering logic
+    // Typed searches query the server so the whole catalogue is searched, not
+    // just the first 100 products loaded above.
+    const searchTerm = debouncedQuery.trim();
+    const { data: serverResults } = useQuery({
+        queryKey: ['customer', 'searchProducts', searchTerm, hasValidLocation ? currentLocation.latitude : null, hasValidLocation ? currentLocation.longitude : null],
+        queryFn: async () => toSearchProducts(await customerApi.getProducts({
+            search: searchTerm,
+            limit: 100,
+            lat: currentLocation.latitude,
+            lng: currentLocation.longitude,
+        })),
+        enabled: hasValidLocation && searchTerm.length > 0,
+    });
+
+    // Real-time filtering logic: server matches, plus category-name matches from
+    // the loaded list (the local list alone is shown until the server answers)
     const filteredResults = useMemo(() => {
-        if (!debouncedQuery.trim()) return [];
-        return allProducts.filter(p =>
-            p.name.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
-            p.categoryId?.name?.toLowerCase().includes(debouncedQuery.toLowerCase())
+        if (!searchTerm) return [];
+        const term = searchTerm.toLowerCase();
+        const local = allProducts.filter(p =>
+            p.name.toLowerCase().includes(term) ||
+            p.categoryId?.name?.toLowerCase().includes(term)
         );
-    }, [debouncedQuery, allProducts]);
+        if (!Array.isArray(serverResults)) return local;
+        const seen = new Set(serverResults.map((p) => String(p.id)));
+        return [...serverResults, ...local.filter((p) => !seen.has(String(p.id)))];
+    }, [searchTerm, allProducts, serverResults]);
 
     useEffect(() => {
         setResults(filteredResults);

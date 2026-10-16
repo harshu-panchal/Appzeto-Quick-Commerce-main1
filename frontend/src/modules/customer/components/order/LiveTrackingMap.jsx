@@ -1,9 +1,8 @@
-import React, { useEffect, useState, useRef, useMemo, useCallback, memo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useState, useRef, useMemo, useCallback, memo } from "react";
+import { motion } from "framer-motion";
 import { GoogleMap, useJsApiLoader, Marker, Polyline } from "@react-google-maps/api";
 import {
   MapPin,
-  Navigation,
   Phone,
   MessageSquare,
   Shield,
@@ -15,6 +14,8 @@ import {
 import customerPin from "@/assets/customer-pin.png";
 import deliveryIcon from "@/assets/deliveryIcon.png";
 import storePin from "@/assets/store-pin.png";
+import { useSettings } from "@core/context/SettingsContext";
+import { sellerAcceptWindowText } from "@/shared/utils/orderTimers";
 
 const libraries = ["geometry"];
 
@@ -50,9 +51,10 @@ function hasValidLatLng(location) {
 
 const LiveTrackingMap = memo(({
   status = "out for delivery",
-  eta = "8 mins",
-  riderName = "Ramesh Kumar",
+  eta = "--",
+  riderName = "Delivery Partner",
   riderPhone,
+  riderRating,
   riderLocation,
   sellerLocation,
   destinationLocation,
@@ -60,6 +62,8 @@ const LiveTrackingMap = memo(({
   routePolyline,
   onOpenInMaps,
 }) => {
+  const { settings } = useSettings();
+  const acceptWindow = sellerAcceptWindowText(settings);
   const mapRef = useRef(null);
   const [mapInstance, setMapInstance] = useState(null);
   const isSearching = SEARCHING_STATUSES.includes(status?.toLowerCase());
@@ -255,7 +259,7 @@ const LiveTrackingMap = memo(({
           Waiting for seller to accept
         </h3>
         <p className="text-sm text-gray-500 text-center max-w-sm font-medium">
-          The store has up to 60 seconds to confirm. If they don&apos;t, your
+          The store has up to {acceptWindow} to confirm. If they don&apos;t, your
           order will be cancelled automatically.
         </p>
       </div>
@@ -460,9 +464,12 @@ const LiveTrackingMap = memo(({
                     className="h-full w-full object-cover"
                   />
                 </div>
-                <div className="absolute -bottom-0.5 -right-0.5 bg-primary text-primary-foreground text-[7px] font-bold px-1 py-0.5 rounded-full flex items-center gap-0.5">
-                  4.8 <Star size={5} fill="white" />
-                </div>
+                {/* real rating only (was a hard-coded 4.8 for every rider) */}
+                {Number(riderRating) > 0 && (
+                  <div className="absolute -bottom-0.5 -right-0.5 bg-primary text-primary-foreground text-[7px] font-bold px-1 py-0.5 rounded-full flex items-center gap-0.5">
+                    {Number(riderRating).toFixed(1)} <Star size={5} fill="white" />
+                  </div>
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-bold text-gray-900 text-xs truncate">{riderName}</h3>
@@ -506,6 +513,7 @@ const LiveTrackingMap = memo(({
     prevProps.status === nextProps.status &&
     prevProps.eta === nextProps.eta &&
     prevProps.riderName === nextProps.riderName &&
+    prevProps.riderRating === nextProps.riderRating &&
     prevProps.riderLocation?.lat === nextProps.riderLocation?.lat &&
     prevProps.riderLocation?.lng === nextProps.riderLocation?.lng &&
     prevProps.sellerLocation?.lat === nextProps.sellerLocation?.lat &&

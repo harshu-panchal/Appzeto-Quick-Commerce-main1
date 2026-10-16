@@ -65,7 +65,8 @@ export const getActiveSellers = async (req, res) => {
 
 export const getSellers = async (req, res) => {
   try {
-    const sellers = await getSellerOptions();
+    const activeOnly = String(req.query.activeOnly || "").toLowerCase() === "true";
+    const sellers = await getSellerOptions({ activeOnly });
     return handleResponse(res, 200, "Sellers fetched", sellers);
   } catch (error) {
     return handleResponse(res, 500, error.message);

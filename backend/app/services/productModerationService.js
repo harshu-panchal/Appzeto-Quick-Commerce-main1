@@ -119,3 +119,47 @@ export function normalizeProductModerationFields(product) {
 
   return product;
 }
+
+export function buildSellerPendingModerationUpdate() {
+  return {
+    approvalStatus: PRODUCT_APPROVAL_STATUS.PENDING,
+    approvalRequestedAt: new Date(),
+    approvalReviewedAt: null,
+    approvalReviewedBy: null,
+    approvalNote: "",
+    lastSubmittedByRole: "seller",
+  };
+}
+
+export function buildSellerApprovedModerationUpdate() {
+  return {
+    approvalStatus: PRODUCT_APPROVAL_STATUS.APPROVED,
+    approvalRequestedAt: null,
+    approvalReviewedAt: null,
+    approvalReviewedBy: null,
+    approvalNote: "",
+    lastSubmittedByRole: "seller",
+  };
+}
+
+export function buildAdminApprovedModerationUpdate(adminId, note = "") {
+  return {
+    approvalStatus: PRODUCT_APPROVAL_STATUS.APPROVED,
+    approvalRequestedAt: null,
+    approvalReviewedAt: new Date(),
+    approvalReviewedBy: adminId || null,
+    approvalNote: sanitizeApprovalNote(note),
+    lastSubmittedByRole: "admin",
+  };
+}
+
+export function buildAdminRejectedModerationUpdate(adminId, note = "") {
+  return {
+    approvalStatus: PRODUCT_APPROVAL_STATUS.REJECTED,
+    approvalRequestedAt: null,
+    approvalReviewedAt: new Date(),
+    approvalReviewedBy: adminId || null,
+    approvalNote: sanitizeApprovalNote(note),
+    lastSubmittedByRole: "admin",
+  };
+}

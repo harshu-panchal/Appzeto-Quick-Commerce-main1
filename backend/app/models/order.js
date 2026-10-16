@@ -364,6 +364,20 @@ const orderSchema = new mongoose.Schema(
     pickupConfirmedAt: Date,
     pickupReadyAt: Date,
     outForDeliveryAt: Date,
+    /**
+     * Seller-reported "items packed, ready for pickup" timestamp.
+     * Independent of `pickupReadyAt` (set when the RIDER physically
+     * arrives at the store) — on v2-workflow orders a seller can pack an
+     * order before a delivery partner has even been assigned, so this is
+     * tracked separately rather than reusing the rider-driven field.
+     */
+    sellerPackedAt: Date,
+    /** Customer's rating of the delivery partner, once the order is delivered. */
+    deliveryRating: {
+      rating: { type: Number, min: 1, max: 5 },
+      comment: { type: String, trim: true, maxlength: 500 },
+      ratedAt: Date,
+    },
     deliveryRiderStep: {
       type: Number,
       min: 1,
@@ -716,5 +730,80 @@ function preUpdateMirror(next) {
 }
 orderSchema.pre('updateOne', preUpdateMirror);
 orderSchema.pre('updateMany', preUpdateMirror);
+
+/* ------------------------------------------------------------------
+ * Live updates for the RETURN flow.
+ * returnStatus is changed from ~15 places (controllers, services, jobs) and
+ * none of them pushed a socket event, so customer / seller / rider screens
+ * only changed on refresh. Emitting here covers every path, including future
+ * ones. Fire-and-forget: a socket failure must never fail the write.
+ * ------------------------------------------------------------------ */
+async function emitReturnStatusChange(doc) {
+  if (!doc?.orderId) return;
+  try {
+    const { emitToRooms } = await import("../services/orderSocketEmitter.js");
+    const idOf = (v) => (v ? String(v._id || v) : null);
+    const customer = idOf(doc.customer);
+    const seller = idOf(doc.seller);
+    const rider = idOf(doc.returnDeliveryBoy);
+    // Clear the customer's cached order list first: screens refetch as soon as
+    // the event below arrives, and a stale cache hid the return status.
+    if (customer) {
+      try {
+        const { buildKey, invalidate } = await import("../services/cacheService.js");
+        await invalidate(buildKey("orders", "customer", `${customer}:*`));
+      } catch {
+        /* cache unavailable — the list refreshes when its TTL expires */
+      }
+    }
+    emitToRooms(
+      [
+        `order:${doc.orderId}`,
+        customer && `customer:${customer}`,
+        seller && `seller:${seller}`,
+        rider && `delivery:${rider}`,
+      ],
+      {
+        event: "order:status:update",
+        payload: {
+          orderId: doc.orderId,
+          returnStatus: doc.returnStatus,
+          kind: "return",
+          at: new Date().toISOString(),
+        },
+      },
+    );
+  } catch {
+    /* socket layer not ready (scripts/tests) — ignore */
+  }
+}
+
+orderSchema.pre('save', function(next) {
+  this.$locals = this.$locals || {};
+  this.$locals.returnStatusChanged = !this.isNew && this.isModified('returnStatus');
+  next();
+});
+orderSchema.post('save', function(doc) {
+  if (doc.$locals?.returnStatusChanged) emitReturnStatusChange(doc);
+});
+
+function updateTouchesReturnStatus(update = {}) {
+  return (
+    Object.prototype.hasOwnProperty.call(update, 'returnStatus') ||
+    Object.prototype.hasOwnProperty.call(update.$set || {}, 'returnStatus')
+  );
+}
+orderSchema.post('findOneAndUpdate', async function(res) {
+  if (!updateTouchesReturnStatus(this.getUpdate())) return;
+  const doc = res?.orderId
+    ? res
+    : await this.model.findOne(this.getQuery()).select('orderId customer seller returnDeliveryBoy returnStatus').lean();
+  emitReturnStatusChange(doc);
+});
+orderSchema.post('updateOne', async function(result) {
+  if (!result?.modifiedCount || !updateTouchesReturnStatus(this.getUpdate())) return;
+  const doc = await this.model.findOne(this.getQuery()).select('orderId customer seller returnDeliveryBoy returnStatus').lean();
+  emitReturnStatusChange(doc);
+});
 
 export default mongoose.model("Order", orderSchema);

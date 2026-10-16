@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Clock } from "lucide-react";
 
 import { useProductDetail } from "../../context/ProductDetailContext";
+import { isProductOutOfStock, isVariantOutOfStock } from "../../utils/stock";
 
 const ProductCard = React.memo(
   ({ product, badge, className, compact = false, neutralBg = false }) => {
@@ -52,7 +53,10 @@ const ProductCard = React.memo(
         return effective === displayed || mrp === displayed;
       };
 
-      const picked = variants.find(matchesDisplayedPrice) || variants[0];
+      // Prefer a size that can actually be bought
+      const inStock = variants.filter((v) => !isVariantOutOfStock(v));
+      const pool = inStock.length ? inStock : variants;
+      const picked = pool.find(matchesDisplayedPrice) || pool[0];
       const key = String(picked?.sku || picked?.name || "").trim();
       
       const variantMrp = Number(picked?.price || 0);
@@ -120,6 +124,11 @@ const ProductCard = React.memo(
         e.preventDefault();
         e.stopPropagation();
 
+        if (isProductOutOfStock(product)) {
+          showToast(`${product.name} is out of stock`, "error");
+          return;
+        }
+
         // If the product has multiple variants, open the product detail sheet
         // so the user can select which variant they want to add.
         const variants = Array.isArray(product?.variants) ? product.variants : [];
@@ -144,7 +153,7 @@ const ProductCard = React.memo(
           toggleWishlistGlobal(product);
         }
       },
-      [animateAddToCart, product, addToCart, variantKey, defaultVariant?.name, openProduct, isWishlistPage, isWishlisted, toggleWishlistGlobal],
+      [animateAddToCart, product, addToCart, variantKey, defaultVariant?.name, openProduct, isWishlistPage, isWishlisted, toggleWishlistGlobal, showToast],
     );
 
     const handleIncrement = React.useCallback(

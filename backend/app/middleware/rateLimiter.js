@@ -20,10 +20,17 @@ function hash(value) {
   return crypto.createHash("sha1").update(String(value)).digest("hex");
 }
 
+// With `trust proxy` configured (TRUST_PROXY env), use Express's `req.ip`:
+// reading X-Forwarded-For directly lets any client spoof a fresh IP per
+// request and bypass every IP-keyed rate limiter. Without it, keep the old
+// header lookup so clients behind a reverse proxy don't all share the proxy's
+// IP (and one rate-limit bucket) — set TRUST_PROXY to close the spoofing hole.
 export function getClientIp(req) {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (typeof forwarded === "string" && forwarded.trim()) {
-    return forwarded.split(",")[0].trim();
+  if (!req.app?.get?.("trust proxy")) {
+    const forwarded = req.headers["x-forwarded-for"];
+    if (typeof forwarded === "string" && forwarded.trim()) {
+      return forwarded.split(",")[0].trim();
+    }
   }
   return req.ip || req.socket?.remoteAddress || "unknown";
 }

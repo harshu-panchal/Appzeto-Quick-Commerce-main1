@@ -1,6 +1,8 @@
 import React from "react";
-import { Plus, Minus } from "lucide-react";
+import { Plus, Minus, Trash2, X } from "lucide-react";
 import { applyCloudinaryTransform } from "@/core/utils/imageUtils";
+import { getAvailableStock } from "../../../context/CartContext";
+import QuantityInput from "../../../components/shared/QuantityInput";
 
 /**
  * CheckoutCartSummary
@@ -21,10 +23,20 @@ const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
 }) {
   return (
     <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-4">
-      {cart.map((item) => (
+      {cart.map((item) => {
+        const maxQty = getAvailableStock(item, item.variantSku);
+        const atMax = item.quantity >= maxQty;
+        return (
         <div
           key={`${item.id}::${String(item.variantSku || "").trim()}`}
-          className="flex items-start gap-3 pb-4 border-b border-slate-100 last:border-0 last:pb-0">
+          className="relative flex items-start gap-3 pb-4 pr-7 border-b border-slate-100 last:border-0 last:pb-0">
+          <button
+            type="button"
+            onClick={() => onRemoveFromCart(item.id || item._id, item.variantSku)}
+            aria-label={`Remove ${item.name} from cart`}
+            className="absolute -top-1 right-0 grid h-7 w-7 place-items-center rounded-full text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors">
+            <X size={16} strokeWidth={2.5} />
+          </button>
           <div className="h-20 w-20 rounded-xl overflow-hidden bg-slate-50 flex-shrink-0">
             <img
               src={applyCloudinaryTransform(item.image)}
@@ -40,11 +52,20 @@ const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
                 Variant: {item.variantName || item.variantSku}
               </p>
             )}
-            <button
-              onClick={() => onMoveToWishlist(item)}
-              className="text-xs text-slate-500 underline hover:text-primary transition-colors">
-              Move to wishlist
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => onMoveToWishlist(item)}
+                className="text-xs text-slate-500 underline hover:text-primary transition-colors">
+                Move to wishlist
+              </button>
+              <button
+                onClick={() => onRemoveFromCart(item.id || item._id, item.variantSku)}
+                aria-label={`Remove ${item.name} from cart`}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-red-500 transition-colors">
+                <Trash2 size={13} />
+                Remove
+              </button>
+            </div>
           </div>
             <div className="flex flex-col items-end gap-2">
               <div className="flex items-center gap-2 bg-primary rounded-lg px-2 py-1">
@@ -55,18 +76,28 @@ const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
                       ? onUpdateQuantity(productId, -1, item.variantSku)
                       : onRemoveFromCart(productId, item.variantSku);
                   }}
+                  aria-label={item.quantity > 1 ? `Decrease ${item.name} quantity` : `Remove ${item.name} from cart`}
                   className="text-white p-1 hover:bg-white/20 rounded transition-colors">
-                  <Minus size={14} strokeWidth={3} />
+                  {item.quantity > 1 ? <Minus size={14} strokeWidth={3} /> : <Trash2 size={14} strokeWidth={2.5} />}
                 </button>
-                <span className="text-white font-bold min-w-[20px] text-center">
-                  {item.quantity}
-                </span>
+                <QuantityInput
+                  productId={item.id || item._id}
+                  variantSku={item.variantSku}
+                  quantity={item.quantity}
+                  label={`${item.name} quantity`}
+                  className="w-8 bg-transparent text-center font-bold text-white outline-none rounded focus:bg-white/20"
+                />
                 <button
                   onClick={() => onUpdateQuantity(item.id || item._id, 1, item.variantSku)}
-                  className="text-white p-1 hover:bg-white/20 rounded transition-colors">
+                  disabled={atMax}
+                  aria-label={`Increase ${item.name} quantity`}
+                  className="text-white p-1 hover:bg-white/20 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                   <Plus size={14} strokeWidth={3} />
                 </button>
               </div>
+              {atMax && (
+                <p className="text-[11px] font-semibold text-amber-600">Only {maxQty} available</p>
+              )}
             {(() => {
               const mrp = Number(item.price || 0);
               const sale = Number(item.salePrice || 0);
@@ -87,12 +118,18 @@ const CheckoutCartSummary = React.memo(function CheckoutCartSummary({
                       ₹{totalMrp}
                     </p>
                   )}
+                  {qty > 1 && (
+                    <p className="text-[11px] font-medium text-slate-500">
+                      ₹{Math.round(unit)} × {qty}
+                    </p>
+                  )}
                 </div>
               );
             })()}
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 });

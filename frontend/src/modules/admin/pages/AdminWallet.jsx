@@ -310,6 +310,11 @@ const AdminWallet = () => {
     };
 
     const handleProcessPayouts = async () => {
+        const sellerDue = walletData.stats?.sellerPendingPayouts || 0;
+        const riderDue = walletData.stats?.deliveryPendingPayouts || 0;
+        if (!window.confirm(
+            `Process all pending payouts now?\n\nSellers: ₹${sellerDue.toLocaleString()}\nRiders: ₹${riderDue.toLocaleString()}\n\nThis marks them as paid and cannot be undone from the panel.`
+        )) return;
         try {
             setIsProcessing(true);
             const res = await adminApi.processFinancePayouts({

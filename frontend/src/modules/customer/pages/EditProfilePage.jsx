@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Phone, Mail, Camera, Save } from 'lucide-react';
+import { ArrowLeft, User, Mail, Camera, Save } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAuth } from '@core/context/AuthContext';
@@ -8,7 +8,7 @@ import { customerApi } from '../services/customerApi';
 
 const EditProfilePage = () => {
     const navigate = useNavigate();
-    const { user, login } = useAuth();
+    const { user, refreshUser } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState({
         name: user?.name || '',
@@ -16,6 +16,18 @@ const EditProfilePage = () => {
         email: user?.email || '',
         bio: user?.bio || ''
     });
+    // Opened directly (page refresh) the profile loads after the first render:
+    // fill the form once it arrives instead of leaving it blank.
+    const [filledFor, setFilledFor] = useState(user?._id || null);
+    if (user?._id && filledFor !== user._id) {
+        setFilledFor(user._id);
+        setFormData({
+            name: user.name || '',
+            phone: user.phone || '',
+            email: user.email || '',
+            bio: user.bio || ''
+        });
+    }
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -23,13 +35,22 @@ const EditProfilePage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!formData.name.trim()) {
+            toast.error('Please enter your name');
+            return;
+        }
         setIsLoading(true);
         try {
-            const response = await customerApi.updateProfile(formData);
-            const updatedUser = response.data.result;
+            // phone is the login identity and is not editable here
+            await customerApi.updateProfile({
+                name: formData.name.trim(),
+                email: formData.email.trim(),
+                bio: formData.bio.trim(),
+            });
 
-            // Update local auth state
-            login({ ...user, ...updatedUser });
+            // Reload the signed-in user so every screen shows the new details.
+            // (login() needs a token and silently ignored this update before.)
+            await refreshUser();
 
             toast.success('Profile updated successfully!');
             navigate('/profile');
@@ -44,9 +65,14 @@ const EditProfilePage = () => {
         <div className="min-h-screen bg-slate-50 font-sans pb-10">
             {/* Header */}
             <div className="bg-white sticky top-0 z-30 px-4 py-3 flex items-center gap-3 shadow-sm">
-                <Link to="/profile" className="p-2 -ml-2 rounded-full hover:bg-slate-100 transition-colors">
+                <button
+                    type="button"
+                    aria-label="Go back"
+                    onClick={() => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/profile', { replace: true }))}
+                    className="p-2 -ml-2 rounded-full hover:bg-slate-100 transition-colors"
+                >
                     <ArrowLeft size={24} className="text-slate-600" />
-                </Link>
+                </button>
                 <h1 className="text-lg font-black text-slate-800">Edit Profile</h1>
             </div>
 
@@ -84,21 +110,6 @@ const EditProfilePage = () => {
                                     }}
                                     className="bg-transparent w-full text-slate-800 font-bold outline-none placeholder:font-medium"
                                     placeholder="Enter your name"
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Phone Number</label>
-                            <div className="flex items-center gap-3 bg-slate-50 px-4 py-3 rounded-xl border border-slate-200 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 transition-all">
-                                <Phone size={20} className="text-slate-400" />
-                                <input
-                                    type="tel"
-                                    name="phone"
-                                    value={formData.phone}
-                                    onChange={handleChange}
-                                    className="bg-transparent w-full text-slate-800 font-bold outline-none placeholder:font-medium"
-                                    placeholder="Enter phone number"
                                 />
                             </div>
                         </div>

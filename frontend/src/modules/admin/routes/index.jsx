@@ -42,6 +42,9 @@ const SubCategories = React.lazy(
 const CategoryHierarchy = React.lazy(
   () => import("../pages/categories/CategoryHierarchy"),
 );
+const BulkProductUpload = React.lazy(
+  () => import("../pages/BulkProductUpload"),
+);
 const ProductManagement = React.lazy(
   () => import("../pages/ProductManagement"),
 );
@@ -346,6 +349,7 @@ const AdminRoutes = () => {
         <Route path="/categories/sub" element={<SubCategories />} />
         <Route path="/categories/hierarchy" element={<CategoryHierarchy />} />
         <Route path="/products" element={<ProductManagement />} />
+        <Route path="/products/bulk-upload" element={<BulkProductUpload />} />
         <Route path="/sellers/active" element={<ActiveSellers />} />
         <Route path="/sellers/active/:id" element={<SellerDetail />} />
         <Route path="/support-tickets" element={<SupportTickets />} />

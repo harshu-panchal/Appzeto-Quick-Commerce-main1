@@ -12,6 +12,14 @@ import {
 } from "../controller/productController.js";
 import { adjustStock, getStockHistory } from "../controller/stockController.js";
 import {
+    receiveBulkFile,
+    downloadBulkTemplate,
+    uploadBulkProducts,
+    listBulkUploads,
+    getBulkUpload,
+    downloadBulkErrorReport,
+} from "../controller/bulkProductController.js";
+import {
     verifyToken,
     allowRoles,
     optionalVerifyToken,
@@ -34,6 +42,15 @@ router.post("/adjust-stock", verifyToken, allowRoles("seller"), requireApprovedS
 router.get("/moderation", verifyToken, allowRoles("admin"), getModerationProducts);
 router.patch("/moderation/:id/approve", verifyToken, allowRoles("admin"), approveProduct);
 router.patch("/moderation/:id/reject", verifyToken, allowRoles("admin"), rejectProduct);
+
+// Bulk Excel upload (sellers for themselves, admins on behalf of a seller)
+const bulkAccess = [verifyToken, allowRoles("seller", "admin"), requireApprovedSeller];
+router.get("/bulk/template", ...bulkAccess, downloadBulkTemplate);
+router.post("/bulk/upload", ...bulkAccess, receiveBulkFile, uploadBulkProducts);
+router.get("/bulk/uploads", ...bulkAccess, listBulkUploads);
+router.get("/bulk/uploads/:id", ...bulkAccess, getBulkUpload);
+router.get("/bulk/uploads/:id/error-report", ...bulkAccess, downloadBulkErrorReport);
+
 router.get("/:id", optionalVerifyToken, getProductById);
 
 router.post(

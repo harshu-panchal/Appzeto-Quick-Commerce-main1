@@ -33,8 +33,9 @@ function legacyFromWorkflow(workflowStatus) {
     case WORKFLOW_STATUS.DELIVERY_SEARCH:
       return "confirmed";
     case WORKFLOW_STATUS.DELIVERY_ASSIGNED:
-    case WORKFLOW_STATUS.PICKUP_READY:
       return "confirmed";
+    case WORKFLOW_STATUS.PICKUP_READY:
+      return "packed";
     case WORKFLOW_STATUS.OUT_FOR_DELIVERY:
       return "out_for_delivery";
     case WORKFLOW_STATUS.DELIVERED:
@@ -62,11 +63,21 @@ export function getLegacyStatusFromOrder(order) {
     if (workflowStatus === WORKFLOW_STATUS.DELIVERED) {
       return "delivered";
     }
+    if (workflowStatus === WORKFLOW_STATUS.PICKUP_READY) {
+      return "packed";
+    }
+    if (workflowStatus === WORKFLOW_STATUS.DELIVERY_ASSIGNED) {
+      // Rider is assigned but hasn't reached the store yet — still show
+      // "packed" once the seller has reported it ready, even though the
+      // delivery-matching workflow itself hasn't reached PICKUP_READY.
+      return order.sellerPackedAt ? "packed" : "confirmed";
+    }
     if (
-      workflowStatus === WORKFLOW_STATUS.DELIVERY_ASSIGNED ||
-      workflowStatus === WORKFLOW_STATUS.PICKUP_READY
+      order.sellerPackedAt &&
+      (workflowStatus === WORKFLOW_STATUS.SELLER_ACCEPTED ||
+        workflowStatus === WORKFLOW_STATUS.DELIVERY_SEARCH)
     ) {
-      return "confirmed";
+      return "packed";
     }
 
     return legacyFromWorkflow(workflowStatus);
@@ -103,7 +114,9 @@ export function getOrderStatusLabel(order) {
       case "return_approved": return "Return Approved";
       case "return_pickup_assigned": return "Pickup Assigned";
       case "return_pickup_verified": return "Pickup Verified";
-      case "returned": return "Return Delivered to Seller";
+      case "return_in_transit": return "Return Picked Up – On the Way to Store";
+      case "return_drop_pending": return "Return Reaching Store";
+      case "returned": return "Return Received – Refund Processing";
       case "qc_passed": return "Return QC Passed";
       case "qc_failed": return "Return QC Failed";
       case "refund_completed": return "Returned & Refunded";

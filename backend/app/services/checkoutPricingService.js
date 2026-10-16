@@ -111,6 +111,14 @@ function buildAggregateBreakdown(sellerBreakdowns = []) {
     handlingFeeCharged: sumField(sellerBreakdowns, "handlingFeeCharged"),
     tipTotal: sumField(sellerBreakdowns, "tipTotal"),
     discountTotal: sumField(sellerBreakdowns, "discountTotal"),
+    // Delivery fee waived by a free-delivery coupon (already taken out of
+    // deliveryFeeCharged / grandTotal) so the bill can show what was saved.
+    freeDeliveryRebate: round2(
+      sellerBreakdowns.reduce(
+        (sum, b) => sum + Number(b?.snapshots?.freeDeliveryRebate || 0),
+        0,
+      ),
+    ),
     taxTotal: sumField(sellerBreakdowns, "taxTotal"),
     grandTotal: sumField(sellerBreakdowns, "grandTotal"),
     // Audit Phase 4 (C-1): expose pre-wallet `grossTotal`, the per-checkout
@@ -504,15 +512,9 @@ export async function buildCheckoutPricingSnapshot({
   if (applyFreeDelivery) {
     applyFreeDeliveryToSellerBreakdowns(sellerBreakdownEntries);
   }
+  // Each step runs exactly once: a duplicated copy of the two calls above
+  // added the tip to the total twice and reset the free-delivery rebate.
   allocateCheckoutTipToSellerBreakdowns(sellerBreakdownEntries, normalizedTipAmount);
-  // Audit Phase 5 (H-6): free-delivery rebate must run AFTER handling
-  // (so `grossTotal` is final on the delivery axis) and BEFORE tip /
-  // wallet allocation (so they clamp against the post-rebate grandTotal,
-  // matching the frontend math).
-  if (applyFreeDelivery) {
-    applyFreeDeliveryToSellerBreakdowns(sellerBreakdownEntries);
-  }
-  allocateCheckoutTipToSellerBreakdowns(sellerBreakdownEntries, tipAmount);
   // Audit Phase 4 (C-1): subtract wallet redemption from each seller's
   // grandTotal proportionate to their share. No-op when the flag is off.
   applyWalletAllocationToSellerBreakdowns(sellerBreakdownEntries, walletAmount);
@@ -539,13 +541,6 @@ export async function buildCheckoutPricingSnapshot({
     aggregateBreakdown,
     sellerCount: sellerBreakdownEntries.length,
     itemCount: hydratedItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
-    // Audit Phase 5 (C-2 + H-6): `null` when the flag is off OR no
-    // coupon was supplied. When present, callers persist this on every
-    // Order document so per-user usage counts and audits replay
-    // deterministically against the rule that was in effect.
-    couponSnapshot: resolvedCouponSnapshot,
-    coupon: resolvedCoupon,
-    freeDeliveryApplied: applyFreeDelivery,
     // Audit Phase 5 (C-2 + H-6): `null` when the flag is off OR no
     // coupon was supplied. When present, callers persist this on every
     // Order document so per-user usage counts and audits replay

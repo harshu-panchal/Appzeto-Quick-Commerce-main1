@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Card from '@shared/components/ui/Card';
 import Button from '@shared/components/ui/Button';
+import Modal from '@shared/components/ui/Modal';
 import PageHeader from '@shared/components/ui/PageHeader';
 import {
     RotateCcw,
@@ -12,15 +13,50 @@ import {
     Settings,
     Zap,
     MapPin,
-    History
+    History,
+    Timer
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@shared/components/ui/Toast';
 import { adminApi } from '../services/adminApi';
 
+// Accept windows (seconds) the admin can set; when one runs out the order is
+// cancelled (seller) or the offer moves on (delivery / return pickup).
+const ORDER_TIMERS = [
+    {
+        key: 'sellerAcceptTimeoutSec',
+        label: 'Seller accept time',
+        help: 'Time the seller has to accept a new order. The customer sees the same countdown; if the seller does not accept in time, the order is cancelled.',
+    },
+    {
+        key: 'deliveryAcceptTimeoutSec',
+        label: 'Delivery partner accept time',
+        help: 'Time a delivery partner has to accept a delivery request before it moves on to the next search round.',
+    },
+    {
+        key: 'returnPickupAcceptTimeoutSec',
+        label: 'Return pickup accept time',
+        help: 'Time a delivery partner has to accept a return pickup request before it moves on to the next search round.',
+    },
+];
+const TIMER_MIN_SEC = 15;
+const TIMER_MAX_SEC = 600;
+const formatSeconds = (sec) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    if (!m) return `${s} sec`;
+    return s ? `${m} min ${s} sec` : `${m} min`;
+};
+
 const BillingCharges = () => {
     const { showToast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
+    const [showAudit, setShowAudit] = useState(false);
+    const auditQuery = useQuery({
+        queryKey: ['admin', 'finance', 'auditLogs'],
+        queryFn: async () => (await adminApi.getFinanceAuditLogs({ limit: 100 })).data.result?.items || [],
+        enabled: showAudit,
+    });
     const [deliveryMode, setDeliveryMode] = useState('distance'); // 'fixed' or 'distance'
 
     const [config, setConfig] = useState({
@@ -35,6 +71,9 @@ const BillingCharges = () => {
         handlingFeeStrategy: "highest_category_fee",
         codEnabled: true,
         onlineEnabled: true,
+        sellerAcceptTimeoutSec: 60,
+        deliveryAcceptTimeoutSec: 60,
+        returnPickupAcceptTimeoutSec: 60,
     });
 
     // Perf audit Phase 8: migrated the initial settings load to React
@@ -51,6 +90,7 @@ const BillingCharges = () => {
             ]);
             return {
                 delivery: deliveryRes.data?.success ? deliveryRes.data.result : null,
+                platform: platformRes.data?.success ? platformRes.data.result : null,
             };
         },
         staleTime: Infinity,
@@ -77,6 +117,9 @@ const BillingCharges = () => {
             handlingFeeStrategy: s.handlingFeeStrategy ?? prev.handlingFeeStrategy,
             codEnabled: s.codEnabled ?? prev.codEnabled,
             onlineEnabled: s.onlineEnabled ?? prev.onlineEnabled,
+            ...Object.fromEntries(
+                ORDER_TIMERS.map(({ key }) => [key, Number(settingsData?.platform?.[key]) || prev[key]]),
+            ),
         }));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [settingsData]);
@@ -85,7 +128,11 @@ const BillingCharges = () => {
         try {
             setIsSaving(true);
             await Promise.all([
-                adminApi.updatePlatformSettings({}),
+                adminApi.updatePlatformSettings({
+                    sellerAcceptTimeoutSec: config.sellerAcceptTimeoutSec,
+                    deliveryAcceptTimeoutSec: config.deliveryAcceptTimeoutSec,
+                    returnPickupAcceptTimeoutSec: config.returnPickupAcceptTimeoutSec,
+                }),
                 adminApi.updateDeliveryFinanceSettings({
                     deliveryPricingMode: deliveryMode === 'fixed' ? 'fixed_price' : 'distance_based',
                     customerBaseDeliveryFee: config.baseCharge,
@@ -102,7 +149,7 @@ const BillingCharges = () => {
                 }),
             ]);
 
-            showToast('Delivery finance settings updated', 'success');
+            showToast('Fees & order timer settings updated', 'success');
         } catch (error) {
             console.error('Failed to update platform settings', error);
             showToast('Failed to update fees settings', 'error');
@@ -134,7 +181,7 @@ const BillingCharges = () => {
                 description="Set up delivery fees, platform charges, and free delivery limits."
                 actions={
                     <>
-                        <Button variant="outline">
+                        <Button variant="outline" onClick={() => setShowAudit(true)}>
                             <History className="h-4 w-4" />
                             Audit Logs
                         </Button>
@@ -280,9 +327,99 @@ const BillingCharges = () => {
                         )}
                     </div>
                 </Card>
+
+                {/* Order Timers */}
+                <Card className="overflow-hidden p-0">
+                    <div className="border-b border-slate-100 bg-slate-50/30 p-5">
+                        <h3 className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-slate-900">
+                            <Timer className="h-4 w-4 text-slate-400" />
+                            Order Timers
+                        </h3>
+                        <p className="mt-1 text-xs font-medium text-slate-400">
+                            How long each side has to accept. New orders and requests use the new times right after you save.
+                        </p>
+                    </div>
+                    <div className="space-y-4 p-6">
+                        {ORDER_TIMERS.map(({ key, label, help }) => (
+                            <div key={key} className="space-y-3 rounded-lg bg-gray-50 p-4">
+                                <div className="flex items-center justify-between">
+                                    <label htmlFor={`timer-${key}`} className="text-sm font-medium text-gray-700">
+                                        {label}
+                                    </label>
+                                    <span className="text-sm font-bold text-primary">{formatSeconds(config[key])}</span>
+                                </div>
+                                <input
+                                    id={`timer-${key}`}
+                                    type="range"
+                                    min={TIMER_MIN_SEC}
+                                    max={TIMER_MAX_SEC}
+                                    step="5"
+                                    value={config[key]}
+                                    onChange={(e) => setConfig((prev) => ({ ...prev, [key]: Number(e.target.value) }))}
+                                    className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200 accent-primary"
+                                />
+                                <div className="flex justify-between text-[10px] text-gray-400">
+                                    <span>{formatSeconds(TIMER_MIN_SEC)}</span>
+                                    <span>{formatSeconds(TIMER_MAX_SEC)}</span>
+                                </div>
+                                <p className="flex items-start gap-1 text-xs text-gray-500">
+                                    <Timer className="mt-0.5 h-3 w-3 flex-shrink-0" />
+                                    {help}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </Card>
             </div>
+            <Modal isOpen={showAudit} onClose={() => setShowAudit(false)} title="Finance audit logs" size="lg">
+                {auditQuery.isLoading ? (
+                    <p className="py-8 text-center text-sm text-slate-400">Loading...</p>
+                ) : auditQuery.isError ? (
+                    <p className="py-8 text-center text-sm text-danger">Could not load audit logs</p>
+                ) : !(auditQuery.data || []).length ? (
+                    <p className="py-8 text-center text-sm text-slate-400">No audit entries yet</p>
+                ) : (
+                    <div className="max-h-[60vh] divide-y divide-slate-100 overflow-y-auto">
+                        {auditQuery.data.map((log) => (
+                            <div key={log.id} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-bold text-slate-900">{AUDIT_LABELS[log.action] || log.action}</p>
+                                    <p className="break-words text-xs text-slate-500">{auditDetails(log)}</p>
+                                </div>
+                                <div className="shrink-0 text-left text-xs text-slate-400 sm:text-right">
+                                    <p>{new Date(log.createdAt).toLocaleString('en-IN')}</p>
+                                    <p>{log.actorName || log.actorType}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 };
+
+const AUDIT_LABELS = {
+    DELIVERY_SETTINGS_UPDATED: 'Fees & charges updated',
+    PAYOUT_PROCESSED: 'Payout processed',
+    PAYOUT_QUEUED: 'Payout queued',
+    ORDER_DELIVERED_SETTLED: 'Delivered order settled',
+    COD_MARKED_COLLECTED: 'COD cash marked collected',
+    COD_RECONCILED: 'COD reconciled',
+    ONLINE_PAYMENT_VERIFIED: 'Online payment verified',
+    ORDER_FINANCE_SNAPSHOT_FROZEN: 'Order amounts locked',
+    FINANCE_ADJUSTMENT_APPLIED: 'Finance adjustment',
+};
+
+function auditDetails(log) {
+    const m = log.metadata || {};
+    if (Array.isArray(m.updatedFields)) return `Changed: ${m.updatedFields.join(', ')}`;
+    const parts = [];
+    if (m.payoutType) parts.push(m.payoutType.replace(/_/g, ' ').toLowerCase());
+    if (m.amount !== undefined) parts.push(`₹${Number(m.amount).toLocaleString('en-IN')}`);
+    if (m.orderId) parts.push(`Order ${m.orderId}`);
+    if (log.note) parts.push(log.note);
+    return parts.join(' · ') || '—';
+}
 
 export default BillingCharges;

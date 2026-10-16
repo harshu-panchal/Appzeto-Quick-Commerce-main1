@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Truck } from "lucide-react";
 import { useSettings } from "@core/context/SettingsContext";
@@ -10,7 +10,7 @@ const Splash = () => {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigate("/delivery/login");
+      navigate("/delivery/login", { replace: true });
     }, 2500);
     return () => clearTimeout(timer);
   }, [navigate]);

@@ -545,11 +545,12 @@ async function fetchActiveSellersData({
   };
 }
 
-export async function getSellerOptions() {
+export async function getSellerOptions({ activeOnly = false } = {}) {
+  const query = activeOnly ? { isVerified: true, isActive: true } : {};
   return getOrSet(
-    buildKey("admin", "sellerOptions"),
+    buildKey("admin", "sellerOptions", activeOnly ? "active" : "all"),
     () =>
-      Seller.find({})
+      Seller.find(query)
         .select("_id shopName name email phone")
         .sort({ shopName: 1 })
         .lean(),

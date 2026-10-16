@@ -40,6 +40,7 @@ const BottomNav = () => {
 
                     return (
                         <Link
+                            replace
                             key={item.path}
                             to={item.path}
                             className="relative flex flex-col items-center justify-center h-full group select-none"
