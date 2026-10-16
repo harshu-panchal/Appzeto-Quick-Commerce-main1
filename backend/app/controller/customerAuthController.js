@@ -94,7 +94,7 @@ export const getCustomerProfile = async (req, res) => {
     try {
         const customer = await Customer.findById(req.user.id);
         if (!customer) {
-            return handleResponse(res, 404, "Customer not found");
+            return handleResponse(res, 401, "Your account was not found. Please log in again.");
         }
         return handleResponse(res, 200, "Profile fetched successfully", customer);
     } catch (error) {
@@ -107,20 +107,52 @@ export const getCustomerProfile = async (req, res) => {
 ================================ */
 export const updateCustomerProfile = async (req, res) => {
     try {
-        const { name, email, addresses } = req.body;
+        const { name, email, addresses, bio } = req.body;
 
         const customer = await Customer.findById(req.user.id);
         if (!customer) {
-            return handleResponse(res, 404, "Customer not found");
+            return handleResponse(res, 401, "Your account was not found. Please log in again.");
         }
 
-        if (name) customer.name = name;
-        if (email) customer.email = email;
+        // blank name is ignored (the address forms send it only when filled in)
+        const cleanName = String(name || "").trim().slice(0, 60);
+        if (cleanName) customer.name = cleanName;
+
+        if (email !== undefined) {
+            const cleanEmail = String(email || "").trim().toLowerCase();
+            if (!cleanEmail) {
+                // clearing the email: unset it (an empty string would collide
+                // with other accounts on the unique index)
+                customer.email = undefined;
+            } else {
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+                    return handleResponse(res, 400, "Enter a valid email address");
+                }
+                const taken = await Customer.exists({ email: cleanEmail, _id: { $ne: customer._id } });
+                if (taken) {
+                    return handleResponse(res, 409, "This email is already used by another account");
+                }
+                customer.email = cleanEmail;
+            }
+        }
+
+        if (bio !== undefined) customer.bio = String(bio || "").trim().slice(0, 300);
+
         if (addresses) customer.addresses = addresses;
 
         await customer.save();
 
-        return handleResponse(res, 200, "Profile updated successfully", customer);
+        const saved = customer.toObject();
+        return handleResponse(res, 200, "Profile updated successfully", {
+            _id: saved._id,
+            name: saved.name,
+            email: saved.email,
+            bio: saved.bio,
+            phone: saved.phone,
+            addresses: saved.addresses,
+            walletBalance: saved.walletBalance,
+            role: "customer",
+        });
     } catch (error) {
         return handleResponse(res, 500, error.message);
     }

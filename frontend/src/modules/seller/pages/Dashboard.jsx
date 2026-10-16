@@ -41,6 +41,7 @@ import { cn } from "@/lib/utils";
 import { sellerApi } from "../services/sellerApi";
 import { toast } from "sonner";
 import { useSellerOrders } from "../context/SellerOrdersContext";
+import { orderCustomerName, orderCustomerPhone } from '@/shared/utils/orderCustomer';
 
 const STATUS_SELECT_STYLES = {
   warning: "bg-warning/10 text-warning focus:ring-warning/30",
@@ -221,8 +222,8 @@ const Dashboard = () => {
     return {
       id: order.orderId,
       customer: {
-        name: order.customer?.name || "Customer",
-        phone: order.customer?.phone || "",
+        name: orderCustomerName(order),
+        phone: orderCustomerPhone(order),
       },
       address: addressStr || "—",
       items,
@@ -273,9 +274,9 @@ const Dashboard = () => {
       cell: (order) => (
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[10px] font-semibold text-slate-500">
-            {order.customer?.name?.split(" ").map(n => n[0]).join("") || "C"}
+            {orderCustomerName(order).split(" ").map(n => n[0]).join("") || "C"}
           </div>
-          <span className="font-medium text-slate-700">{order.customer?.name || "Customer"}</span>
+          <span className="font-medium text-slate-700">{orderCustomerName(order)}</span>
         </div>
       ),
     },

@@ -7,11 +7,14 @@ import {
   updateOrderStatus,
   getSellerOrders,
   getAvailableOrders,
+  getSkippedOrders,
   acceptOrder,
   skipOrder,
   requestReturn,
   getReturnDetails,
+  rateDeliveryPartner,
   getSellerReturns,
+  getActiveReturnDropOtps,
   approveReturnRequest,
   rejectReturnRequest,
   updateReturnQcStatus,
@@ -100,6 +103,12 @@ router.get("/details/:orderId", verifyToken, getOrderDetails);
 router.put("/cancel/:orderId", verifyToken, cancelOrder);
 router.post("/:orderId/returns", verifyToken, requestReturn);
 router.get("/:orderId/returns", verifyToken, getReturnDetails);
+router.post(
+  "/:orderId/rate-delivery",
+  verifyToken,
+  allowRoles("customer", "user"),
+  rateDeliveryPartner,
+);
 
 // Admin/Seller routes
 router.get(
@@ -122,6 +131,12 @@ router.get(
   allowRoles("admin", "seller"),
   requireApprovedSeller,
   getSellerReturns,
+);
+router.get(
+  "/seller/active-return-drop-otps",
+  verifyToken,
+  allowRoles("seller"),
+  getActiveReturnDropOtps,
 );
 router.put(
   "/returns/:orderId/approve",
@@ -157,6 +172,12 @@ router.get(
   verifyToken,
   allowRoles("admin", "delivery"),
   getAvailableOrders,
+);
+router.get(
+  "/delivery/skipped",
+  verifyToken,
+  allowRoles("delivery"),
+  getSkippedOrders,
 );
 router.put(
   "/accept/:orderId",

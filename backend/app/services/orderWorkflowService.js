@@ -36,6 +36,7 @@ import {
   emitReturnBroadcastForCustomer,
   emitToCustomer,
   emitToOrder,
+  emitToRooms,
   retractDeliveryBroadcastForOrder,
 } from "./orderSocketEmitter.js";
 import { distanceMeters } from "../utils/geoUtils.js";
@@ -43,6 +44,7 @@ import { applyDeliveredSettlement } from "./orderSettlement.js";
 import { requireCanonicalOrderId } from "../utils/orderLookup.js";
 import { emitNotificationEvent } from "../modules/notifications/notification.emitter.js";
 import logger from "./logger.js";
+import { assertRiderWithinRange, deliverySearchRadiusM } from "./delivery/riderRange.js";
 import { NOTIFICATION_EVENTS } from "../modules/notifications/notification.constants.js";
 
 const DELIVERY_SEARCH_MAX_ATTEMPTS = () =>
@@ -268,6 +270,77 @@ export async function sellerRejectAtomic(sellerId, orderId) {
   return order;
 }
 
+/**
+ * Seller cancels an order they already accepted. Allowed until the rider has
+ * picked it up (not once it is out for delivery). sellerRejectAtomic only
+ * covers orders still waiting for the seller, so this used to fail with
+ * "Order not available to reject".
+ */
+const SELLER_CANCELLABLE_AFTER_ACCEPT = [
+  WORKFLOW_STATUS.SELLER_ACCEPTED,
+  WORKFLOW_STATUS.DELIVERY_SEARCH,
+  WORKFLOW_STATUS.DELIVERY_ASSIGNED,
+  WORKFLOW_STATUS.PICKUP_READY,
+];
+
+export async function sellerCancelAcceptedAtomic(sellerId, orderId, reason) {
+  orderId = await requireCanonicalOrderId(orderId);
+  const before = await Order.findOne({ orderId, seller: sellerId })
+    .select("deliverySearchMeta")
+    .lean();
+
+  const order = await Order.findOneAndUpdate(
+    {
+      orderId,
+      seller: sellerId,
+      workflowVersion: { $gte: 2 },
+      workflowStatus: { $in: SELLER_CANCELLABLE_AFTER_ACCEPT },
+    },
+    {
+      $set: {
+        workflowStatus: WORKFLOW_STATUS.CANCELLED,
+        status: "cancelled",
+        cancelledBy: "seller",
+        cancelReason: String(reason || "").trim() || "Cancelled by seller",
+      },
+    },
+    { new: true },
+  );
+
+  if (!order) {
+    const err = new Error(
+      "This order can no longer be cancelled (it may already be out for delivery or finished).",
+    );
+    err.statusCode = 409;
+    throw err;
+  }
+
+  // stop the rider search and close any open offer popups
+  await removeSellerTimeoutJob(orderId).catch(() => {});
+  await removeDeliveryTimeoutJob(orderId, before?.deliverySearchMeta?.attempt || 1).catch(() => {});
+  await retractDeliveryBroadcastForOrder(orderId, null).catch(() => {});
+
+  // stock back, refund / wallet reversal, tracking cleared
+  await compensateOrderCancellation(order, orderId);
+
+  // customer, seller and the assigned rider all update at once
+  emitOrderStatusUpdate(
+    order.orderId,
+    { workflowStatus: WORKFLOW_STATUS.CANCELLED, status: "cancelled" },
+    order.customer,
+    order.seller,
+  );
+  emitNotificationEvent(NOTIFICATION_EVENTS.ORDER_CANCELLED, {
+    orderId: order.orderId,
+    customerId: order.customer,
+    userId: order.customer,
+    sellerId: order.seller,
+    customerMessage: "Your order was cancelled by the seller. Any amount paid will be refunded.",
+    sellerMessage: `Order #${order.orderId} was cancelled.`,
+  });
+  return order;
+}
+
 function toDeliveryObjectId(deliveryId) {
   if (deliveryId == null) return null;
   try {
@@ -307,6 +380,17 @@ export async function deliveryAcceptAtomic(deliveryId, orderId, idempotencyKey) 
     }
   }
 
+  // Range: only riders within the order's current search radius of the store
+  // may take it (the popup is limited the same way; this also covers stale
+  // lists / notifications and direct API calls).
+  const pending = await Order.findOne({ orderId })
+    .select("seller deliverySearchMeta workflowStatus deliveryBoy")
+    .lean();
+  if (pending && pending.workflowStatus === WORKFLOW_STATUS.DELIVERY_SEARCH && !pending.deliveryBoy) {
+    const store = await Seller.findById(pending.seller).select("location").lean();
+    await assertRiderWithinRange(deliveryOid, store?.location, deliverySearchRadiusM(pending), "store");
+  }
+
   const now = new Date();
   const updated = await Order.findOneAndUpdate(
     {
@@ -315,9 +399,10 @@ export async function deliveryAcceptAtomic(deliveryId, orderId, idempotencyKey) 
       workflowStatus: WORKFLOW_STATUS.DELIVERY_SEARCH,
       deliveryBoy: null,
       deliverySearchExpiresAt: { $gt: now },
-      skippedBy: { $nin: [deliveryOid] },
+      // a rider who skipped this order may still accept it later
     },
     {
+      $pull: { skippedBy: deliveryOid },
       $set: {
         deliveryBoy: deliveryOid,
         workflowStatus: WORKFLOW_STATUS.DELIVERY_ASSIGNED,
@@ -343,11 +428,6 @@ export async function deliveryAcceptAtomic(deliveryId, orderId, idempotencyKey) 
         "Accept window has expired. Wait for the next delivery request.";
     } else if (o.deliveryBoy) {
       msg = "Another rider already accepted this order.";
-    } else if (
-      (o.skippedBy || []).some((id) => id.toString() === deliveryOid.toString())
-    ) {
-      msg =
-        "You rejected this order earlier, so it cannot be accepted now.";
     } else if (o.workflowStatus !== WORKFLOW_STATUS.DELIVERY_SEARCH) {
       msg = "This order is no longer open for delivery.";
     }
@@ -425,7 +505,7 @@ export async function processSellerTimeoutJob({ orderId }) {
         workflowStatus: WORKFLOW_STATUS.CANCELLED,
         status: "cancelled",
         cancelledBy: "system",
-        cancelReason: "Seller timeout (60s)",
+        cancelReason: "Seller did not accept in time",
       },
     },
     { new: true },
@@ -1195,20 +1275,16 @@ export async function requestHandoffOtpAtomic(deliveryId, orderId, lat, lng) {
     deliveryPersonNearby: true,
   };
 
+  // SECURITY: the code goes ONLY to the customer's personal room. It used to be
+  // emitted to `order:<id>` as well — a room the assigned rider also joins — so
+  // the rider received the very OTP that is supposed to prove they met the
+  // customer. Every customer socket is already in `customer:<id>` on connect.
   emitToCustomer(customerId, { event: "order:otp", payload: otpPayload });
   emitToCustomer(customerId, {
     event: "delivery:otp:generated",
     payload: otpPayload,
   });
-  // Mirror the legacy fan-out: clients that joined `order:<id>` (the
-  // customer's open OrderDetailPage in particular) also expect to see
-  // these events without subscribing to the personal room.
-  emitToOrder(orderId, { event: "order:otp", payload: otpPayload });
-  emitToOrder(orderId, {
-    event: "delivery:otp:generated",
-    payload: otpPayload,
-  });
-  emitOrderStatusUpdate(orderId, { otpSent: true }, order.customer);
+  emitOrderStatusUpdate(orderId, { otpSent: true }, order.customer, order.seller);
 
   return { expiresAt, attemptsRemaining: 3, message: "OTP sent to customer" };
 }
@@ -1467,14 +1543,11 @@ export async function verifyHandoffOtpAndDeliver(deliveryId, orderId, code, cash
     status: "delivered",
     deliveredAt: now.toISOString(),
   };
-  emitToCustomer(updated.customer?._id || updated.customer, {
-    event: "delivery:otp:validated",
-    payload: validatedPayload,
-  });
-  emitToOrder(orderId, {
-    event: "delivery:otp:validated",
-    payload: validatedPayload,
-  });
+  // One emit across both rooms so each client receives it exactly once
+  emitToRooms(
+    [`customer:${String(updated.customer?._id || updated.customer)}`, `order:${orderId}`],
+    { event: "delivery:otp:validated", payload: validatedPayload },
+  );
 
   emitNotificationEvent(NOTIFICATION_EVENTS.ORDER_DELIVERED, {
     orderId: updated.orderId,

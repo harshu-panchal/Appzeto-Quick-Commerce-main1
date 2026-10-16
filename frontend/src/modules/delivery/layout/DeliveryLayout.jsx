@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import BottomNav from "../components/BottomNav";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { BellRing, MapPin } from "lucide-react";
+import { BellRing, MapPin, X } from "lucide-react";
 import { deliveryApi } from "../services/deliveryApi";
 import { useAuth } from "@core/context/AuthContext";
 import {
@@ -15,6 +15,7 @@ import {
 import {
   loadHandledIncomingOrderIds,
   markIncomingOrderHandled,
+  incomingOfferKey,
 } from "../utils/deliveryHandledOrders";
 import { saveDeliveryPartnerLocation } from "../utils/deliveryLastLocation";
 import { createSocketTokenReader } from "@core/utils/authStorage";
@@ -139,7 +140,9 @@ const DeliveryLayout = () => {
   const applyFromBroadcastPayload = useCallback((payload) => {
     if (!payload?.orderId) return false;
     if (activeOrderRef.current) return true;
-    if (shownOrderIdsRef.current.has(payload.orderId)) return true;
+    const isReturnPickup = payload.type === "RETURN_PICKUP" || payload.isReturnPickup === true;
+    const offerKey = incomingOfferKey(payload.orderId, isReturnPickup);
+    if (shownOrderIdsRef.current.has(offerKey)) return true;
     const p = payload.preview;
     if (
       !p ||
@@ -153,7 +156,7 @@ const DeliveryLayout = () => {
     if (exp && secondsLeftUntilDeliveryExpiry(exp) <= 0) {
       return false;
     }
-    shownOrderIdsRef.current = new Set(shownOrderIdsRef.current).add(payload.orderId);
+    shownOrderIdsRef.current = new Set(shownOrderIdsRef.current).add(offerKey);
     const total = typeof p.total === "number" ? p.total : Number(p.total) || 0;
     const dropLabel = typeof p.drop === "string" ? p.drop : String(p.drop);
     const earnings = typeof p.earnings === "number" ? p.earnings : (payload.paymentBreakdown?.riderPayoutTotal ?? Math.round(total * 0.1));
@@ -167,8 +170,9 @@ const DeliveryLayout = () => {
       value: total,
       earnings: earnings,
       expiresAt: payload.deliverySearchExpiresAt || new Date(Date.now() + 60000).toISOString(),
-      isReturnPickup: payload.type === "RETURN_PICKUP" || payload.isReturnPickup === true,
-      items: payload.items || [],
+      isReturnPickup,
+      offerKey,
+      items: payload.items || (isReturnPickup ? p.returnItems : null) || [],
     });
     return true;
   }, []);
@@ -177,19 +181,21 @@ const DeliveryLayout = () => {
     setAvailableOrdersCount(availableOrders.length);
     if (activeOrderRef.current) return;
     const newOrder = availableOrders.find((o) => {
-      if (shownOrderIdsRef.current.has(o.orderId)) return false;
-      if (
-        o.deliverySearchExpiresAt &&
-        secondsLeftUntilDeliveryExpiry(o.deliverySearchExpiresAt) <= 0
-      ) {
+      // A return already assigned to a rider is a task, not an open offer
+      if (o.isReturnPickup && o.returnDeliveryBoy) return false;
+      if (shownOrderIdsRef.current.has(incomingOfferKey(o.orderId, o.isReturnPickup))) return false;
+      // return pickups keep their own deadline (returnSearchExpiresAt)
+      const offerExpiry = o.isReturnPickup ? o.returnSearchExpiresAt : o.deliverySearchExpiresAt;
+      if (offerExpiry && secondsLeftUntilDeliveryExpiry(offerExpiry) <= 0) {
         return false;
       }
       return true;
     });
     if (!newOrder) return;
-    shownOrderIdsRef.current = new Set(shownOrderIdsRef.current).add(newOrder.orderId);
-    const total = newOrder.pricing?.total || 0;
     const isReturnPickup = newOrder.isReturnPickup || false;
+    const offerKey = incomingOfferKey(newOrder.orderId, isReturnPickup);
+    shownOrderIdsRef.current = new Set(shownOrderIdsRef.current).add(offerKey);
+    const total = newOrder.pricing?.total || 0;
     const earnings = newOrder.paymentBreakdown?.riderPayoutTotal ?? newOrder.riderEarnings ?? Math.round(total * 0.1);
     setActiveOrder({
       id: newOrder.orderId,
@@ -204,9 +210,13 @@ const DeliveryLayout = () => {
       estTime: "10-15 min",
       value: total,
       earnings: earnings,
-      expiresAt: newOrder.deliverySearchExpiresAt || new Date(Date.now() + 60000).toISOString(),
+      // real server deadline, so a refresh resumes the countdown instead of restarting it
+      expiresAt:
+        (isReturnPickup ? newOrder.returnSearchExpiresAt : newOrder.deliverySearchExpiresAt) ||
+        new Date(Date.now() + 60000).toISOString(),
       isReturnPickup,
-      items: newOrder.items || [],
+      offerKey,
+      items: (isReturnPickup && newOrder.returnItems?.length ? newOrder.returnItems : newOrder.items) || [],
     });
   }, []);
 
@@ -253,7 +263,8 @@ const DeliveryLayout = () => {
     availableOrdersRequestRef.current.controller = controller;
 
     try {
-      return await deliveryApi.getAvailableOrders({}, {
+      // "all": return pickups too, otherwise their popup vanished on refresh
+      return await deliveryApi.getAvailableOrders({ type: "all" }, {
         signal: controller.signal,
         timeout: 15000,
       });
@@ -545,19 +556,37 @@ const DeliveryLayout = () => {
     return onDeliveryBroadcastWithdrawn(getToken, (payload) => {
       const orderId = payload?.orderId;
       if (!orderId) return;
+      // I won this offer — my own accept flow closes the popup
+      const myId = String(user?._id || user?.id || "");
+      if (myId && String(payload.winnerDeliveryId || "") === myId) return;
 
-      shownOrderIdsRef.current = new Set(shownOrderIdsRef.current).add(orderId);
-      markIncomingOrderHandled(orderId);
+      // Return withdrawals say so (type RETURN_PICKUP); other withdrawn events
+      // carry only the orderId — use the open offer's key if it matches,
+      // otherwise treat it as a delivery offer (a withdrawn delivery must not
+      // hide a later return pickup for the same order).
+      const isReturn = payload.type === "RETURN_PICKUP";
+      const current = activeOrderRef.current;
+      const matchesCurrent =
+        current?.id === orderId && (!payload.type || Boolean(current.isReturnPickup) === isReturn);
+      const key = matchesCurrent
+        ? current.offerKey || orderId
+        : incomingOfferKey(orderId, isReturn);
+      shownOrderIdsRef.current = new Set(shownOrderIdsRef.current).add(key);
+      markIncomingOrderHandled(key);
 
-      if (activeOrderRef.current?.id === orderId) {
+      if (matchesCurrent) {
         acceptInFlightRef.current = false;
         setIsAcceptingOrder(false);
         stopOrderRingtone();
         setActiveOrder(null);
-        toast.info("Another delivery partner accepted this order.");
+        toast.info(
+          current.isReturnPickup
+            ? "Another delivery partner accepted this return pickup."
+            : "Another delivery partner accepted this order.",
+        );
       }
     });
-  }, [user?.isOnline]);
+  }, [user?.isOnline, user?._id, user?.id]);
 
   // Notifications safety-net polling.
   //
@@ -596,17 +625,34 @@ const DeliveryLayout = () => {
         const result = res.data.result || res.data.data;
         const notifications = result?.notifications || [];
         if (activeOrderRef.current) return;
+        const handledIds = new Set(loadHandledIncomingOrderIds());
         for (const n of notifications) {
           const isIncomingOrderType =
             n.type === "order" || n.type === "RETURN_PICKUP_ASSIGNED";
           if (!isIncomingOrderType || n.isRead || !n.data?.orderId) continue;
           const oid = n.data.orderId;
-          if (shownOrderIdsRef.current.has(oid)) continue;
+          const offerType = n.data.type || n.data.preview?.type;
+          const oKey = incomingOfferKey(
+            oid,
+            offerType === "RETURN_PICKUP" || n.type === "RETURN_PICKUP_ASSIGNED",
+          );
+          // Already handled or expired offer: mark its notification read on the
+          // server so it can never resurface (refresh, other device).
+          const expired =
+            n.data.deliverySearchExpiresAt &&
+            secondsLeftUntilDeliveryExpiry(n.data.deliverySearchExpiresAt) <= 0;
+          if (handledIds.has(oKey) || expired) {
+            const notificationId = n._id || n.id;
+            if (notificationId) deliveryApi.markNotificationRead(notificationId).catch(() => {});
+            continue;
+          }
+          if (shownOrderIdsRef.current.has(oKey)) continue;
           const fromStored = applyFromBroadcastPayload({
             orderId: oid,
             preview: n.data.preview,
             deliverySearchExpiresAt: n.data.deliverySearchExpiresAt,
-            type: n.data.type || (n.data.preview?.type),
+            type: offerType,
+            isReturnPickup: oKey !== String(oid),
           });
           if (fromStored) return;
           const r2 = await fetchAvailableOrders();
@@ -680,6 +726,32 @@ const DeliveryLayout = () => {
     fetchAvailableOrders,
   ]);
 
+  // Every way the offer modal closes must go through here, otherwise the
+  // offer pops up again after a refresh (via the unread-notification poll).
+  const dismissIncomingOrder = useCallback((offer) => {
+    if (!offer?.id) return;
+    const key = offer.offerKey || incomingOfferKey(offer.id, offer.isReturnPickup);
+    shownOrderIdsRef.current = new Set(shownOrderIdsRef.current).add(key);
+    markIncomingOrderHandled(key);
+    stopOrderRingtone();
+    setActiveOrder(null);
+  }, []);
+
+  // The accept window ran out: close the popup locally only. It used to be
+  // recorded as a server-side skip (same as Reject), so the order was never
+  // offered to this rider again - not after a refresh, not on the next
+  // wider-radius search round. Forget it locally too, so a later round can
+  // show it again (expired offers are filtered out by their deadline).
+  const expireIncomingOrder = useCallback((offer) => {
+    if (!offer?.id) return;
+    const key = offer.offerKey || incomingOfferKey(offer.id, offer.isReturnPickup);
+    const next = new Set(shownOrderIdsRef.current);
+    next.delete(key);
+    shownOrderIdsRef.current = next;
+    stopOrderRingtone();
+    setActiveOrder(null);
+  }, []);
+
   const skipOrder = useCallback(async () => {
     const current = activeOrderRef.current;
     if (!current || acceptInFlightRef.current) return;
@@ -690,16 +762,14 @@ const DeliveryLayout = () => {
       } else {
         await deliveryApi.skipOrder(current.id);
       }
-      shownOrderIdsRef.current = new Set(shownOrderIdsRef.current).add(current.id);
-      markIncomingOrderHandled(current.id);
-      stopOrderRingtone();
-      setActiveOrder(null);
+      dismissIncomingOrder(current);
       toast.info("Order skipped");
     } catch (error) {
+      // Usually the offer already expired / was taken — still never show it again
       console.error("Delivery Alert - Skip failed:", error);
-      setActiveOrder(null);
+      dismissIncomingOrder(current);
     }
-  }, []);
+  }, [dismissIncomingOrder]);
 
   // Countdown from server deadline (same idea as seller panel)
   useEffect(() => {
@@ -707,7 +777,7 @@ const DeliveryLayout = () => {
     const left = secondsLeftUntilDeliveryExpiry(activeOrder.expiresAt);
     if (left <= 0) {
       if (!acceptInFlightRef.current) {
-        skipOrder();
+        expireIncomingOrder(activeOrder);
         toast.error("Order request timed out");
       }
       return undefined;
@@ -720,13 +790,33 @@ const DeliveryLayout = () => {
       if (next <= 0) {
         clearInterval(timer);
         if (!acceptInFlightRef.current) {
-          skipOrder();
+          expireIncomingOrder(activeOrderRef.current);
           toast.error("Order request timed out");
         }
       }
     }, 1000);
     return () => clearInterval(timer);
-  }, [activeOrder, skipOrder]);
+  }, [activeOrder, expireIncomingOrder]);
+
+  const closeIncomingOrder = useCallback(async () => {
+    const current = activeOrderRef.current;
+    if (!current || acceptInFlightRef.current) return;
+    try {
+      if (current.isReturnPickup) {
+        await deliveryApi.rejectReturnPickup(current.id);
+      } else {
+        await deliveryApi.skipOrder(current.id);
+      }
+    } catch (error) {
+      console.error("Delivery Alert - Close failed:", error);
+    }
+    dismissIncomingOrder(current);
+    toast.info(
+      current.isReturnPickup
+        ? "Request closed"
+        : "Moved to Skipped orders — you can still accept it from your dashboard",
+    );
+  }, [dismissIncomingOrder]);
 
   const handleAcceptOrder = async () => {
     if (!activeOrder || acceptInFlightRef.current) return;
@@ -735,7 +825,7 @@ const DeliveryLayout = () => {
       secondsLeftUntilDeliveryExpiry(activeOrder.expiresAt) <= 0
     ) {
       toast.error("This request has expired. Try the next one.");
-      setActiveOrder(null);
+      expireIncomingOrder(activeOrder);
       return;
     }
     acceptInFlightRef.current = true;
@@ -753,10 +843,7 @@ const DeliveryLayout = () => {
       }
       toast.success("Order accepted!");
       const orderId = activeOrder.id;
-      shownOrderIdsRef.current = new Set(shownOrderIdsRef.current).add(orderId);
-      markIncomingOrderHandled(orderId);
-      stopOrderRingtone();
-      setActiveOrder(null);
+      dismissIncomingOrder(activeOrder);
       navigate(`/delivery/order-details/${orderId}`);
     } catch (error) {
       console.error("Delivery Alert - Accept failed:", error);
@@ -764,7 +851,8 @@ const DeliveryLayout = () => {
         error.response?.data?.message ||
         (typeof error.response?.data === "string" ? error.response.data : null);
       toast.error(msg || "Failed to accept order");
-      setActiveOrder(null);
+      // Taken by someone else / expired — don't offer it again after refresh
+      dismissIncomingOrder(activeOrder);
     } finally {
       acceptInFlightRef.current = false;
       setIsAcceptingOrder(false);
@@ -790,8 +878,17 @@ const DeliveryLayout = () => {
                   animate={{ scale: 1, opacity: 1, y: 0 }}
                   exit={{ scale: 0.96, opacity: 0, y: 16 }}
                   transition={{ type: "spring", stiffness: 380, damping: 28 }}
-                  className="bg-white rounded-[32px] p-6 w-full max-w-[340px] shadow-2xl border-4 border-primary/20"
+                  className="relative bg-white rounded-[32px] p-6 w-full max-w-[340px] shadow-2xl border-4 border-primary/20"
                 >
+                  <button
+                    type="button"
+                    onClick={closeIncomingOrder}
+                    disabled={isAcceptingOrder}
+                    aria-label="Close"
+                    className="absolute top-3 right-3 z-10 grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    <X size={18} strokeWidth={2.5} />
+                  </button>
                   <div className="flex flex-col items-center">
                     <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mb-4 animate-bounce">
                       <BellRing className="h-8 w-8 text-primary" />

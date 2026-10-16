@@ -29,6 +29,9 @@ const OfferSections = ({ sections, noServiceData }) => {
               originalPrice: p.price ?? p.salePrice,
               weight: p.weight,
               deliveryTime: p.deliveryTime,
+              stock: p.stock,
+              variants: p.variants,
+              galleryImages: p.galleryImages,
             }));
 
           const sectionSellers = (section.sellerIds || [])

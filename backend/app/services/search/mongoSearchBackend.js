@@ -60,15 +60,21 @@ export class MongoSearchBackend extends SearchBackend {
       mongoQuery.categoryId = query.categoryId;
     }
     
-    // Price range filter
+    // Price range filter — on the price the customer actually pays:
+    // salePrice, falling back to price when salePrice is unset (0),
+    // matching hydrateOrderItems in pricingService.
     if (query.priceMin !== undefined || query.priceMax !== undefined) {
-      mongoQuery.price = {};
+      const effectivePrice = {
+        $cond: [{ $gt: ["$salePrice", 0] }, "$salePrice", "$price"],
+      };
+      const bounds = [];
       if (query.priceMin !== undefined) {
-        mongoQuery.price.$gte = Number(query.priceMin);
+        bounds.push({ $gte: [effectivePrice, Number(query.priceMin)] });
       }
       if (query.priceMax !== undefined) {
-        mongoQuery.price.$lte = Number(query.priceMax);
+        bounds.push({ $lte: [effectivePrice, Number(query.priceMax)] });
       }
+      mongoQuery.$expr = { $and: bounds };
     }
     
     // Stock filter

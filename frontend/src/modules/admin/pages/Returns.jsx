@@ -21,6 +21,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Loader2, X } from "lucide-react";
+import { orderCustomerName, orderCustomerPhone } from '@/shared/utils/orderCustomer';
 
 const Returns = () => {
   const { showToast } = useToast();
@@ -377,7 +378,7 @@ const Returns = () => {
                             : "N/A"}
                         </p>
                         <p className="mt-1 text-xs font-bold text-slate-800">
-                          {ret.customer?.name || "Customer"}
+                          {orderCustomerName(ret)}
                         </p>
                         <p className="mt-1 line-clamp-2 text-xs text-slate-500">
                           {ret.returnReason || "No reason provided"}
@@ -460,10 +461,10 @@ const Returns = () => {
                     Customer
                   </p>
                   <p className="text-sm font-bold text-slate-900">
-                    {selectedReturn.customer?.name || "Customer"}
+                    {orderCustomerName(selectedReturn)}
                   </p>
                   <p className="text-xs text-slate-500">
-                    {selectedReturn.customer?.phone || ""}
+                    {orderCustomerPhone(selectedReturn)}
                   </p>
                 </div>
 

@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { motion, AnimatePresence, useAnimation, useDragControls } from 'framer-motion';
+import { useEffect, useRef, useState, useMemo } from 'react';
+import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
-import { X, ChevronDown, Share2, Heart, Search, Clock, Minus, Plus, ShoppingBag, Star, MessageSquare, ArrowLeft, ChevronRight } from 'lucide-react';
+import { ChevronDown, Heart, Search, Clock, Minus, Plus, Trash2, ShoppingBag, Star, MessageSquare, ArrowLeft, ChevronRight } from 'lucide-react';
 import { useProductDetail } from '../../context/ProductDetailContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
@@ -13,6 +13,8 @@ import { applyCloudinaryTransform } from '@/core/utils/imageUtils';
 import { customerApi } from '../../services/customerApi';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { sanitizeHtml } from '@core/utils/sanitizeHtml';
+import { isProductOutOfStock, isVariantOutOfStock } from "../../utils/stock";
 
 const AccordionItem = ({ title, children, id, icon, expandedSections, toggleSection }) => {
     const isOpen = expandedSections.includes(id);
@@ -119,7 +121,10 @@ const ProductDetailSheet = () => {
         setReviews([]);
 
         if (selectedProduct && selectedProduct.variants && selectedProduct.variants.length > 0) {
-            setSelectedVariant(selectedProduct.variants[0]);
+            // Open on the first size that can actually be bought
+            setSelectedVariant(
+                selectedProduct.variants.find((v) => !isVariantOutOfStock(v)) || selectedProduct.variants[0]
+            );
         } else {
             setSelectedVariant(null);
         }
@@ -275,7 +280,15 @@ const ProductDetailSheet = () => {
         );
     };
 
+    // Sold out = whole product out of stock, or the chosen size has 0 stock
+    const selectedOutOfStock =
+        isProductOutOfStock(selectedProduct) || isVariantOutOfStock(selectedVariant);
+
     const handleAddToCart = () => {
+        if (selectedOutOfStock) {
+            showToast(`${selectedVariant?.name ? `${selectedVariant.name} is` : 'This item is'} out of stock`, 'error');
+            return;
+        }
         addToCart({
             ...selectedProduct,
             variantSku: String(selectedVariant?.sku || selectedVariant?.name || "").trim(),
@@ -290,8 +303,10 @@ const ProductDetailSheet = () => {
         }
     };
 
-    const handleIncrement = () =>
+    const handleIncrement = () => {
+        if (selectedOutOfStock) return;
         updateQuantity(selectedProduct.id, 1, String(selectedVariant?.sku || selectedVariant?.name || "").trim());
+    };
 
     const handleDecrement = () => {
         if (quantity === 1) {
@@ -321,7 +336,7 @@ const ProductDetailSheet = () => {
 
     if (!selectedProduct) return null;
 
-    const cleanDesc = cleanDescription(selectedProduct?.description);
+    const cleanDesc = sanitizeHtml(cleanDescription(selectedProduct?.description));
 
     return (
         <AnimatePresence>
@@ -516,15 +531,19 @@ const ProductDetailSheet = () => {
                                                 <div className="flex flex-col gap-1">
                                                     <div className="flex items-baseline gap-2">
                                                         <span className="text-[28px] lg:text-[32px] font-[800] text-primary tracking-tight leading-none">
-                                                            ₹{selectedProduct.price}
+                                                            ₹{selectedVariant?.salePrice || selectedVariant?.price || selectedProduct.price}
                                                         </span>
-                                                        {selectedProduct.originalPrice > selectedProduct.price && (
-                                                            <span className="text-[14px] text-gray-400 line-through font-[600]">₹{selectedProduct.originalPrice}</span>
+                                                        {((selectedVariant?.salePrice && selectedVariant.salePrice < selectedVariant.price) ||
+                                                          (!selectedVariant && selectedProduct.originalPrice > selectedProduct.price)) && (
+                                                            <span className="text-[14px] text-gray-400 line-through font-[600]">₹{selectedVariant?.price || selectedProduct.originalPrice}</span>
                                                         )}
                                                     </div>
-                                                    {selectedProduct.originalPrice > selectedProduct.price && (
+                                                    {((selectedVariant?.salePrice && selectedVariant.salePrice < selectedVariant.price) ||
+                                                      (!selectedVariant && selectedProduct.originalPrice > selectedProduct.price)) && (
                                                         <span className="inline-flex w-fit items-center text-[10px] font-[800] text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded-md uppercase tracking-wide">
-                                                            {Math.round(((selectedProduct.originalPrice - selectedProduct.price) / selectedProduct.originalPrice) * 100)}% off
+                                                            {selectedVariant
+                                                                ? Math.round(((selectedVariant.price - selectedVariant.salePrice) / selectedVariant.price) * 100)
+                                                                : Math.round(((selectedProduct.originalPrice - selectedProduct.price) / selectedProduct.originalPrice) * 100)}% off
                                                         </span>
                                                     )}
                                                 </div>
@@ -535,10 +554,18 @@ const ProductDetailSheet = () => {
                                                                 <Minus size={16} strokeWidth={2.5} />
                                                             </motion.button>
                                                             <span className="font-[800] text-base text-gray-800 w-8 text-center">{quantity}</span>
-                                                            <motion.button whileTap={{ scale: 0.85 }} onClick={handleIncrement} className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center text-white hover:bg-[var(--brand-400)] transition-colors shadow-sm">
+                                                            <motion.button whileTap={{ scale: 0.85 }} onClick={handleIncrement} disabled={selectedOutOfStock} aria-label="Increase quantity" className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center text-white hover:bg-[var(--brand-400)] transition-colors shadow-sm disabled:opacity-40">
                                                                 <Plus size={16} strokeWidth={2.5} />
                                                             </motion.button>
                                                         </div>
+                                                    ) : selectedOutOfStock ? (
+                                                    <button
+                                                        type="button"
+                                                        disabled
+                                                        className="h-12 px-8 rounded-xl font-bold text-[13px] bg-slate-100 text-slate-500 border border-slate-200 cursor-not-allowed uppercase tracking-wide"
+                                                    >
+                                                        Out of stock
+                                                    </button>
                                                     ) : (
                                                     <motion.button
                                                         whileHover={{ scale: 1.02, y: -2 }}
@@ -588,22 +615,33 @@ const ProductDetailSheet = () => {
                                             >
                                                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2.5">Select Variant</h4>
                                                 <div className="flex gap-3 flex-wrap">
-                                                    {selectedProduct.variants.map((v, idx) => (
+                                                    {selectedProduct.variants.map((v, idx) => {
+                                                        const soldOut = isVariantOutOfStock(v);
+                                                        const active = selectedVariant?.sku === v.sku;
+                                                        return (
                                                         <motion.button
                                                             key={idx}
                                                             whileHover={{ scale: 1.03 }}
                                                             whileTap={{ scale: 0.97 }}
                                                             onClick={() => setSelectedVariant(v)}
+                                                            aria-pressed={active}
+                                                            aria-label={soldOut ? `${v.name}, out of stock` : v.name}
                                                             className={cn(
-                                                                'px-4 py-2 font-[600] rounded-lg text-[13px] transition-all border-2',
-                                                                selectedVariant?.sku === v.sku
-                                                                    ? 'bg-brand-50 border-primary text-primary shadow-md shadow-brand-100/50'
-                                                                    : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:shadow-sm'
+                                                                'px-4 py-2 font-[600] rounded-lg text-[13px] transition-all border-2 flex flex-col items-center leading-tight',
+                                                                active && soldOut
+                                                                    ? 'bg-slate-100 border-slate-400 text-slate-500'
+                                                                    : active
+                                                                        ? 'bg-brand-50 border-primary text-primary shadow-md shadow-brand-100/50'
+                                                                        : soldOut
+                                                                            ? 'bg-slate-50 border-dashed border-slate-200 text-slate-400'
+                                                                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:shadow-sm'
                                                             )}
                                                         >
-                                                            {v.name}
+                                                            <span className={cn(soldOut && 'line-through')}>{v.name}</span>
+                                                            {soldOut && <span className="text-[10px] font-semibold text-red-500 no-underline">Out of stock</span>}
                                                         </motion.button>
-                                                    ))}
+                                                        );
+                                                    })}
                                                 </div>
                                             </motion.div>
                                         )}
@@ -613,31 +651,6 @@ const ProductDetailSheet = () => {
                                             <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
                                             <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-2 h-2 bg-white border border-gray-200 rounded-full" />
                                         </div>
-
-                                        {/* Variants Selection (Desktop) */}
-                                        {selectedProduct.variants && selectedProduct.variants.length > 0 && (
-                                            <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100/50 mt-4">
-                                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Select Variant</h4>
-                                                <div className="flex gap-2.5 flex-wrap">
-                                                    {selectedProduct.variants.map((v, idx) => (
-                                                        <motion.button
-                                                            key={idx}
-                                                            whileHover={{ scale: 1.02 }}
-                                                            whileTap={{ scale: 0.98 }}
-                                                            onClick={() => setSelectedVariant(v)}
-                                                            className={cn(
-                                                                'px-4 py-2 font-black rounded-xl text-xs transition-all border-2',
-                                                                selectedVariant?.sku === v.sku
-                                                                    ? 'bg-white border-primary text-primary shadow-sm shadow-brand-100'
-                                                                    : 'bg-white border-slate-100 text-slate-500 hover:border-slate-200'
-                                                            )}
-                                                        >
-                                                            {v.name}
-                                                        </motion.button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
 
                                         {/* Product Information Accordion (Desktop) */}
                                         <div className="mt-8 border-t border-slate-100">
@@ -921,24 +934,35 @@ const ProductDetailSheet = () => {
                                     <div className="mt-4 mb-3">
                                         <h4 className="text-sm font-bold text-slate-900 mb-2.5">Select Variant</h4>
                                         <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                                            {selectedProduct.variants.map((v, idx) => (
+                                            {selectedProduct.variants.map((v, idx) => {
+                                                const soldOut = isVariantOutOfStock(v);
+                                                const active = selectedVariant?.sku === v.sku;
+                                                return (
                                                 <motion.button
                                                     key={idx}
                                                     whileTap={{ scale: 0.95 }}
                                                     onClick={() => setSelectedVariant(v)}
+                                                    aria-pressed={active}
+                                                    aria-label={soldOut ? `${v.name}, out of stock` : v.name}
                                                     className={cn(
-                                                        "flex-shrink-0 px-5 py-2.5 font-bold rounded-xl text-sm transition-all relative border-2",
-                                                        selectedVariant?.sku === v.sku
-                                                            ? "bg-[#ecfeff] border-primary text-primary shadow-sm shadow-brand-100"
-                                                            : "bg-slate-50 border-slate-100 text-slate-500"
+                                                        "flex-shrink-0 px-5 py-2 font-bold rounded-xl text-sm transition-all relative border-2 flex flex-col items-center leading-tight",
+                                                        active && soldOut
+                                                            ? "bg-slate-100 border-slate-400 text-slate-500"
+                                                            : active
+                                                                ? "bg-[#ecfeff] border-primary text-primary shadow-sm shadow-brand-100"
+                                                                : soldOut
+                                                                    ? "bg-slate-50 border-dashed border-slate-200 text-slate-400"
+                                                                    : "bg-slate-50 border-slate-100 text-slate-500"
                                                     )}
                                                 >
-                                                    {v.name}
-                                                    {selectedVariant?.sku === v.sku && (
+                                                    <span className={cn(soldOut && "line-through")}>{v.name}</span>
+                                                    {soldOut && <span className="text-[10px] font-semibold text-red-500">Out of stock</span>}
+                                                    {active && !soldOut && (
                                                         <div className="absolute top-0 right-0 w-3 h-3 bg-primary rounded-bl-lg" />
                                                     )}
                                                 </motion.button>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}
@@ -1094,19 +1118,30 @@ const ProductDetailSheet = () => {
                                             <motion.button
                                                 whileTap={{ scale: 0.9 }}
                                                 onClick={handleDecrement}
+                                                aria-label={quantity === 1 ? "Remove from cart" : "Decrease quantity"}
                                                 className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-white shadow-sm border border-slate-100 transition-all"
                                             >
-                                                <Minus size={18} strokeWidth={3.5} />
+                                                {quantity === 1 ? <Trash2 size={17} strokeWidth={2.5} /> : <Minus size={18} strokeWidth={3.5} />}
                                             </motion.button>
                                             <span className="font-black text-xl text-slate-800 w-8 text-center tabular-nums">{quantity}</span>
                                             <motion.button
                                                 whileTap={{ scale: 0.9 }}
                                                 onClick={handleIncrement}
-                                                className="w-10 h-10 bg-gradient-to-br from-primary to-[var(--brand-400)] rounded-xl flex items-center justify-center text-white shadow-lg shadow-brand-100/50 hover:shadow-brand-200 transition-all border border-white/20"
+                                                disabled={selectedOutOfStock}
+                                                aria-label="Increase quantity"
+                                                className="w-10 h-10 bg-gradient-to-br from-primary to-[var(--brand-400)] rounded-xl flex items-center justify-center text-white shadow-lg shadow-brand-100/50 hover:shadow-brand-200 transition-all border border-white/20 disabled:opacity-40"
                                             >
                                                 <Plus size={18} strokeWidth={3.5} />
                                             </motion.button>
                                         </div>
+                                    ) : selectedOutOfStock ? (
+                                        <button
+                                            type="button"
+                                            disabled
+                                            className="flex-1 h-[56px] rounded-2xl font-bold text-sm bg-slate-100 text-slate-500 border-2 border-slate-200 cursor-not-allowed whitespace-nowrap px-4"
+                                        >
+                                            {selectedVariant?.name ? `${selectedVariant.name} — Out of stock` : 'Out of stock'}
+                                        </button>
                                     ) : (
                                         <motion.button
                                             whileHover={{ scale: 1.02 }}

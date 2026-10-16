@@ -1,12 +1,16 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Landmark, CreditCard, AlertTriangle, CheckCircle2 } from "lucide-react";
 import Button from "@/shared/components/ui/Button";
-import Card from "@/shared/components/ui/Card";
 import Input from "@/shared/components/ui/Input";
+import { toast } from "sonner";
+import { useAuth } from "@core/context/AuthContext";
+import { deliveryApi } from "../../services/deliveryApi";
 
 const BankAccount = () => {
   const navigate = useNavigate();
+  const { user, refreshUser } = useAuth();
+  const [isSaving, setIsSaving] = useState(false);
 
   const [newAccount, setNewAccount] = useState("");
   const [confirmAccount, setConfirmAccount] = useState("");
@@ -60,13 +64,35 @@ const BankAccount = () => {
     }
   };
 
+  // The rider's saved bank details (this page used to show fixed sample data)
+  const savedAccount = String(user?.accountNumber || "");
   const bankDetails = {
-    accountHolder: "RAHUL KUMAR",
-    accountNumber: "XXXXXXXX8921",
-    ifsc: "HDFC0001234",
-    bankName: "HDFC Bank",
-    branch: "MG Road, Bangalore",
-    status: "Verified",
+    accountHolder: (user?.accountHolder || user?.name || "—").toUpperCase(),
+    accountNumber: savedAccount
+      ? `${"X".repeat(Math.max(0, savedAccount.length - 4))}${savedAccount.slice(-4)}`
+      : "Not added",
+    ifsc: user?.ifsc || "",
+    bankName: user?.ifsc ? `IFSC ${user.ifsc.slice(0, 4)}` : "",
+  };
+
+  const handleUpdateBank = async () => {
+    setIsSaving(true);
+    try {
+      await deliveryApi.updateProfile({
+        accountNumber: newAccount,
+        ifsc: ifscCode,
+        accountHolder: user?.accountHolder || user?.name || "",
+      });
+      await refreshUser();
+      setNewAccount("");
+      setConfirmAccount("");
+      setIfscCode("");
+      toast.success("Bank details updated");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Could not update bank details");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -160,9 +186,10 @@ const BankAccount = () => {
             <Button 
               className="w-full mt-2" 
               variant="outline"
-              disabled={!!accountError || !!confirmError || !!ifscError || !newAccount || !confirmAccount || !ifscCode}
+              onClick={handleUpdateBank}
+              disabled={isSaving || !!accountError || !!confirmError || !!ifscError || !newAccount || !confirmAccount || !ifscCode || newAccount !== confirmAccount}
             >
-              Verify & Update
+              {isSaving ? "Updating..." : "Verify & Update"}
             </Button>
           </div>
         </div>

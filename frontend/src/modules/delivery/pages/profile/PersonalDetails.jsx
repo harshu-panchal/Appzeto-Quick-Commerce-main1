@@ -1,26 +1,56 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Save, User, Mail, Phone, MapPin, Calendar, Droplet } from "lucide-react";
+import { ArrowLeft, User, Mail, Phone, MapPin, Calendar, Droplet } from "lucide-react";
 import Button from "@/shared/components/ui/Button";
 import Input from "@/shared/components/ui/Input";
 import { toast } from "sonner";
 import { useAuth } from "@core/context/AuthContext";
+import { deliveryApi } from "../../services/deliveryApi";
 
 const PersonalDetails = () => {
   const navigate = useNavigate();
+  const { user, refreshUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    fullName: "Rahul Kumar",
-    phone: "+91 98765 43210",
-    email: "rahul.kumar@example.com",
-    address: "Flat 302, Green Apts, MG Road, Bangalore - 560001",
-    dob: "1995-08-15",
-    bloodGroup: "O+",
+  const [isSaving, setIsSaving] = useState(false);
+  // The rider's real details (this page used to show fixed sample data)
+  const fromUser = (u) => ({
+    fullName: u?.name || "",
+    phone: u?.phone || "",
+    email: u?.email || "",
+    address: u?.address || "",
+    dob: u?.dob ? String(u.dob).slice(0, 10) : "",
+    bloodGroup: u?.bloodGroup || "",
   });
+  const [formData, setFormData] = useState(() => fromUser(user));
+  // Fill the form once the profile loads (page opened directly / refreshed)
+  const [filledFor, setFilledFor] = useState(user?._id || null);
+  if (user?._id && filledFor !== user._id) {
+    setFilledFor(user._id);
+    setFormData(fromUser(user));
+  }
 
-  const handleSave = () => {
-    setIsEditing(false);
-    toast.success("Personal details updated successfully!");
+  const handleSave = async () => {
+    if (!formData.fullName.trim()) {
+      toast.error("Please enter your name");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await deliveryApi.updateProfile({
+        name: formData.fullName.trim(),
+        email: formData.email.trim(),
+        address: formData.address.trim(),
+        dob: formData.dob,
+        bloodGroup: formData.bloodGroup.trim(),
+      });
+      await refreshUser();
+      setIsEditing(false);
+      toast.success("Personal details updated successfully!");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Could not update your details");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -37,8 +67,8 @@ const PersonalDetails = () => {
           <h1 className="ds-h3 text-gray-900">Personal Details</h1>
           <div className="ml-auto">
             {isEditing ? (
-              <Button size="sm" onClick={handleSave} className="h-8 px-3">
-                Save
+              <Button size="sm" onClick={handleSave} disabled={isSaving} className="h-8 px-3">
+                {isSaving ? "Saving..." : "Save"}
               </Button>
             ) : (
               <Button 
@@ -60,7 +90,7 @@ const PersonalDetails = () => {
           <div className="relative">
             <div className="w-24 h-24 rounded-full p-1 bg-white shadow-md">
               <img
-                src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix"
+                src={user?.profileImage || "https://cdn-icons-png.flaticon.com/512/149/149071.png"}
                 alt="Profile"
                 className="w-full h-full rounded-full object-cover bg-gray-100"
                 onError={(e) => {
@@ -84,7 +114,8 @@ const PersonalDetails = () => {
           <Input
             label="Full Name"
             value={formData.fullName}
-            readOnly={!isEditing} // Usually name is locked after verification
+            readOnly={!isEditing}
+            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
             icon={User}
             className={!isEditing ? "bg-gray-50 border-transparent" : ""}
           />

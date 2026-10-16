@@ -12,10 +12,12 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import SellerOrdersContext from '@/modules/seller/context/SellerOrdersContext';
 import SellerEarningsContext, { defaultEarnings } from '@/modules/seller/context/SellerEarningsContext';
-import { getOrderSocket, onSellerOrderNew, onReturnDropOtp } from '@/core/services/orderSocket';
+import { getOrderSocket, onSellerOrderNew, onReturnDropOtp, onOrderStatusUpdate } from '@/core/services/orderSocket';
 import { createSocketTokenReader } from '@core/utils/authStorage';
 import { STORAGE_KEYS } from '@core/utils/storage';
 import orderAlertSound from '@/assets/sounds/order_alert.mp3';
+import { orderCustomerName, orderCustomerPhone } from '@/shared/utils/orderCustomer';
+import { orderItemVariant, orderItemImage } from '@/shared/utils/orderItems';
 
 const POLL_INTERVAL_MS = 15000;
 
@@ -278,6 +280,15 @@ const DashboardLayout = ({ children, navItems, title }) => {
             if (fetchOrdersRef.current) fetchOrdersRef.current();
         });
 
+        // After a refresh, reopen the drop-off OTP popup if a rider is still
+        // waiting at the store (the code used to arrive only as a live event).
+        sellerApi.getActiveReturnDropOtps()
+            .then((res) => {
+                const active = (res.data?.result || res.data?.results || [])[0];
+                if (active?.otp) setReturnDropOtpAlert((prev) => prev || active);
+            })
+            .catch(() => { });
+
         const unsubscribeDrop = onReturnDropOtp(getToken, (payload) => {
             console.log("[DashboardLayout] Received return drop OTP:", payload);
             setReturnDropOtpAlert(payload);
@@ -285,11 +296,29 @@ const DashboardLayout = ({ children, navItems, title }) => {
             audio.play().catch(() => { });
         });
 
+        // As soon as the rider enters the seller's OTP the return is "returned":
+        // flip the OTP popup to a "Received at store" confirmation.
+        const unsubscribeStatus = onOrderStatusUpdate(getToken, (payload) => {
+            if (!payload?.orderId) return;
+            if (!['returned', 'qc_passed', 'refund_completed'].includes(payload.returnStatus)) return;
+            setReturnDropOtpAlert((prev) =>
+                prev && prev.orderId === payload.orderId ? { ...prev, received: true } : prev,
+            );
+        });
+
         return () => {
             unsubscribeSellerNew();
             unsubscribeDrop();
+            unsubscribeStatus();
         };
     }, [role]);
+
+    // Close the "Received at store" confirmation by itself after a few seconds
+    useEffect(() => {
+        if (!returnDropOtpAlert?.received) return undefined;
+        const t = setTimeout(() => setReturnDropOtpAlert(null), 6000);
+        return () => clearTimeout(t);
+    }, [returnDropOtpAlert]);
 
     // Single earnings fetch when seller is on earnings/withdrawals/transactions – no duplicate calls
     useEffect(() => {
@@ -482,9 +511,58 @@ const DashboardLayout = ({ children, navItems, title }) => {
                                 </div>
 
                                 <h2 className="text-2xl font-black text-slate-900 mb-2">New Order Received!</h2>
-                                <p className="text-slate-600 font-medium mb-6">
+                                <p className="text-slate-600 font-medium mb-1">
                                     You have a new order <span className="text-primary font-bold">#{newOrderAlert.orderId}</span> for <span className="text-slate-900 font-bold">₹{newOrderAlert.pricing?.total || newOrderAlert.total}</span>
                                 </p>
+                                {newOrderAlert.createdAt && (
+                                    <p className="text-xs font-semibold text-slate-400 mb-5">
+                                        {new Date(newOrderAlert.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                        {' • '}
+                                        {new Date(newOrderAlert.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                )}
+
+                                {(orderCustomerName(newOrderAlert, '') || orderCustomerPhone(newOrderAlert)) && (
+                                    <div className="w-full bg-slate-50 rounded-2xl border border-slate-100 p-4 mb-4 text-left">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Customer</p>
+                                        <p className="text-sm font-bold text-slate-900">{orderCustomerName(newOrderAlert)}</p>
+                                        {orderCustomerPhone(newOrderAlert) && (
+                                            <p className="text-xs font-semibold text-slate-500 mt-0.5">{orderCustomerPhone(newOrderAlert)}</p>
+                                        )}
+                                    </div>
+                                )}
+
+                                {Array.isArray(newOrderAlert.items) && newOrderAlert.items.length > 0 && (
+                                    <div className="w-full bg-slate-50 rounded-2xl border border-slate-100 p-4 mb-6 text-left max-h-40 overflow-y-auto">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
+                                            Items ({newOrderAlert.items.length})
+                                        </p>
+                                        <div className="space-y-2">
+                                            {newOrderAlert.items.map((item, idx) => (
+                                                <div key={idx} className="flex items-center justify-between gap-3">
+                                                    <div className="flex min-w-0 items-center gap-2.5">
+                                                        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-white ring-1 ring-slate-200">
+                                                            {orderItemImage(item) ? (
+                                                                <img src={orderItemImage(item)} alt={item.name} className="h-full w-full object-cover" />
+                                                            ) : null}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-bold text-slate-800 truncate">
+                                                                {item.name} <span className="text-slate-400 font-semibold">× {item.quantity}</span>
+                                                            </p>
+                                                            {orderItemVariant(item) && (
+                                                                <p className="text-[11px] font-semibold text-slate-500 truncate">{orderItemVariant(item)}</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-xs font-black text-slate-900 shrink-0">
+                                                        ₹{(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(2)}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Timer Bar — width from real server deadline */}
                                 <div className="w-full bg-slate-100 h-2 rounded-full mb-8 overflow-hidden">
@@ -536,6 +614,29 @@ const DashboardLayout = ({ children, navItems, title }) => {
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
                             className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-brand-100"
                         >
+                            {returnDropOtpAlert.received ? (
+                            <div className="flex flex-col items-center text-center" data-testid="return-received">
+                                <div className="h-20 w-20 bg-success/10 rounded-full flex items-center justify-center mb-6">
+                                    <Check className="h-10 w-10 text-success" strokeWidth={3} />
+                                </div>
+                                <h2 className="text-2xl font-black text-slate-900 mb-2">Received at Store</h2>
+                                <p className="text-slate-600 font-medium mb-2">
+                                    Return <span className="text-brand-600 font-bold">#{returnDropOtpAlert.orderId}</span> has been handed over to you.
+                                </p>
+                                <p className="text-sm font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-4 py-2 mb-8">
+                                    Refund in process — the customer is refunded after quality check.
+                                </p>
+                                <button
+                                    onClick={() => {
+                                        setReturnDropOtpAlert(null);
+                                        navigate('/seller/returns');
+                                    }}
+                                    className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-black hover:bg-primary/90 shadow-xl shadow-primary/20 transition-all active:scale-95 uppercase tracking-widest text-xs"
+                                >
+                                    View Returns
+                                </button>
+                            </div>
+                            ) : (
                             <div className="flex flex-col items-center text-center">
                                 <div className="h-20 w-20 bg-brand-50 rounded-full flex items-center justify-center mb-6 animate-pulse">
                                     <Truck className="h-10 w-10 text-brand-600" />
@@ -566,6 +667,7 @@ const DashboardLayout = ({ children, navItems, title }) => {
                                     Dismiss Alert
                                 </button>
                             </div>
+                            )}
                         </motion.div>
                     </div>
                 )}

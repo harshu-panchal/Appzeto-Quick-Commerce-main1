@@ -8,6 +8,7 @@ const mockFindByIdAndDelete = jest.fn();
 const mockFindOne = jest.fn();
 const mockInvalidate = jest.fn();
 const mockHandleResponse = jest.fn();
+const mockProductCount = jest.fn();
 
 jest.unstable_mockModule("../app/models/category.js", () => ({
   default: {
@@ -18,6 +19,10 @@ jest.unstable_mockModule("../app/models/category.js", () => ({
     findByIdAndDelete: mockFindByIdAndDelete,
     findOne: mockFindOne,
   },
+}));
+
+jest.unstable_mockModule("../app/models/product.js", () => ({
+  default: { countDocuments: mockProductCount },
 }));
 
 jest.unstable_mockModule("../app/utils/helper.js", () => ({
@@ -47,7 +52,13 @@ describe("cache invalidation on category mutations", () => {
         lean: async () => ({ type: "header", parentId: null }),
       }),
     });
-    mockFind.mockResolvedValue([]);
+    // Category.find is awaited directly and also chained (.select().lean())
+    mockFind.mockImplementation(() => {
+      const query = Promise.resolve([]);
+      query.select = () => ({ lean: async () => [] });
+      return query;
+    });
+    mockProductCount.mockResolvedValue(0);
     mockFindByIdAndDelete.mockResolvedValue({ _id: "cat-1" });
     mockFindOne.mockReturnValue({ lean: async () => null });
   });
@@ -86,10 +97,23 @@ describe("cache invalidation on category mutations", () => {
   test("deleteCategory invalidates category caches", async () => {
     await deleteCategory(
       {
-        params: { id: "cat-1" },
+        params: { id: "507f1f77bcf86cd799439011" },
       },
       {},
     );
     expect(mockInvalidate).toHaveBeenCalledWith("cache:catalog:categories:*");
+  });
+
+  test("deleteCategory refuses while products still use the category", async () => {
+    mockProductCount.mockResolvedValue(3);
+    await deleteCategory(
+      {
+        params: { id: "507f1f77bcf86cd799439011" },
+      },
+      {},
+    );
+    expect(mockHandleResponse).toHaveBeenCalledWith(expect.anything(), 409, expect.stringContaining("3 products"));
+    expect(mockFindByIdAndDelete).not.toHaveBeenCalled();
+    expect(mockInvalidate).not.toHaveBeenCalled();
   });
 });

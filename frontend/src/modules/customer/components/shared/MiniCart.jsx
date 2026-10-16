@@ -15,21 +15,13 @@ const MiniCart = () => {
 
     const path = location.pathname.replace(/\/$/, '') || '/';
 
-    // Hide MiniCart on checkout page, order details page, profile page, wallet, transactions, wishlist, addresses, support, privacy, and about page
+    // Shown on every page so the customer can always reach the cart, except
+    // checkout itself (that page is the cart)
     const isCheckoutPage = path === '/checkout';
-    const isOrderDetailsPage = path.startsWith('/orders');
-    const isProfilePage = path === '/profile';
-    const isWalletPage = path === '/wallet';
-    const isTransactionsPage = path === '/transactions';
-    const isWishlistPage = path.startsWith('/wishlist');
-    const isAddressesPage = path.startsWith('/addresses');
-    const isSupportPage = path.startsWith('/support');
-    const isPrivacyPage = path.startsWith('/privacy');
-    const isAboutPage = path.startsWith('/about');
 
     return (
         <AnimatePresence>
-            {cart.length > 0 && !isCheckoutPage && !isOrderDetailsPage && !isProfilePage && !isWalletPage && !isTransactionsPage && !isWishlistPage && !isAddressesPage && !isSupportPage && !isPrivacyPage && !isAboutPage && (
+            {cart.length > 0 && !isCheckoutPage && (
                 <div
                     key="mini-cart-wrapper"
                     id="mini-cart-target"

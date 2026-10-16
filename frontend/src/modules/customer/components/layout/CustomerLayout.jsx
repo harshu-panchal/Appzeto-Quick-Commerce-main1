@@ -89,12 +89,14 @@ const CustomerLayout = ({ children, showHeader: showHeaderProp, fullHeight = fal
 
     const hideHeaderRoutes = ['/', '/categories', '/orders', '/transactions', '/profile', '/profile/edit', '/wishlist', '/addresses', '/wallet', '/support', '/privacy', '/about', '/terms', '/checkout', '/search', '/chat', '/notifications'];
     const hideBottomNavRoutes = ['/checkout', '/search', '/chat'];
-    const hideCartRoutes = ['/checkout', '/search', '/chat'];
+    // "View cart" shows everywhere except checkout (it is the cart) and chat
+    // (the bar would cover the message box)
+    const hideCartRoutes = ['/checkout', '/chat'];
 
     // If props are passed, use them. Otherwise, use route-based logic.
     const showHeader = showHeaderProp !== undefined ? showHeaderProp : (!hideHeaderRoutes.includes(path) && !path.startsWith('/category') && !path.startsWith('/orders'));
     const showBottomNav = showBottomNavProp !== undefined ? showBottomNavProp : !hideBottomNavRoutes.includes(path);
-    const showCart = showCartProp !== undefined ? showCartProp : (!hideCartRoutes.includes(path) && !path.startsWith('/orders'));
+    const showCart = showCartProp !== undefined ? showCartProp : !hideCartRoutes.includes(path);
 
     // Condition to hide the MobileFooterMessage ("India's last minute app") on specific pages
     const hideFooterMessageRoutes = ['/profile', '/profile/edit'];

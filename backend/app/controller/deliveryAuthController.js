@@ -129,6 +129,9 @@ export const signupDelivery = async (req, res) => {
             },
             otp,
             otpExpiry: Date.now() + 5 * 60 * 1000,
+            // Re-registering after a rejection puts the application back in review.
+            applicationStatus: "pending",
+            rejectionReason: "",
         };
 
         if (!delivery) {
@@ -165,7 +168,15 @@ export const loginDelivery = async (req, res) => {
             return handleResponse(res, 404, "Delivery partner not found");
         }
         if (!delivery.isVerified) {
-            return handleResponse(res, 403, "Your application is still pending admin approval");
+            if (delivery.applicationStatus === "rejected") {
+                return handleResponse(res, 403, "Your application has been rejected", {
+                    rejected: true,
+                    rejectionReason: delivery.rejectionReason || "",
+                });
+            }
+            return handleResponse(res, 403, "Your application is still pending admin approval", {
+                rejected: false,
+            });
         }
 
         const otp = generateOTP();
@@ -244,12 +255,21 @@ export const verifyDeliveryOTP = async (req, res) => {
         delivery.otpLockedUntil = undefined;
 
         if (!delivery.isVerified) {
-            // New signup OTP verification
             delivery.otp = undefined;
             delivery.otpExpiry = undefined;
             await delivery.save();
+
+            if (delivery.applicationStatus === "rejected") {
+                return handleResponse(res, 200, "Application rejected", {
+                    pendingApproval: true,
+                    rejected: true,
+                    rejectionReason: delivery.rejectionReason || "",
+                });
+            }
+
             return handleResponse(res, 200, "Phone verified successfully", {
-                pendingApproval: true
+                pendingApproval: true,
+                rejected: false,
             });
         }
 
@@ -298,11 +318,40 @@ export const updateDeliveryProfile = async (req, res) => {
             return handleResponse(res, 404, "Delivery partner not found");
         }
 
-        if (name) delivery.name = name;
+        if (name) delivery.name = String(name).trim().slice(0, 60);
         if (vehicleType) delivery.vehicleType = vehicleType;
         if (vehicleNumber) delivery.vehicleNumber = vehicleNumber;
         if (drivingLicenseNumber) delivery.drivingLicenseNumber = drivingLicenseNumber;
         if (currentArea) delivery.currentArea = currentArea;
+
+        // Personal details (Profile → Personal Details)
+        const { email, address, dob, bloodGroup } = req.body;
+        if (email !== undefined) {
+            const cleanEmail = String(email || "").trim().toLowerCase();
+            if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+                return handleResponse(res, 400, "Enter a valid email address");
+            }
+            delivery.email = cleanEmail;
+        }
+        if (address !== undefined) delivery.address = String(address || "").trim().slice(0, 300);
+        if (dob !== undefined) delivery.dob = String(dob || "").trim().slice(0, 10);
+        if (bloodGroup !== undefined) delivery.bloodGroup = String(bloodGroup || "").trim().toUpperCase().slice(0, 4);
+
+        // Bank details (Profile → Bank Account), always validated together
+        const { accountNumber, ifsc, accountHolder } = req.body;
+        if (accountNumber !== undefined || ifsc !== undefined) {
+            const cleanAccount = String(accountNumber || "").replace(/\D/g, "");
+            const cleanIfsc = String(ifsc || "").trim().toUpperCase();
+            if (cleanAccount.length < 9 || cleanAccount.length > 18) {
+                return handleResponse(res, 400, "Account number must be 9 to 18 digits");
+            }
+            if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(cleanIfsc)) {
+                return handleResponse(res, 400, "Enter a valid IFSC code (e.g. HDFC0001234)");
+            }
+            delivery.accountNumber = cleanAccount;
+            delivery.ifsc = cleanIfsc;
+            if (accountHolder) delivery.accountHolder = String(accountHolder).trim().slice(0, 60);
+        }
 
         // Capture going-offline transition before the save so we know whether
         // to drop the rider's realtime presence nodes after the write.

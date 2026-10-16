@@ -85,14 +85,18 @@ const CategoryProductsPage = () => {
     // dependency array exactly). `placeholderData: keepPreviousData` avoids
     // a blank flash when switching categories or when location refreshes.
     const { data: categoryData, isLoading, refetch } = useQuery({
-        queryKey: ['customer', 'categoryProducts', catId, hasValidLocation ? currentLocation.latitude : null, hasValidLocation ? currentLocation.longitude : null],
+        // The selected sub-category is filtered on the server: filtering only the
+        // first page client-side hid products in larger categories.
+        queryKey: ['customer', 'categoryProducts', catId, selectedSubCategory, hasValidLocation ? currentLocation.latitude : null, hasValidLocation ? currentLocation.longitude : null],
         queryFn: async () => {
             const [prodRes, catRes] = await Promise.all([
                 hasValidLocation
                     ? customerApi.getProducts({
                         categoryId: catId,
+                        ...(selectedSubCategory && selectedSubCategory !== 'all' ? { subcategoryId: selectedSubCategory } : {}),
                         lat: currentLocation.latitude,
                         lng: currentLocation.longitude,
+                        limit: 100,
                     })
                     : Promise.resolve({ data: { success: true, result: { items: [] } } }),
                 customerApi.getCategories({ tree: true }),

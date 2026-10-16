@@ -172,7 +172,7 @@ const getCachedHomePageData = (location) =>
 const Home = () => {
   const { scrollY } = useScroll();
   const { isOpen: isProductDetailOpen } = useProductDetail();
-  const { currentLocation } = useLocation();
+  const { currentLocation, isFetchingLocation } = useLocation();
   const { settings } = useSettings();
   const navigate = useNavigate();
   const quickCatsRef = useRef(null);
@@ -209,16 +209,22 @@ const Home = () => {
   const [pendingReturn, setPendingReturn] = useState(null);
   const [offerSections, setOfferSections] = useState(() => cachedHomePageData?.offerSections || []);
   const [noServiceData, setNoServiceData] = useState(null);
+  // "Service unavailable" only once we have a location and its products
+  // finished loading; not while the location is still being detected
+  const hasLocation = Number.isFinite(currentLocation?.latitude) && Number.isFinite(currentLocation?.longitude);
+  const [loadedForKey, setLoadedForKey] = useState(null);
+  const showNoService = products.length === 0 && !isLoading && hasLocation && !isFetchingLocation
+    && loadedForKey === getHomePageDataCacheKey(currentLocation);
 
   useEffect(() => {
     productsRef.current = products || [];
   }, [products]);
 
   useEffect(() => {
-    if (products.length === 0 && !isLoading) {
+    if (showNoService) {
       import("@/assets/lottie/animation.json").then((m) => setNoServiceData(m.default)).catch(() => {});
     }
-  }, [products.length, isLoading]);
+  }, [showNoService]);
 
   const applyHomePageData = (data, { cacheKey, persist = true } = {}) => {
     if (!data) return;
@@ -242,12 +248,15 @@ const Home = () => {
     if (persist && cacheKey) homePageDataCache.set(cacheKey, data);
   };
 
-  const fetchData = async ({ forceRefresh = false } = {}) => {
+  const fetchSeqRef = useRef(0);
+  const fetchData = async ({ forceRefresh = false, attempt = 0 } = {}) => {
+    const seq = ++fetchSeqRef.current;
     const cacheKey = getHomePageDataCacheKey(currentLocation);
     if (!forceRefresh) {
       const cached = homePageDataCache.get(cacheKey);
       if (cached) {
         applyHomePageData(cached, { cacheKey, persist: false });
+        setLoadedForKey(cacheKey);
         setIsLoading(false);
         return;
       }
@@ -307,7 +316,19 @@ const Home = () => {
       const sectionsList = sectionsRes?.data?.results || sectionsRes?.data?.result || sectionsRes?.data;
       nextHomeData.offerSections = Array.isArray(sectionsList) ? sectionsList : [];
       applyHomePageData(nextHomeData, { cacheKey });
-    } catch (error) { console.error("Error:", error); } finally { setIsLoading(false); }
+      setLoadedForKey(cacheKey);
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Error:", error);
+      // A failed/slow request is not "no service here": keep loading and retry
+      // (twice, 3 s apart) instead of showing the service-unavailable screen
+      if (attempt < 2) {
+        setTimeout(() => { if (seq === fetchSeqRef.current) fetchData({ forceRefresh: true, attempt: attempt + 1 }); }, 3000);
+      } else {
+        setLoadedForKey(cacheKey);
+        setIsLoading(false);
+      }
+    }
   };
 
   const hydrateSelectedSectionProducts = async (sections = []) => {
@@ -405,12 +426,12 @@ const Home = () => {
   };
 
   return (
-    <div className={`min-h-screen pt-[212px] md:pt-[134px] ${products.length === 0 && !isLoading ? "bg-white" : "bg-[#F5F7F8]"}`}>
+    <div className={`min-h-screen pt-[212px] md:pt-[134px] ${showNoService ? "bg-white" : "bg-[#F5F7F8]"}`}>
       <div className={cn("contents", isProductDetailOpen && "hidden md:contents")}>
         <MainLocationHeader categories={categories} activeCategory={activeCategory} onCategorySelect={setActiveCategory} />
       </div>
 
-      {products.length === 0 && !isLoading ? (
+      {showNoService ? (
         <div className="flex flex-col items-center justify-center pt-24 pb-48">
           <div className="w-64 h-64 md:w-96 md:h-96 mb-8">{noServiceData && <Lottie animationData={noServiceData} loop={true} />}</div>
           <h3 className="text-3xl md:text-5xl font-black text-slate-800 text-center uppercase">Service <span className="text-primary">Unavailable</span></h3>

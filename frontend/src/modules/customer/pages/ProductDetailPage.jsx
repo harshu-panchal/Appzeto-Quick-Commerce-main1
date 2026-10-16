@@ -211,9 +211,13 @@ const ProductDetailPage = () => {
 
     return (
         <div className="relative z-10 py-8 w-full max-w-[1920px] mx-auto px-4 md:px-[50px] animate-in fade-in duration-700 mt-24">
-            <Link to={-1} className="inline-flex items-center gap-2 text-slate-500 hover:text-primary font-bold mb-6 transition-colors group">
+            <button
+                type="button"
+                onClick={() => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/', { replace: true }))}
+                className="inline-flex items-center gap-2 text-slate-500 hover:text-primary font-bold mb-6 transition-colors group"
+            >
                 <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" /> Back
-            </Link>
+            </button>
 
             <div className="flex flex-col lg:flex-row gap-10 xl:gap-16">
                 <div className="lg:w-[45%] xl:w-[40%] space-y-4">

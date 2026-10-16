@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import InvoiceModal from "../components/order/InvoiceModal";
 import HelpModal from "../components/order/HelpModal";
 import LiveTrackingMap from "../components/order/LiveTrackingMap";
@@ -14,7 +14,6 @@ import {
   Package,
   Truck,
   CheckCircle,
-  Clock,
   MapPin,
   CreditCard,
   Download,
@@ -28,9 +27,13 @@ import {
   Navigation2,
   Camera,
   X,
+  XCircle,
+  Star,
 } from "lucide-react";
 import { customerApi } from "../services/customerApi";
 import { toast } from "sonner";
+import { useConfirmDialog } from "@/shared/hooks/useConfirmDialog";
+import { ConfirmDialog } from "@/shared/components/ui";
 import { subscribeToOrderLocation, subscribeToOrderTrail, subscribeToOrderRoute } from "@/core/services/trackingClient";
 import {
   useOrderIdentifiers,
@@ -43,7 +46,6 @@ import {
   onOrderStatusUpdate,
   onCustomerOtp,
   onReturnPickupOtp,
-  onReturnDropOtp,
 } from "@/core/services/orderSocket";
 import { getLegacyStatusFromOrder } from "@/shared/utils/orderStatus";
 import { createSocketTokenReader } from "@core/utils/authStorage";
@@ -168,6 +170,12 @@ const OrderDetailPage = () => {
   const [returnCountdown, setReturnCountdown] = useState(null);
   const refreshRef = useRef({ inFlight: false, lastAt: 0, timer: null });
   const extraRoomRef = useRef("");
+  const cancelConfirm = useConfirmDialog();
+  // Delivery partner rating
+  const [ratingValue, setRatingValue] = useState(0);
+  const [ratingHover, setRatingHover] = useState(0);
+  const [ratingComment, setRatingComment] = useState("");
+  const [submittingRating, setSubmittingRating] = useState(false);
 
   const navigate = useNavigate();
   const isInvalidOrderId = !orderId || orderId === "undefined" || orderId === "null";
@@ -204,7 +212,21 @@ const OrderDetailPage = () => {
   });
 
   const order = orderDetailData?.order ?? null;
-  const returnDetails = orderDetailData?.returnDetails ?? null;
+  // The return section used to depend only on the separate /returns request;
+  // when that failed the return was invisible. The order itself carries the
+  // return fields, so fall back to them.
+  const fetchedReturnDetails = orderDetailData?.returnDetails ?? null;
+  const hasActiveReturn = (rs) => Boolean(rs) && rs !== "none";
+  const returnDetails = hasActiveReturn(fetchedReturnDetails?.returnStatus)
+    ? fetchedReturnDetails
+    : hasActiveReturn(order?.returnStatus)
+      ? {
+          ...(fetchedReturnDetails || {}),
+          returnStatus: order.returnStatus,
+          returnRefundAmount: order.returnRefundAmount,
+          returnRejectedReason: order.returnRejectedReason,
+        }
+      : fetchedReturnDetails;
 
   useEffect(() => {
     if (orderDetailData?.returnPickupOtp) {
@@ -269,6 +291,22 @@ const OrderDetailPage = () => {
     };
 
     const offStatus = onOrderStatusUpdate(getToken, (payload) => {
+      // The customer's personal room carries updates for ALL their orders —
+      // ignore other orders, otherwise one order's status overwrote this page.
+      if (payload?.orderId && !matchesOrderIdentifier(payload.orderId, identifiersRef.current)) {
+        return;
+      }
+      // Return flow: move the return tracker immediately (refetch follows below)
+      if (payload?.returnStatus) {
+        queryClient.setQueryData(orderDetailQueryKey, (prev) => {
+          if (!prev?.order) return prev;
+          return {
+            ...prev,
+            order: { ...prev.order, returnStatus: payload.returnStatus },
+            returnDetails: { ...(prev.returnDetails || {}), returnStatus: payload.returnStatus },
+          };
+        });
+      }
       // Immediately update order state from socket payload — no waiting for API re-fetch
       const ws = String(payload?.workflowStatus || "").toUpperCase();
       if (ws) {
@@ -444,6 +482,14 @@ const OrderDetailPage = () => {
       };
     }
 
+    // No rider yet: don't invent an ETA (the old fallback showed "8 mins" regardless)
+    if (!order.deliveryBoy) {
+      return {
+        arrivalTimeText: "--",
+        arrivingInText: "--",
+      };
+    }
+
     const targetLocation =
       routePhase === "delivery" ? order?.address?.location : sellerLocation;
 
@@ -553,6 +599,38 @@ const OrderDetailPage = () => {
     );
   }
 
+  const isOrderDelivered =
+    !!order &&
+    (order.status === "delivered" || String(order.workflowStatus || "").toUpperCase() === "DELIVERED");
+  const canRateDelivery = isOrderDelivered && !!order?.deliveryBoy;
+
+  const handleRateDelivery = async () => {
+    if (!order || ratingValue < 1) {
+      toast.error("Please select a rating");
+      return;
+    }
+    try {
+      setSubmittingRating(true);
+      const res = await customerApi.rateDelivery(order.orderId, {
+        rating: ratingValue,
+        comment: ratingComment.trim(),
+      });
+      const deliveryRating = res?.data?.result?.deliveryRating || {
+        rating: ratingValue,
+        comment: ratingComment.trim(),
+        ratedAt: new Date().toISOString(),
+      };
+      queryClient.setQueryData(orderDetailQueryKey, (prev) =>
+        prev?.order ? { ...prev, order: { ...prev.order, deliveryRating } } : prev,
+      );
+      toast.success("Thanks for rating your delivery partner!");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Could not submit rating");
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
+
   const canRequestReturn = () => {
     if (!order) return false;
     if (order.status === "cancelled") return false;
@@ -611,31 +689,55 @@ const OrderDetailPage = () => {
       images: returnImages,
     };
 
+    let submitted = null;
     try {
       setRequestingReturn(true);
-      await customerApi.requestReturn(order.orderId, payload);
-      toast.success("Return request submitted");
-      setShowReturnModal(false);
-      setSelectedReturnItems({});
-      setReturnReason("");
-      setReturnReasonDetail("");
-      setReturnConditionAssurance(false);
-      setReturnImages([]);
+      const res = await customerApi.requestReturn(order.orderId, payload);
+      submitted = res?.data?.result || null;
+    } catch (error) {
+      console.error("Failed to submit return request", error);
+      toast.error(
+        error.response?.data?.message || "Failed to submit return request",
+      );
+      setRequestingReturn(false);
+      return;
+    }
 
+    toast.success("Return request submitted");
+    setShowReturnModal(false);
+    setSelectedReturnItems({});
+    setReturnReason("");
+    setReturnReasonDetail("");
+    setReturnConditionAssurance(false);
+    setReturnImages([]);
+
+    // Show the return right away from the submit response
+    queryClient.setQueryData(orderDetailQueryKey, (prev) => ({
+      ...prev,
+      order: {
+        ...(prev?.order || order),
+        returnStatus: submitted?.returnStatus || "return_requested",
+        returnRequestedAt: submitted?.returnRequestedAt || new Date().toISOString(),
+      },
+      returnDetails: {
+        ...(prev?.returnDetails || {}),
+        returnStatus: submitted?.returnStatus || "return_requested",
+      },
+    }));
+
+    // Then pull full details; a failure here must not undo the success above
+    try {
       const [orderRes, retRes] = await Promise.all([
         customerApi.getOrderDetails(orderId),
         customerApi.getReturnDetails(resolveOrderLookupId(order)),
       ]);
       queryClient.setQueryData(orderDetailQueryKey, (prev) => ({
         ...prev,
-        order: orderRes.data.result,
-        returnDetails: retRes.data.result,
+        order: orderRes.data.result || prev?.order,
+        returnDetails: retRes.data.result || prev?.returnDetails,
       }));
     } catch (error) {
-      console.error("Failed to submit return request", error);
-      toast.error(
-        error.response?.data?.message || "Failed to submit return request",
-      );
+      console.error("Return submitted; refreshing details failed", error);
     } finally {
       setRequestingReturn(false);
     }
@@ -712,6 +814,44 @@ const OrderDetailPage = () => {
     }
   };
 
+  // Mirrors the backend's own cancellability check exactly, rather than
+  // the collapsed legacy "pending" bucket (which maps both CREATED and
+  // SELLER_PENDING to "pending" for v2 orders, but only SELLER_PENDING is
+  // actually cancellable via customerCancelV2 on the server).
+  const isCancellable =
+    !!order &&
+    (Number(order.workflowVersion) >= 2
+      ? String(order.workflowStatus || "").toUpperCase() === "SELLER_PENDING"
+      : order.status === "pending");
+
+  const handleCancelOrder = () => {
+    if (!order) return;
+    cancelConfirm.open({
+      title: "Cancel this order?",
+      message:
+        "This cancels your order and refunds any amount paid online. This cannot be undone.",
+      confirmLabel: "Cancel Order",
+      cancelLabel: "Go Back",
+      onConfirm: async () => {
+        try {
+          const response = await customerApi.cancelOrder(order.orderId, {
+            reason: "Cancelled by customer",
+          });
+          const updatedOrder = response?.data?.result;
+          queryClient.setQueryData(orderDetailQueryKey, (prev) => ({
+            ...prev,
+            order: updatedOrder || prev?.order,
+          }));
+          toast.success("Order cancelled successfully");
+        } catch (error) {
+          console.error("Failed to cancel order", error);
+          toast.error(error.response?.data?.message || "Failed to cancel order");
+          throw error;
+        }
+      },
+    });
+  };
+
   if (!order) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-slate-50 to-white">
@@ -725,7 +865,11 @@ const OrderDetailPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-24 font-sans">
+    <div
+      className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-24 font-sans"
+      data-order-status={order?.workflowStatus || status}
+      data-return-status={returnDetails?.returnStatus || order?.returnStatus || "none"}
+    >
       {/* Minimal Header */}
       <div className="bg-white/80 backdrop-blur-md sticky top-0 z-30 px-4 py-3 flex items-center justify-between border-b border-slate-100">
         <button
@@ -785,6 +929,7 @@ const OrderDetailPage = () => {
               eta={estimatedArrival.arrivingInText}
               riderName={order.deliveryBoy?.name || "Delivery Partner"}
               riderPhone={order.deliveryBoy?.phone || ""}
+              riderRating={order.deliveryBoy?.rating}
               riderLocation={liveLocation}
               sellerLocation={sellerLocation}
               destinationLocation={
@@ -814,6 +959,7 @@ const OrderDetailPage = () => {
           <DeliveryOtpDisplay
             orderId={order?.orderId || orderId}
             checkoutGroupId={order?.checkoutGroupId || orderId}
+            initialOtp={order?.activeDeliveryOtp || null}
           />
         )}
 
@@ -838,9 +984,10 @@ const OrderDetailPage = () => {
                     <User size={24} className="text-white" />
                   )}
                 </div>
-                {order.deliveryBoy && (
+                {/* real rating only — this used to be a hard-coded "4.8" for every rider */}
+                {Number(order.deliveryBoy?.rating) > 0 && (
                   <div className="absolute -bottom-1 -right-1 bg-white text-primary text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-md">
-                    4.8 ★
+                    {Number(order.deliveryBoy.rating).toFixed(1)} ★
                   </div>
                 )}
               </div>
@@ -888,9 +1035,10 @@ const OrderDetailPage = () => {
               <div className="flex items-center gap-2 mb-1">
                 <p className="text-xs font-bold text-orange-600 uppercase tracking-wider">Pickup Location</p>
               </div>
-              <h4 className="font-bold text-slate-900 text-base mb-1">Store Location</h4>
+              {/* This used to print order.address — the customer's own delivery address */}
+              <h4 className="font-bold text-slate-900 text-base mb-1">{order.seller?.shopName || "Store Location"}</h4>
               <p className="text-sm text-slate-500 leading-relaxed">
-                {order.address?.address || "Address not available"}
+                {(typeof order.seller?.address === "string" ? order.seller.address : order.seller?.address?.address) || "Store address not available"}
               </p>
             </div>
             <button
@@ -1061,6 +1209,98 @@ const OrderDetailPage = () => {
           </button>
         </motion.div>
 
+        {/* Cancel Order - Only while still cancellable (before seller accepts) */}
+        {isCancellable && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.37 }}
+          >
+            <button
+              onClick={handleCancelOrder}
+              className="w-full py-3.5 rounded-2xl bg-white border-2 border-red-200 text-red-600 font-bold hover:bg-red-50 transition-all flex items-center justify-center gap-2 text-sm shadow-sm hover:shadow-md active:scale-[0.98]">
+              <XCircle size={18} /> Cancel Order
+            </button>
+          </motion.div>
+        )}
+
+        {/* Rate Delivery Partner - after delivery */}
+        {canRateDelivery && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.38 }}
+            className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100"
+          >
+            {order.deliveryRating?.rating ? (
+              <div>
+                <h3 className="text-base font-bold text-slate-800 mb-2">Your rating</h3>
+                <div className="flex items-center gap-1" aria-label={`You rated ${order.deliveryRating.rating} out of 5`}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Star
+                      key={n}
+                      size={22}
+                      className={n <= order.deliveryRating.rating ? "text-amber-400 fill-amber-400" : "text-slate-200"}
+                    />
+                  ))}
+                  <span className="ml-2 text-sm font-semibold text-slate-600">
+                    for {order.deliveryBoy?.name || "your delivery partner"}
+                  </span>
+                </div>
+                {order.deliveryRating.comment && (
+                  <p className="mt-2 text-sm text-slate-500 italic">"{order.deliveryRating.comment}"</p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <h3 className="text-base font-bold text-slate-800">Rate your delivery partner</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    How was your delivery with {order.deliveryBoy?.name || "your delivery partner"}?
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5" role="radiogroup" aria-label="Delivery rating" onMouseLeave={() => setRatingHover(0)}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      role="radio"
+                      aria-checked={ratingValue === n}
+                      aria-label={`${n} star${n > 1 ? "s" : ""}`}
+                      onClick={() => setRatingValue(n)}
+                      onMouseEnter={() => setRatingHover(n)}
+                      className="p-1 transition-transform active:scale-90"
+                    >
+                      <Star
+                        size={30}
+                        className={n <= (ratingHover || ratingValue) ? "text-amber-400 fill-amber-400" : "text-slate-200"}
+                      />
+                    </button>
+                  ))}
+                </div>
+                {ratingValue > 0 && (
+                  <>
+                    <textarea
+                      value={ratingComment}
+                      onChange={(e) => setRatingComment(e.target.value.slice(0, 500))}
+                      rows={2}
+                      placeholder="Add a comment (optional)"
+                      className="w-full rounded-2xl border border-slate-200 px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                    />
+                    <button
+                      onClick={handleRateDelivery}
+                      disabled={submittingRating}
+                      className="w-full py-3.5 rounded-2xl bg-slate-900 text-white text-sm font-bold shadow-lg shadow-slate-900/10 hover:bg-slate-800 transition-all active:scale-[0.98] disabled:opacity-60"
+                    >
+                      {submittingRating ? "Submitting..." : "Submit Rating"}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </motion.div>
+        )}
+
         {/* Return Section - Only if applicable */}
         {order?.status !== "cancelled" && (canRequestReturn() || (returnDetails && returnDetails.returnStatus && returnDetails.returnStatus !== "none")) && (
           <motion.div
@@ -1079,7 +1319,10 @@ const OrderDetailPage = () => {
               returnDetails.returnStatus &&
               returnDetails.returnStatus !== "none" ? (
               <div className="space-y-4 text-sm">
-                <ReturnProgressTracker returnStatus={returnDetails.returnStatus} />
+                <ReturnProgressTracker
+                  returnStatus={returnDetails.returnStatus}
+                  refundAmount={returnDetails.returnRefundAmount}
+                />
 
                 {/* Return OTP Display for Customer if pickup is assigned */}
                 {returnDetails.returnStatus === "return_pickup_assigned" && (
@@ -1150,6 +1393,18 @@ const OrderDetailPage = () => {
         order={order}
       />
       <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
+
+      <ConfirmDialog
+        isOpen={cancelConfirm.isOpen}
+        title={cancelConfirm.title}
+        message={cancelConfirm.message}
+        confirmLabel={cancelConfirm.confirmLabel}
+        cancelLabel={cancelConfirm.cancelLabel}
+        onConfirm={cancelConfirm.handleConfirm}
+        onCancel={cancelConfirm.close}
+        loading={cancelConfirm.loading}
+        variant="danger"
+      />
 
       {/* Return Request Modal */}
       {showReturnModal && (

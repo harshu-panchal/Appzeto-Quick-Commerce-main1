@@ -29,6 +29,7 @@ const ReviewModeration = () => {
     const [replyText, setReplyText] = useState('');
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
+    const [view, setView] = useState('all');
 
     useEffect(() => {
         setPage(1);
@@ -71,7 +72,8 @@ const ReviewModeration = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isError]);
 
-    const reviews = queryData?.items ?? [];
+    const allReviews = queryData?.items ?? [];
+    const reviews = view === 'flagged' ? allReviews.filter((r) => r.status === 'flagged') : allReviews;
     const total = queryData?.total ?? 0;
 
     // Audit fix: approving publishes the review publicly — delete already
@@ -129,8 +131,19 @@ const ReviewModeration = () => {
                 description="Protect community integrity and store reputations."
                 actions={
                     <div className="flex rounded-xl bg-slate-100 p-1">
-                        <button className="rounded-lg bg-white px-4 py-2 text-[10px] font-black uppercase text-slate-900 shadow-sm">All Reviews</button>
-                        <button className="rounded-lg px-4 py-2 text-[10px] font-black uppercase text-slate-400 hover:text-slate-600">Flagged Only</button>
+                        {[['all', 'All Reviews'], ['flagged', 'Flagged Only']].map(([key, label]) => (
+                            <button
+                                key={key}
+                                type="button"
+                                onClick={() => setView(key)}
+                                className={cn(
+                                    "rounded-lg px-4 py-2 text-[10px] font-black uppercase",
+                                    view === key ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                                )}
+                            >
+                                {label}
+                            </button>
+                        ))}
                     </div>
                 }
             />

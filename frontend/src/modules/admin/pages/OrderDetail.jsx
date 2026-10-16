@@ -1,5 +1,5 @@
 // Ultimate Order Intelligence Dossier
-import React, { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -33,6 +33,8 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@shared/components/ui/Toast';
 import ConfirmDialog from '@shared/components/ui/ConfirmDialog';
 import useConfirmDialog from '@shared/hooks/useConfirmDialog';
+import { getLegacyStatusFromOrder } from '@/shared/utils/orderStatus';
+import { orderCustomerName, orderCustomerPhone } from '@/shared/utils/orderCustomer';
 
 const OrderDetail = () => {
     const { orderId } = useParams();
@@ -71,7 +73,8 @@ const OrderDetail = () => {
             queryClient.invalidateQueries({ queryKey: orderQueryKey }); // Refresh data
         } catch (error) {
             console.error("Failed to update status:", error);
-            showToast("Failed to update status", "error");
+            const message = error.response?.data?.message || "Failed to update status";
+            showToast(message, "error");
         }
     };
 
@@ -190,27 +193,37 @@ const OrderDetail = () => {
         );
     }
 
+    // For v2-workflow orders, `order.status` is a legacy mirror the
+    // atomic workflow engine (seller-accept / delivery-accept / etc.)
+    // keeps resetting to "confirmed" on every transition; the real status
+    // — including "packed", which is tracked separately via
+    // `sellerPackedAt` since packing isn't itself a workflow stage — only
+    // comes from this derivation. Use it everywhere `order.status` was
+    // read for display or as the dropdown's current value.
+    const displayStatus = getLegacyStatusFromOrder(order);
+
     return (
         <div className="space-y-5">
             {/* Control Bar */}
             <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
-                <div className="flex items-center gap-4">
+                <div className="flex min-w-0 items-center gap-4">
                     <button
                         onClick={() => navigate(-1)}
                         className="group rounded-xl border border-slate-200 bg-white p-2.5 text-slate-400 transition-all hover:bg-slate-50"
                     >
                         <ChevronLeft className="h-5 w-5 transition-transform group-hover:-translate-x-1" />
                     </button>
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <h1 className="text-xl font-black text-slate-900">Order #{order.orderId}</h1>
-                            <div className="relative inline-block w-40">
+                    <div className="min-w-0">
+                        {/* wraps on phones: the long order id + status dropdown overflowed by ~200px */}
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                            <h1 className="min-w-0 break-all text-lg font-black text-slate-900 sm:text-xl">Order #{order.orderId}</h1>
+                            <div className="relative inline-block w-40 shrink-0">
                                 <select
-                                    value={order.status}
+                                    value={displayStatus}
                                     onChange={(e) => handleStatusUpdate(e.target.value)}
                                     className={cn(
                                         "w-full cursor-pointer appearance-none rounded-lg border py-1.5 pl-3 pr-8 text-[10px] font-bold uppercase tracking-widest shadow-sm outline-none transition-all",
-                                        getStatusStyles(order.status)
+                                        getStatusStyles(displayStatus)
                                     )}
                                 >
                                     <option value="pending">Pending</option>
@@ -223,7 +236,7 @@ const OrderDetail = () => {
                                 <Info className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 opacity-60" />
                             </div>
                         </div>
-                        <p className="mt-1 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                        <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-slate-400">
                             <Calendar className="h-3.5 w-3.5" />
                             {new Date(order.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })} • <Clock className="ml-1 h-3.5 w-3.5" /> {new Date(order.createdAt).toLocaleTimeString()}
                         </p>
@@ -344,11 +357,17 @@ const OrderDetail = () => {
                                 <div className="flex-1 pb-3">
                                     <div className="mb-1 flex items-center justify-between">
                                         <h4 className="text-xs font-black uppercase tracking-tight text-slate-900">
-                                            Status: {order.status.replace(/_/g, ' ')}
+                                            Status: {displayStatus.replace(/_/g, ' ')}
                                         </h4>
-                                        <span className="text-[10px] font-bold uppercase text-slate-400">{new Date(order.updatedAt).toLocaleTimeString()}</span>
+                                        <span className="text-[10px] font-bold uppercase text-slate-400">
+                                            {(() => {
+                                                // updatedAt isn't always in the response; fall back to the last known timestamp
+                                                const d = new Date(order.updatedAt || order.deliveredAt || order.createdAt);
+                                                return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString();
+                                            })()}
+                                        </span>
                                     </div>
-                                    <p className="text-[11px] font-medium italic leading-relaxed text-slate-400">"System verified current logistical state as {order.status}."</p>
+                                    <p className="text-[11px] font-medium italic leading-relaxed text-slate-400">"System verified current logistical state as {displayStatus}."</p>
                                 </div>
                             </div>
                         </div>
@@ -371,7 +390,7 @@ const OrderDetail = () => {
                             />
                             <div className="text-left">
                                 <h3 className="text-base font-black leading-tight text-slate-900">
-                                    {order.customer?.name}
+                                    {orderCustomerName(order)}
                                 </h3>
                                 <p className="text-xs font-bold text-slate-400">
                                     ID: {order.customer?._id}
@@ -384,7 +403,7 @@ const OrderDetail = () => {
                                     <Mail className="h-3.5 w-3.5" /> {order.customer?.email}
                                 </span>
                                 <span className="flex items-center gap-2.5 text-[10px] font-bold text-slate-400">
-                                    <Phone className="h-3.5 w-3.5" /> {order.customer?.phone}
+                                    <Phone className="h-3.5 w-3.5" /> {orderCustomerPhone(order)}
                                 </span>
                             </div>
                             <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
@@ -535,6 +554,7 @@ const OrderDetail = () => {
 
                         {/* Top Meta Details */}
                         <table width="100%" cellPadding="0" cellSpacing="0" style={{ marginBottom: "50px", borderBottom: "1px solid #f1f5f9", paddingBottom: "25px" }}>
+                            <tbody>
                             <tr>
                                 <td width="50%" style={{ verticalAlign: "bottom" }}>
                                     <div style={{ fontSize: "28px", fontWeight: "900", color: "#0f172a" }}>INVOICE</div>
@@ -544,19 +564,21 @@ const OrderDetail = () => {
                                     <div style={{ fontSize: "10px", color: "#64748b", fontWeight: "700" }}>Issued: {new Date(order.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</div>
                                 </td>
                             </tr>
+                        </tbody>
                         </table>
 
                         {/* Address Grid */}
                         <table width="100%" cellPadding="0" cellSpacing="0" style={{ marginBottom: "55px" }}>
+                            <tbody>
                             <tr>
                                 <td width="48%" style={{ verticalAlign: "top", paddingRight: "25px" }}>
                                     <div style={{ fontSize: "9px", fontWeight: "900", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "1.5px", marginBottom: "12px" }}>Billed To</div>
-                                    <div style={{ fontSize: "16px", fontWeight: "800", color: "#0f172a", marginBottom: "8px" }}>{order.customer?.name}</div>
+                                    <div style={{ fontSize: "16px", fontWeight: "800", color: "#0f172a", marginBottom: "8px" }}>{orderCustomerName(order)}</div>
                                     <div style={{ fontSize: "12px", color: "#475569", lineHeight: "1.7" }}>
                                         {order.address?.address},<br />
                                         {order.address?.landmark && `${order.address.landmark}, `}{order.address?.city}
                                     </div>
-                                    <div style={{ fontSize: "11px", fontWeight: "700", color: "#64748b", marginTop: "15px" }}>Contact: {order.customer?.phone}</div>
+                                    <div style={{ fontSize: "11px", fontWeight: "700", color: "#64748b", marginTop: "15px" }}>Contact: {orderCustomerPhone(order)}</div>
                                 </td>
                                 <td width="4%" style={{ borderLeft: "1px solid #f1f5f9" }}></td>
                                 <td width="48%" style={{ verticalAlign: "top", paddingLeft: "25px" }}>
@@ -569,6 +591,7 @@ const OrderDetail = () => {
                                     <div style={{ fontSize: "11px", fontWeight: "800", color: "#2563eb", marginTop: "15px" }}>{settings?.taxId ? `GSTIN: ${settings.taxId}` : 'Tax Verified Partner'}</div>
                                 </td>
                             </tr>
+                        </tbody>
                         </table>
 
                         {/* Manifest Table */}
@@ -600,6 +623,7 @@ const OrderDetail = () => {
 
                         {/* Totals Summary */}
                         <table width="100%" cellPadding="0" cellSpacing="0" style={{ marginBottom: "60px" }}>
+                            <tbody>
                             <tr>
                                 <td width="50%" style={{ verticalAlign: "top" }}>
                                     <div style={{ backgroundColor: "#f8fafc", padding: "25px", borderRadius: "8px", border: "1px solid #f1f5f9" }}>
@@ -611,6 +635,7 @@ const OrderDetail = () => {
                                 <td width="10%"></td>
                                 <td width="40%" style={{ verticalAlign: "top" }}>
                                     <table width="100%" cellPadding="8" cellSpacing="0">
+                                        <tbody>
                                         <tr>
                                             <td align="left" style={{ fontSize: "12px", color: "#64748b", fontWeight: "700" }}>Subtotal Aggregate</td>
                                             <td align="right" style={{ fontSize: "13px", fontWeight: "800", color: "#0f172a" }}>₹{order.pricing?.subtotal || 0}</td>
@@ -626,9 +651,11 @@ const OrderDetail = () => {
                                             <td align="left" style={{ fontSize: "15px", fontWeight: "900", color: "#0f172a" }}>Grand Total</td>
                                             <td align="right" style={{ fontSize: "24px", fontWeight: "900", color: "#2563eb" }}>₹{order.pricing?.total || 0}</td>
                                         </tr>
+                                    </tbody>
                                     </table>
                                 </td>
                             </tr>
+                        </tbody>
                         </table>
 
                         {/* Footer: Centered Verification */}

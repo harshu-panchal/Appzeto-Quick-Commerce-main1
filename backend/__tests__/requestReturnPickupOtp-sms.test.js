@@ -52,7 +52,7 @@ jest.unstable_mockModule("../app/services/mapsGeocodeService.js", () => ({
 jest.unstable_mockModule("../app/models/transaction.js", () => ({ default: {} }));
 
 jest.unstable_mockModule("../app/utils/orderLookup.js", () => ({
-  orderMatchQueryFromRouteParam: jest.fn(),
+  orderMatchQueryFromRouteParam: (orderId) => ({ orderId }),
 }));
 
 jest.unstable_mockModule("../app/services/finance/walletService.js", () => ({
@@ -96,14 +96,19 @@ describe("requestReturnPickupOtp SMS dispatch (audit ReferenceError fix)", () =>
     });
     mockOrderFindOne.mockReturnValue({
       select: () => ({
-        lean: () => Promise.resolve({ customer: "cust-1", address: { phone: "9999999999" } }),
+        lean: () => Promise.resolve({
+          customer: "cust-1",
+          address: { phone: "9999999999" },
+          returnDeliveryBoy: "rider-1",
+          returnStatus: "return_pickup_assigned",
+        }),
       }),
     });
     mockCustomerFindById.mockReturnValue({
       lean: () => Promise.resolve({ phone: "8888888888" }),
     });
 
-    const req = { params: { orderId: "ORD-1" } };
+    const req = { params: { orderId: "ORD-1" }, user: { id: "rider-1", role: "delivery" } };
     const res = makeRes();
 
     await requestReturnPickupOtp(req, res);
@@ -124,14 +129,19 @@ describe("requestReturnPickupOtp SMS dispatch (audit ReferenceError fix)", () =>
     });
     mockOrderFindOne.mockReturnValue({
       select: () => ({
-        lean: () => Promise.resolve({ customer: "cust-1", address: { phone: "7777777777" } }),
+        lean: () => Promise.resolve({
+          customer: "cust-1",
+          address: { phone: "7777777777" },
+          returnDeliveryBoy: "rider-1",
+          returnStatus: "return_pickup_assigned",
+        }),
       }),
     });
     mockCustomerFindById.mockReturnValue({
       lean: () => Promise.resolve({ phone: null }),
     });
 
-    const req = { params: { orderId: "ORD-2" } };
+    const req = { params: { orderId: "ORD-2" }, user: { id: "rider-1", role: "delivery" } };
     const res = makeRes();
 
     await requestReturnPickupOtp(req, res);
@@ -141,5 +151,25 @@ describe("requestReturnPickupOtp SMS dispatch (audit ReferenceError fix)", () =>
     expect(mockSendSmsIndiaHubOtp).toHaveBeenCalledWith(
       expect.objectContaining({ phone: "7777777777", otp: "5678" }),
     );
+  });
+
+  it("refuses a rider who is not assigned to the return pickup", async () => {
+    mockOrderFindOne.mockReturnValue({
+      select: () => ({
+        lean: () => Promise.resolve({
+          customer: "cust-1",
+          returnDeliveryBoy: "rider-1",
+          returnStatus: "return_pickup_assigned",
+        }),
+      }),
+    });
+
+    const req = { params: { orderId: "ORD-3" }, user: { id: "rider-2", role: "delivery" } };
+    const res = makeRes();
+
+    await requestReturnPickupOtp(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(mockGenerateReturnPickupOtp).not.toHaveBeenCalled();
   });
 });

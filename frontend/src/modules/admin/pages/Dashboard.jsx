@@ -51,6 +51,9 @@ const AdminDashboard = () => {
     }, [isError]);
 
     const overview = statsData?.overview || {};
+    // real last-30-days vs previous-30-days changes from the server
+    const trends = overview.trends || {};
+    const dir = (t) => (t && t.startsWith('-') ? 'down' : 'up');
     const formatLastUpdated = (value) => {
         if (!value) return 'Last Update: --';
         const now = new Date();
@@ -78,8 +81,9 @@ const AdminDashboard = () => {
             icon: Users,
             color: 'text-primary',
             bg: 'bg-primary/10',
-            trend: '+12.5%',
-            description: 'Active this month',
+            trend: trends.users,
+            trendDirection: dir(trends.users),
+            description: `${overview.newUsers30 ?? 0} joined in last 30 days`,
             onClick: () => navigate('/admin/customers')
         },
         {
@@ -88,7 +92,8 @@ const AdminDashboard = () => {
             icon: Store,
             color: 'text-info',
             bg: 'bg-info/10',
-            trend: '+5.2%',
+            trend: trends.sellers,
+            trendDirection: dir(trends.sellers),
             description: 'Verified stores',
             onClick: () => navigate('/admin/sellers/active')
         },
@@ -98,8 +103,9 @@ const AdminDashboard = () => {
             icon: Truck,
             color: 'text-warning',
             bg: 'bg-warning/10',
-            trend: '+18.4%',
-            description: 'Last 30 days',
+            trend: trends.orders,
+            trendDirection: dir(trends.orders),
+            description: `${overview.orders30 ?? 0} in last 30 days`,
             onClick: () => navigate('/admin/orders/all')
         },
         {
@@ -108,7 +114,8 @@ const AdminDashboard = () => {
             icon: BarChart3,
             color: 'text-success',
             bg: 'bg-success/10',
-            trend: '+8.2%',
+            trend: trends.revenue,
+            trendDirection: dir(trends.revenue),
             description: 'Net earnings',
             onClick: () => navigate('/admin/wallet')
         },
@@ -175,6 +182,7 @@ const AdminDashboard = () => {
                             value={stat.value}
                             icon={stat.icon}
                             trend={stat.trend}
+                            trendDirection={stat.trendDirection}
                             description={stat.description}
                             color={stat.color}
                             bg={stat.bg}
@@ -227,8 +235,8 @@ const AdminDashboard = () => {
                                     </PieChart>
                                 </ResponsiveContainer>
                                 <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                                    <span className="text-xl font-black text-slate-900">72%</span>
-                                    <span className="text-[9px] font-bold uppercase text-slate-400">Growth</span>
+                                    <span className="text-xl font-black text-slate-900">{(overview.totalProducts || 0).toLocaleString()}</span>
+                                    <span className="text-[9px] font-bold uppercase text-slate-400">Products</span>
                                 </div>
                             </>
                         </ChartCard>
@@ -297,7 +305,7 @@ const AdminDashboard = () => {
                                         </div>
                                         <div className="text-right">
                                             <p className="text-sm font-bold text-slate-900">{product.rev}</p>
-                                            <p className="text-[10px] font-bold text-success">{product.trend}</p>
+                                            <p className="text-[10px] font-bold text-slate-400">{product.sales} sold</p>
                                         </div>
                                     </div>
                                 )) : (

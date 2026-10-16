@@ -44,12 +44,15 @@ jest.unstable_mockModule("../app/utils/pagination.js", () => ({
 jest.unstable_mockModule("../app/constants/orderWorkflow.js", () => ({
   WORKFLOW_STATUS: {},
   DEFAULT_SELLER_TIMEOUT_MS: () => 0,
+  workflowFromLegacyStatus: jest.fn(),
+  legacyStatusFromWorkflow: jest.fn(),
 }));
 
 jest.unstable_mockModule("../app/services/orderWorkflowService.js", () => ({
   afterPlaceOrderV2: jest.fn(),
   sellerAcceptAtomic: jest.fn(),
   sellerRejectAtomic: jest.fn(),
+  sellerCancelAcceptedAtomic: jest.fn(),
   deliveryAcceptAtomic: jest.fn(),
   customerCancelV2: jest.fn(),
   resolveWorkflowStatus: jest.fn(),

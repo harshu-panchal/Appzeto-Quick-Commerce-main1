@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useRef 
 import { customerApi } from "../services/customerApi";
 import { useAuth } from "../../../core/context/AuthContext";
 import { getJSON, setJSON, remove as removeStorage, STORAGE_KEYS } from "@core/utils/storage";
+import { toast } from "sonner";
 
 const CartContext = createContext();
 
@@ -15,6 +16,23 @@ const loadGuestCart = () => {
 };
 
 export const useCart = () => useContext(CartContext);
+
+/**
+ * Units of this product/variant the customer may buy: the variant's stock when
+ * the variant tracks it, otherwise the product's master stock. Infinity when
+ * the payload carries no stock data (never block on missing data).
+ */
+export const getAvailableStock = (product, variantSku = "") => {
+  const key = String(variantSku || "").trim();
+  const variants = Array.isArray(product?.variants) ? product.variants : [];
+  const variant = key && variants.find((v) => String(v?.sku || "").trim() === key || String(v?.name || "").trim() === key);
+  const raw = variant && variant.stock != null ? variant.stock : product?.stock;
+  const n = Number(raw);
+  return raw == null || raw === "" || !Number.isFinite(n) ? Infinity : Math.max(0, n);
+};
+
+const warnStockLimit = (max) =>
+  toast.error(max > 0 ? `Only ${max} available` : "Out of stock", { id: "cart-stock-limit" });
 
 export const CartProvider = ({ children }) => {
   const { isAuthenticated } = useAuth();
@@ -126,6 +144,13 @@ export const CartProvider = ({ children }) => {
     const key = `${id}::${variantSku || ""}`;
     const { price, salePrice, variantName } = resolveVariantPricing(product, variantSku);
 
+    const inCart = cart.find((item) => `${item.id || item._id}::${String(item.variantSku || "").trim()}` === key);
+    const max = getAvailableStock(inCart ? { ...product, ...inCart } : product, variantSku);
+    if ((inCart?.quantity || 0) + 1 > max) {
+      warnStockLimit(max);
+      return;
+    }
+
     // Optimistic UI update for instant feedback
     setCart((prev) => {
       const existingItem = prev.find(
@@ -217,6 +242,11 @@ export const CartProvider = ({ children }) => {
     if (!currentItem) return;
 
     const newQty = Math.max(0, currentItem.quantity + delta);
+    const max = getAvailableStock(currentItem, normalizedVariantSku);
+    if (delta > 0 && newQty > max) {
+      warnStockLimit(max);
+      return;
+    }
 
     if (newQty === 0) {
       removeFromCart(productId, normalizedVariantSku);
@@ -256,6 +286,24 @@ export const CartProvider = ({ children }) => {
     }
   };
 
+  // Typed quantity: clamp to 0..available stock, then apply as a delta
+  const setQuantity = (productId, qty, variantSku = "") => {
+    const normalizedVariantSku = String(variantSku || "").trim();
+    const key = `${productId}::${normalizedVariantSku || ""}`;
+    const currentItem = cart.find(
+      (item) => `${item.id || item._id}::${String(item.variantSku || "").trim()}` === key,
+    );
+    if (!currentItem) return;
+    let target = Math.max(0, Math.floor(Number(qty) || 0));
+    const max = getAvailableStock(currentItem, normalizedVariantSku);
+    if (target > max) {
+      warnStockLimit(max);
+      target = max;
+    }
+    const delta = target - currentItem.quantity;
+    if (delta !== 0) updateQuantity(productId, delta, normalizedVariantSku);
+  };
+
   const clearCart = async () => {
     if (isAuthenticated) {
       try {
@@ -283,10 +331,12 @@ export const CartProvider = ({ children }) => {
     addToCart,
     removeFromCart,
     updateQuantity,
+    setQuantity,
     clearCart,
     cartTotal,
     cartCount,
     loading,
+    getAvailableStock,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [cart, cartTotal, cartCount, loading]);
 

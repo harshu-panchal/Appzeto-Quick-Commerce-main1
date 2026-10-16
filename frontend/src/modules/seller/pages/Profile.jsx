@@ -9,8 +9,6 @@ import {
   Edit2,
   Save,
   X,
-  Rocket,
-  Globe,
   MapPin,
 } from "lucide-react";
 import { sellerApi } from "../services/sellerApi";
@@ -236,16 +234,16 @@ const SellerProfile = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5">
         {/* Main Info Card */}
-        <div className="space-y-5 md:col-span-2">
+        <div className="space-y-5">
           <Card className="p-6">
             <h3 className="mb-6 border-b border-slate-50 pb-4 text-lg font-black text-slate-900">
               Business Profile
             </h3>
 
             <form className="space-y-5">
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
                 <div className="space-y-1.5">
                   <label className="ml-1 text-xs font-bold uppercase tracking-widest text-slate-600">
                     Seller Identity
@@ -361,7 +359,7 @@ const SellerProfile = () => {
                           ? "Store Location Pin"
                           : "Location Not Defined"}
                       </p>
-                      <p className="max-w-[400px] text-xs font-medium leading-relaxed text-slate-500">
+                      <p className="max-w-3xl text-xs font-medium leading-relaxed text-slate-500">
                         {formData.address ||
                           "Click change to precisely mark your shop location on the map for delivery accuracy."}
                       </p>
@@ -423,54 +421,6 @@ const SellerProfile = () => {
                   exactly at your physical storefront for accurate delivery
                   assignments.
                 </p>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Sidebar Card */}
-        <div className="space-y-5">
-          <Card className="border-none bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-800 p-6 text-white">
-            <h4 className="mb-5 text-[10px] font-bold uppercase tracking-widest text-white/40">
-              Security & Trust
-            </h4>
-            <div className="space-y-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
-                  <Shield size={18} className="text-white" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-widest text-white/60">
-                    Verification
-                  </p>
-                  <p className="text-sm font-bold">
-                    {profile?.isVerified
-                      ? "Verified Merchant"
-                      : "Verification Pending"}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
-                  <Rocket size={18} className="text-white" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-widest text-white/60">
-                    Partner Tier
-                  </p>
-                  <p className="text-sm font-bold">Standard Growth</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
-                  <Globe size={18} className="text-white" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-widest text-white/60">
-                    Region
-                  </p>
-                  <p className="text-sm font-bold">Pan India Reach</p>
-                </div>
               </div>
             </div>
           </Card>

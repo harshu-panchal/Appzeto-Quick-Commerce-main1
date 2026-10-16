@@ -745,6 +745,16 @@ const CheckoutPage = () => {
         }
       } catch (error) {
         console.error("Checkout preview failed", error);
+        // The server rejected the applied coupon (e.g. cart dropped below its
+        // minimum): drop it so the bill falls back to the real total.
+        const status = error.response?.status;
+        if (selectedCoupon && status >= 400 && status < 500) {
+          setSelectedCoupon(null);
+          showToast(
+            error.response?.data?.message || "Coupon no longer applies to this cart",
+            "error",
+          );
+        }
       } finally {
         setIsPreviewLoading(false);
       }
@@ -861,7 +871,7 @@ const CheckoutPage = () => {
                 "Order created but payment gateway failed. Please pay from order details.",
               "error"
             );
-            navigate(`/orders/${mainOrderId}`);
+            navigate(`/orders/${mainOrderId}`, { replace: true });
             return;
           }
         }
@@ -878,7 +888,7 @@ const CheckoutPage = () => {
         postOrderNavigateRef.current = setTimeout(() => {
           postOrderNavigateRef.current = null;
           setIsPlacingOrder(false);
-          navigate(`/orders/${mainOrderId}`);
+          navigate(`/orders/${mainOrderId}`, { replace: true });
         }, 3000);
       } else {
         setIsPlacingOrder(false);
@@ -1147,6 +1157,12 @@ const CheckoutPage = () => {
       {/* Sticky Footer — Mobile Only */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 py-4 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-50 rounded-t-3xl">
         <div className="max-w-4xl mx-auto">
+          <div className="mb-2 flex items-baseline justify-between">
+            <span className="text-sm text-slate-600">To pay</span>
+            <span className="text-lg font-bold text-slate-900">
+              {isPreviewLoading || !pricingPreview ? "…" : `₹${Number(finalAmountToPay || 0).toLocaleString("en-IN")}`}
+            </span>
+          </div>
           <SlideToPay
             amount={finalAmountToPay}
             onSuccess={handlePlaceOrder}

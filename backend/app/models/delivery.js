@@ -95,6 +95,31 @@ const deliverySchema = new mongoose.Schema(
             default: false,
         },
 
+        applicationStatus: {
+            type: String,
+            enum: ["pending", "approved", "rejected"],
+            default: "pending",
+        },
+
+        rejectionReason: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+
+        // Average of customer ratings (1-5) on delivered orders, recomputed on each new rating
+        rating: {
+            type: Number,
+            default: 0,
+            min: 0,
+            max: 5,
+        },
+        ratingCount: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
+
 
 
         isOnline: {

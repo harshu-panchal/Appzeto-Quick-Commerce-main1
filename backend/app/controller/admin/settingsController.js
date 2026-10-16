@@ -1,6 +1,13 @@
 import Setting from "../../models/setting.js";
 import handleResponse from "../../utils/helper.js";
 import { normalizeProductApprovalConfig } from "../../services/productModerationService.js";
+import {
+  ORDER_TIMEOUT_FIELDS,
+  MIN_ORDER_TIMEOUT_SEC,
+  MAX_ORDER_TIMEOUT_SEC,
+  applyOrderTimeoutSettings,
+} from "../../services/orderTimeoutSettings.js";
+import { invalidate } from "../../services/cacheService.js";
 
 function flattenForMongoSet(prefix, value, target) {
   if (value === undefined) return;
@@ -52,6 +59,20 @@ export const getPlatformSettings = async (req, res) => {
 export const updatePlatformSettings = async (req, res) => {
   try {
     const payload = req.body || {};
+
+    // Order accept windows: whole seconds within the allowed range
+    for (const field of ORDER_TIMEOUT_FIELDS) {
+      if (payload[field] === undefined) continue;
+      const seconds = Number(payload[field]);
+      if (!Number.isInteger(seconds) || seconds < MIN_ORDER_TIMEOUT_SEC || seconds > MAX_ORDER_TIMEOUT_SEC) {
+        return handleResponse(
+          res,
+          400,
+          `Order timers must be whole seconds between ${MIN_ORDER_TIMEOUT_SEC} and ${MAX_ORDER_TIMEOUT_SEC}`,
+        );
+      }
+    }
+
     const toSet = {};
     for (const [key, value] of Object.entries(payload)) {
       flattenForMongoSet(key, value, toSet);
@@ -65,6 +86,11 @@ export const updatePlatformSettings = async (req, res) => {
 
     const result = settings?.toObject?.() || settings || {};
     result.productApproval = normalizeProductApprovalConfig(result);
+
+    // new order timers apply at once here (other processes within 30s), and
+    // customer/seller apps read fresh settings
+    applyOrderTimeoutSettings(result);
+    await invalidate("cache:platform:settings:*").catch(() => {});
 
     return handleResponse(
       res,

@@ -3,6 +3,7 @@ import { ChevronLeft, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { legalPagesApi } from "@core/services/legalPagesApi";
 import { cn } from "@/lib/utils";
+import { sanitizeHtml } from "@core/utils/sanitizeHtml";
 
 /**
  * Shared legal document viewer — fetches and renders sanitized HTML.
@@ -129,7 +130,7 @@ const LegalDocumentView = ({
                 "[&_a]:text-primary [&_a]:underline",
                 contentClassName,
               )}
-              dangerouslySetInnerHTML={{ __html: html }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
             />
           )}
         </div>

@@ -16,6 +16,8 @@ export const deliveryApi = {
     axiosInstance.get("/delivery/order-history", { params, ...config }),
   getAvailableOrders: (params = {}, config = {}) =>
     axiosInstance.get("/orders/available", { params, ...config }),
+  // orders this rider skipped that are still open, to accept later
+  getSkippedOrders: () => axiosInstance.get("/orders/delivery/skipped"),
   acceptOrder: (orderId, idempotencyKey) =>
     axiosInstance.put(
       `/orders/accept/${encodeURIComponent(String(orderId))}`,

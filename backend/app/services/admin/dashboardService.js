@@ -6,6 +6,13 @@ import Product from "../../models/product.js";
 
 const DASHBOARD_CATEGORY_COLORS = ["#4f46e5", "#10b981", "#f59e0b", "#ef4444"];
 
+/** "+12.3%" style change between two periods; null when there is nothing to compare. */
+function percentChange(current, previous) {
+  if (!previous) return current > 0 ? "+100%" : null;
+  const p = ((current - previous) / previous) * 100;
+  return `${p >= 0 ? "+" : ""}${p.toFixed(1)}%`;
+}
+
 export async function getAdminDashboardStats() {
   const [totalCustomers, totalSellers, totalRiders, totalOrders] =
     await Promise.all([
@@ -17,6 +24,31 @@ export async function getAdminDashboardStats() {
 
   const totalUsers = totalCustomers;
   const activeSellers = await Seller.countDocuments({ isVerified: true });
+
+  // last 30 days vs the 30 before, for the KPI trend badges (these used to be
+  // fixed numbers)
+  const DAY = 24 * 60 * 60 * 1000;
+  const since30 = new Date(Date.now() - 30 * DAY);
+  const since60 = new Date(Date.now() - 60 * DAY);
+  const windowCount = (Model, filter = {}) =>
+    Promise.all([
+      Model.countDocuments({ ...filter, createdAt: { $gte: since30 } }),
+      Model.countDocuments({ ...filter, createdAt: { $gte: since60, $lt: since30 } }),
+    ]);
+  const windowRevenue = async (from, to) =>
+    (await Order.aggregate([
+      { $match: { status: "delivered", createdAt: { $gte: from, $lt: to } } },
+      { $group: { _id: null, total: { $sum: "$pricing.total" } } },
+    ]))[0]?.total || 0;
+  const [[newUsers, prevUsers], [newSellers, prevSellers], [orders30, ordersPrev30], revenue30, revenuePrev30, totalProducts] =
+    await Promise.all([
+      windowCount(User, { role: "user" }),
+      windowCount(Seller),
+      windowCount(Order),
+      windowRevenue(since30, new Date()),
+      windowRevenue(since60, since30),
+      Product.countDocuments(),
+    ]);
 
   const revenueData = await Order.aggregate([
     { $match: { status: "delivered" } },
@@ -114,6 +146,15 @@ export async function getAdminDashboardStats() {
       activeSellers,
       totalOrders,
       totalRevenue,
+      totalProducts,
+      trends: {
+        users: percentChange(newUsers, prevUsers),
+        sellers: percentChange(newSellers, prevSellers),
+        orders: percentChange(orders30, ordersPrev30),
+        revenue: percentChange(revenue30, revenuePrev30),
+      },
+      newUsers30: newUsers,
+      orders30,
     },
     revenueHistory,
     recentOrders: recentOrders.map((order) => ({
@@ -140,7 +181,6 @@ export async function getAdminDashboardStats() {
       name: product.name,
       sales: product.sales,
       rev: `\u20B9${product.rev.toFixed(2)}`,
-      trend: "+5%",
       cat: "Product",
       image: product.image,
       icon: "\u{1F4E6}", // Fallback package icon

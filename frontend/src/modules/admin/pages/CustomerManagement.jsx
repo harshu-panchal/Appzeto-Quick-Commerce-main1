@@ -118,12 +118,44 @@ const CustomerManagement = () => {
         });
     }, [customers, searchTerm, filterStatus]);
 
-    const handleExport = () => {
+    const handleExport = async () => {
         setIsExporting(true);
-        setTimeout(() => {
+        try {
+            const all = [];
+            for (let p = 1; p <= 50; p += 1) {
+                const res = await adminApi.getUsers({ page: p, limit: 200 });
+                const payload = res.data.result || {};
+                const items = Array.isArray(payload.items) ? payload.items : [];
+                all.push(...items);
+                if (items.length < 200 || all.length >= (payload.total || 0)) break;
+            }
+            if (!all.length) {
+                toast.error('No customers to export');
+                return;
+            }
+            const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+            const rows = [
+                ['Name', 'Phone', 'Email', 'Status', 'Total orders', 'Total spent', 'Last order', 'Joined'],
+                ...all.map((c) => [
+                    c.name, c.phone, c.email, c.status, c.totalOrders || 0, c.totalSpent || 0,
+                    c.lastOrderDate ? new Date(c.lastOrderDate).toLocaleString('en-IN') : '',
+                    c.joinedDate ? new Date(c.joinedDate).toLocaleDateString('en-IN') : '',
+                ]),
+            ];
+            const url = URL.createObjectURL(new Blob([rows.map((r) => r.map(esc).join(',')).join('\n')], { type: 'text/csv;charset=utf-8' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `customers_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            toast.success(`Exported ${all.length} customers`);
+        } catch (error) {
+            toast.error(error.response?.data?.message || 'Export failed');
+        } finally {
             setIsExporting(false);
-            toast.success('Customer database exported successfully!');
-        }, 1500);
+        }
     };
 
     const getTimeAgo = (date) => {
