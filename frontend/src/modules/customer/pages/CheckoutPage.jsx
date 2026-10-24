@@ -1001,7 +1001,7 @@ const CheckoutPage = () => {
 
   // ─── Main checkout return ────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#f5f1e8] pb-32 font-sans">
+    <div className="customer-checkout-page min-h-screen bg-[#f5f1e8] pb-32 font-sans">
       {/* Order Success Overlay */}
       <CheckoutOrderSuccess orderId={orderId} show={showSuccess} />
 

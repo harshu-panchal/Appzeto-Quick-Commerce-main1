@@ -1,13 +1,13 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, LayoutGrid, ShoppingBag, User } from 'lucide-react';
+import { Home, LayoutGrid, ShoppingCart, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 const navItems = [
     { label: 'Home', icon: Home, path: '/' },
-    { label: 'Category', icon: LayoutGrid, path: '/categories', matchPrefix: '/category' },
-    { label: 'Orders', icon: ShoppingBag, path: '/orders' },
+    { label: 'Browse', icon: LayoutGrid, path: '/categories', matchPrefix: '/category' },
+    { label: 'Cart', icon: ShoppingCart, path: '/cart', matchPrefix: '/checkout' },
     { label: 'Profile', icon: User, path: '/profile', subPaths: ['/profile', '/profile/edit', '/addresses', '/wallet', '/settings'] },
 ];
 
@@ -32,7 +32,7 @@ const BottomNav = () => {
         <nav
             role="navigation"
             aria-label="Mobile Navigation"
-            className="fixed bottom-0 left-0 right-0 z-[500] bg-white/95 backdrop-blur-md border-t border-slate-200/75 md:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.06)]"
+            className="customer-bottom-nav fixed bottom-0 left-0 right-0 z-[500] bg-white/95 backdrop-blur-md border-t border-slate-200/75 md:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.06)]"
         >
             <div className="w-full max-w-md mx-auto h-[56px] grid grid-cols-4 items-center px-2">
                 {navItems.map((item) => {
@@ -43,6 +43,7 @@ const BottomNav = () => {
                             replace
                             key={item.path}
                             to={item.path}
+                            aria-current={isActive ? 'page' : undefined}
                             className="relative flex flex-col items-center justify-center h-full group select-none"
                         >
                             {/* Top Accent Indicator */}

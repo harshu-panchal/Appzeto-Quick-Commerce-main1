@@ -1,12 +1,17 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { ChevronRight } from "lucide-react";
 import ProductCard from "../shared/ProductCard";
+import { shuffleArray } from "@/lib/utils";
 
 const LowestPriceSection = ({ products, onSeeAll }) => {
   if (!products || products.length === 0) return null;
 
+  const displayProducts = useMemo(() => {
+    return shuffleArray(products).slice(0, 16);
+  }, [products]);
+
   return (
-    <div className="-mt-[40px] mb-4 md:-mt-[40px] md:mb-8">
+    <div className="customer-lowest-price -mt-[40px] mb-4 md:-mt-[40px] md:mb-8">
       <div className="relative overflow-hidden bg-linear-to-br from-primary/10 via-primary/5 to-transparent pt-7 pb-2 md:pt-16 md:pb-4 border-y border-primary/10 shadow-sm md:shadow-[inset_0_-10px_40px_rgba(0,0,0,0.02)]">
         {/* Background Decoration */}
         <div className="absolute -top-10 -right-10 h-40 w-40 md:h-80 md:w-80 bg-primary/10 rounded-full blur-3xl opacity-60" />
@@ -15,8 +20,9 @@ const LowestPriceSection = ({ products, onSeeAll }) => {
         <div className="container mx-auto px-4 md:px-8 lg:px-[50px] relative z-10">
           <div className="flex justify-between items-center mb-6 md:mb-10 px-1">
             <div className="flex flex-col">
-              <h3 className="text-base md:text-xl font-black text-[#1A1A1A] tracking-tight uppercase leading-none pt-[25px]">
-                Lowest Price <span className="text-primary">ever</span>
+              <h3 className="text-base md:text-xl font-black text-[#1A1A1A] tracking-tight leading-none pt-[25px]">
+                <span className="md:hidden">Lowest prices today</span>
+                <span className="hidden md:inline">Lowest Price <span className="text-primary">ever</span></span>
               </h3>
               <div className="flex items-center gap-1.5 md:gap-2 mt-1.5 md:mt-3">
                 <div className="h-1 w-1 md:h-2 md:w-2 bg-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(12,131,31,0.5)]" />
@@ -33,12 +39,29 @@ const LowestPriceSection = ({ products, onSeeAll }) => {
             </button>
           </div>
 
-          <div className="relative z-10 flex overflow-x-auto gap-3 md:gap-6 pb-4 md:pb-6 no-scrollbar -mx-4 px-4 md:mx-0 md:px-0 snap-x snap-mandatory scroll-smooth scroll-pl-4 md:scroll-pl-0 after:content-[''] after:w-1 after:shrink-0">
-            {products.slice(0, 12).map((product) => (
-              <div key={product.id} className="w-[126px] sm:w-[136px] md:w-[148px] shrink-0 snap-start smooth-transform">
+          {/* Mobile View: Slide from left to right, 3 products per row */}
+          <div className="flex md:hidden overflow-x-auto gap-2 pb-2 no-scrollbar snap-x snap-mandatory scroll-smooth">
+            {displayProducts.map((product) => (
+              <div
+                key={product.id}
+                className="w-[calc((100%-16px)/3)] shrink-0 snap-start"
+              >
                 <ProductCard
                   product={product}
-                  className="bg-white shadow-[0_8px_20px_-8px_rgba(0,0,0,0.1)] md:shadow-[0_15px_30px_rgba(0,0,0,0.05)] border-brand-50/50 md:border-slate-100 transition-all"
+                  className="bg-white shadow-[0_4px_14px_rgba(0,0,0,0.06)] border border-brand-50/70 h-full"
+                  compact={true}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop View: Horizontal scrollable rail */}
+          <div className="hidden md:flex relative z-10 overflow-x-auto gap-4 md:gap-6 pb-4 md:pb-6 no-scrollbar snap-x snap-mandatory scroll-smooth">
+            {displayProducts.map((product) => (
+              <div key={product.id} className="customer-product-rail-item w-[148px] shrink-0 snap-start smooth-transform">
+                <ProductCard
+                  product={product}
+                  className="bg-white md:shadow-[0_15px_30px_rgba(0,0,0,0.05)] md:border-slate-100 transition-all"
                   compact={true}
                 />
               </div>

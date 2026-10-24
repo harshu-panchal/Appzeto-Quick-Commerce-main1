@@ -128,9 +128,9 @@ const CategoriesPage = () => {
     }, [flipRows]);
 
     return (
-        <div className="min-h-screen bg-white">
+        <div className="customer-categories-page min-h-screen bg-white">
             <MainLocationHeader />
-            <div className="max-w-[1280px] mx-auto px-4 pt-[156px] md:pt-[84px] pb-20">
+            <div className="max-w-[1280px] mx-auto px-4 pt-[118px] md:pt-[88px] pb-20">
                 {groups.map((group, groupIdx) => (
                     <div key={groupIdx} className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${groupIdx * 100}ms` }}>
                         {/* Group Title */}
@@ -164,11 +164,17 @@ const CategoriesPage = () => {
                                                         WebkitBackfaceVisibility: 'hidden'
                                                     }}
                                                 >
+                                                    <span className="customer-category-image-fallback" aria-hidden="true">{category.name?.trim()?.charAt(0)?.toUpperCase() || "•"}</span>
                                                     <img
                                                         src={applyCloudinaryTransform(category.image)}
                                                         alt={category.name}
                                                         loading="lazy"
-                                                        className="w-full h-full rounded-full object-cover"
+                                                        onError={(event) => {
+                                                            event.currentTarget.style.display = 'none';
+                                                            event.currentTarget.parentElement?.classList.add('has-image-error');
+                                                        }}
+                                                        onLoad={(event) => event.currentTarget.parentElement?.classList.remove('has-image-error')}
+                                                        className="relative z-[1] w-full h-full rounded-full object-cover"
                                                     />
                                                 </div>
 
@@ -187,6 +193,9 @@ const CategoriesPage = () => {
                                             </div>
                                         </div>
                                     </Link>
+                                    <span className="mt-1 block px-0.5 text-center text-[10px] font-semibold leading-tight text-slate-700 line-clamp-2 md:text-sm md:font-semibold">
+                                        {category.name}
+                                    </span>
                                 </div>
                             ))}
                         </div>

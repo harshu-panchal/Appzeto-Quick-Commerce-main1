@@ -11,6 +11,7 @@ import {
   TrendingUp,
   ArrowUpRight,
   Download,
+  IndianRupee,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -28,8 +29,11 @@ const Earnings = () => {
     onlinePay: 0,
     cashCollected: 0,
     chartData: [],
-    recentTransactions: []
+    recentTransactions: [],
+    codCash: {},
   });
+
+  const codCash = earningsData.codCash || {};
 
   const fetchEarnings = async () => {
     try {

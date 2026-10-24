@@ -29,8 +29,10 @@ const configSchema = new mongoose.Schema(
     // Category sections
     categories: {
       maxItems: { type: Number, min: 1 },
+      mainCategoryId: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
       categoryIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Category" }],
       rows: { type: Number, min: 1 },
+      columns: { type: Number, min: 1 },
     },
     // Subcategory sections
     subcategories: {
@@ -39,6 +41,7 @@ const configSchema = new mongoose.Schema(
         { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
       ],
       rows: { type: Number, min: 1 },
+      columns: { type: Number, min: 1 },
     },
     // Product sections
     products: {

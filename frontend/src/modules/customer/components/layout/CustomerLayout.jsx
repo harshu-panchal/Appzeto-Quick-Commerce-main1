@@ -87,11 +87,10 @@ const CustomerLayout = ({ children, showHeader: showHeaderProp, fullHeight = fal
     // Route-based visibility logic
     const path = location.pathname.replace(/\/$/, '') || '/';
 
-    const hideHeaderRoutes = ['/', '/categories', '/orders', '/transactions', '/profile', '/profile/edit', '/wishlist', '/addresses', '/wallet', '/support', '/privacy', '/about', '/terms', '/checkout', '/search', '/chat', '/notifications'];
+    const hideHeaderRoutes = ['/', '/categories', '/orders', '/transactions', '/profile', '/profile/edit', '/wishlist', '/addresses', '/wallet', '/support', '/privacy', '/about', '/terms', '/checkout', '/search', '/chat', '/notifications', '/cart'];
     const hideBottomNavRoutes = ['/checkout', '/search', '/chat'];
-    // "View cart" shows everywhere except checkout (it is the cart) and chat
-    // (the bar would cover the message box)
-    const hideCartRoutes = ['/checkout', '/chat'];
+    // "View cart" shows everywhere except cart itself, checkout, and chat
+    const hideCartRoutes = ['/cart', '/checkout', '/chat'];
 
     // If props are passed, use them. Otherwise, use route-based logic.
     const showHeader = showHeaderProp !== undefined ? showHeaderProp : (!hideHeaderRoutes.includes(path) && !path.startsWith('/category') && !path.startsWith('/orders'));
@@ -109,7 +108,7 @@ const CustomerLayout = ({ children, showHeader: showHeaderProp, fullHeight = fal
     const finalShowFooterMessageMobile = showFooterMessage && !isProductDetailOpen;
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+        <div className="customer-app-shell min-h-screen bg-slate-50 flex flex-col font-sans">
             {/* Header logic: Always show on desktop if showHeader is true. On mobile, hide if product detail is open. */}
             {showHeader && (
                 <>
@@ -124,21 +123,24 @@ const CustomerLayout = ({ children, showHeader: showHeaderProp, fullHeight = fal
                 </>
             )}
 
-            <main className={cn("flex-1 md:pb-0", !showHeader && "pt-0", !fullHeight && "pb-16")}>
+            <main className={cn("customer-app-main flex-1 md:pb-0", !showHeader && "pt-0", !fullHeight && "pb-16")}>
                 {children}
             </main>
 
             {showCart && <MiniCart />}
             <ProductDetailSheet />
 
-            <div className="hidden md:block">
-                <Footer />
-            </div>
-
             {/* Mobile Footer Message logic */}
             <div className="md:hidden">
                 {finalShowFooterMessageMobile && <MobileFooterMessage />}
             </div>
+
+            {/* Desktop Footer with Quick Links, Categories, Contact Us (Desktop only) */}
+            {(!['/checkout', '/chat'].includes(path) && !isProductDetailOpen) && (
+                <div className="hidden md:block">
+                    <Footer />
+                </div>
+            )}
 
             {/* Bottom Nav logic */}
             <div className="md:hidden">

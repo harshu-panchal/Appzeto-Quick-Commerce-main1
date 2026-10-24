@@ -191,7 +191,7 @@ const ProductCard = React.memo(
     return (
       <div
         className={cn(
-          "flex-shrink-0 w-full rounded-xl sm:rounded-2xl overflow-hidden flex flex-col h-full shadow-sm cursor-pointer transition-all duration-300 hover:scale-[1.02]",
+          "customer-product-card flex-shrink-0 w-full rounded-xl sm:rounded-2xl overflow-hidden flex flex-col h-full shadow-sm cursor-pointer transition-all duration-300 hover:scale-[1.02]",
           compact
             ? "bg-white border-[1.5px] border-brand-50 shadow-[0_8px_20px_-8px_rgba(0,0,0,0.08)]"
             : neutralBg
@@ -342,42 +342,58 @@ const ProductCard = React.memo(
               )}
             </div>
 
-            {/* ADD Button / Quantity Selector (Always in price row) */}
-            <div className="flex">
+            {/* Small Round + Icon Button / Quantity Selector */}
+            <div className="flex items-center">
               {quantity > 0 ? (
                 <div
+                  style={{
+                    height: compact ? "22px" : "26px",
+                    minHeight: compact ? "22px" : "26px",
+                    borderRadius: "9999px",
+                  }}
                   className={cn(
-                    "flex items-center bg-white border-[1.5px] border-primary rounded-lg p-0.5 justify-between",
-                    compact ? "min-w-[60px]" : "min-w-[68px] sm:min-w-[90px] md:min-w-[100px]",
+                    "flex items-center bg-white border border-primary rounded-full px-1 justify-between shadow-xs",
+                    compact ? "min-w-[50px]" : "min-w-[62px]",
                   )}>
                   <button
+                    type="button"
                     onClick={handleDecrement}
-                    className="p-0.5 px-0.5 text-primary active:scale-90 transition-transform sm:p-1 sm:px-1">
-                    <Minus size={compact ? 10 : 12} strokeWidth={3.5} />
+                    aria-label="Decrease quantity"
+                    style={{ minWidth: "unset", minHeight: "unset", padding: 0 }}
+                    className="p-1 text-primary active:scale-90 transition-transform flex items-center justify-center">
+                    <Minus size={compact ? 9 : 11} strokeWidth={3.5} />
                   </button>
                   <span
                     className={cn(
-                      "font-black text-primary",
-                      compact ? "text-[10px]" : "text-[11px] sm:text-[13px] md:text-sm",
+                      "font-black text-primary px-1 leading-none select-none",
+                      compact ? "text-[10px]" : "text-xs",
                     )}>
                     {quantity}
                   </span>
                   <button
+                    type="button"
                     onClick={handleIncrement}
-                    className="p-0.5 px-0.5 text-primary active:scale-90 transition-transform sm:p-1 sm:px-1">
-                    <Plus size={compact ? 10 : 12} strokeWidth={3.5} />
+                    aria-label="Increase quantity"
+                    style={{ minWidth: "unset", minHeight: "unset", padding: 0 }}
+                    className="p-1 text-primary active:scale-90 transition-transform flex items-center justify-center">
+                    <Plus size={compact ? 9 : 11} strokeWidth={3.5} />
                   </button>
                 </div>
               ) : (
                 <button
+                  type="button"
                   onClick={handleAddToCart}
-                  className={cn(
-                    "bg-white border-[1.5px] border-primary text-primary rounded-lg font-black shadow-sm hover:bg-primary/5 mb-0 transition-all uppercase tracking-wide leading-none active:scale-95",
-                    compact
-                      ? "px-2.5 py-1 text-[10px]"
-                      : "px-3.5 py-1.5 text-[11px] sm:px-7 sm:py-2 sm:text-[13px] md:text-sm md:px-8 md:py-2.5",
-                  )}>
-                  ADD
+                  aria-label="Add to cart"
+                  style={{
+                    width: compact ? "22px" : "26px",
+                    height: compact ? "22px" : "26px",
+                    minWidth: compact ? "22px" : "26px",
+                    minHeight: compact ? "22px" : "26px",
+                    borderRadius: "9999px",
+                    padding: 0,
+                  }}
+                  className="rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-xs hover:opacity-90 active:scale-90 transition-all cursor-pointer shrink-0">
+                  <Plus size={compact ? 12 : 14} strokeWidth={3.5} />
                 </button>
               )}
             </div>

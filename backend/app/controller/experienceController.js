@@ -93,56 +93,81 @@ const validateAndNormalizeConfig = async (displayType, config = {}) => {
   }
 
   if (displayType === "categories") {
-    const maxItems = Number(config.maxItems) || undefined;
-    const rows = Number(config.rows) || 1;
+    const requestedMaxItems = Number(config.maxItems);
+    const maxItems = requestedMaxItems > 0 ? Math.floor(requestedMaxItems) : undefined;
+    const rows = Math.max(1, Math.floor(Number(config.rows) || 1));
+    const columns = Math.max(1, Math.floor(Number(config.columns) || 4));
+    const mainCategoryId = config.mainCategoryId || null;
     const categoryIds = Array.isArray(config.categoryIds)
       ? config.categoryIds.filter(Boolean)
       : [];
+    const requestedCategoryIds = [
+      ...categoryIds,
+      ...(mainCategoryId ? [mainCategoryId] : []),
+    ];
+    const uniqueRequestedCategoryIds = [...new Set(requestedCategoryIds.map(String))];
 
-    if (!categoryIds.length) {
+    if (!uniqueRequestedCategoryIds.length) {
       throw new Error("At least one categoryId is required");
     }
 
     const categories = await Category.find({
-      _id: { $in: categoryIds },
+      _id: { $in: uniqueRequestedCategoryIds },
       type: "category",
     }).select("_id");
 
-    if (!categories.length) {
+    const normalizedMainCategoryId = mainCategoryId
+      ? categories.find((category) => String(category._id) === String(mainCategoryId))?._id
+      : null;
+
+    if (
+      categories.length !== uniqueRequestedCategoryIds.length ||
+      (mainCategoryId && !normalizedMainCategoryId)
+    ) {
       throw new Error("Provided categoryIds are invalid");
     }
 
     normalized.categories = {
       maxItems,
-      categoryIds: categories.map((c) => c._id),
-      rows: rows < 1 ? 1 : rows,
+      mainCategoryId: normalizedMainCategoryId,
+      categoryIds: categories.map((category) => category._id),
+      rows,
+      columns,
     };
     return normalized;
   }
 
   if (displayType === "subcategories") {
     const rows = Number(config.rows) || 1;
+    const columns = Math.max(1, Math.floor(Number(config.columns) || 4));
     const categoryIds = Array.isArray(config.categoryIds)
       ? config.categoryIds.filter(Boolean)
       : [];
     const subcategoryIds = Array.isArray(config.subcategoryIds)
       ? config.subcategoryIds.filter(Boolean)
       : [];
+    const uniqueCategoryIds = [...new Set(categoryIds.map(String))];
+    const uniqueSubcategoryIds = [...new Set(subcategoryIds.map(String))];
 
-    if (!categoryIds.length || !subcategoryIds.length) {
+    if (!uniqueCategoryIds.length || !uniqueSubcategoryIds.length) {
       throw new Error("categoryIds and subcategoryIds are required");
     }
 
     const categories = await Category.find({
-      _id: { $in: categoryIds },
+      _id: { $in: uniqueCategoryIds },
       type: "category",
     }).select("_id");
     const subcategories = await Category.find({
-      _id: { $in: subcategoryIds },
+      _id: { $in: uniqueSubcategoryIds },
       type: "subcategory",
-    }).select("_id");
+    }).select("_id parentId");
 
-    if (!categories.length || !subcategories.length) {
+    const categoryIdSet = new Set(categories.map((category) => String(category._id)));
+    if (
+      categories.length !== uniqueCategoryIds.length ||
+      subcategories.length !== uniqueSubcategoryIds.length ||
+      subcategories.some((subcategory) => !categoryIdSet.has(String(subcategory.parentId)))
+    ) {
       throw new Error("Provided categoryIds or subcategoryIds are invalid");
     }
 
@@ -150,6 +175,7 @@ const validateAndNormalizeConfig = async (displayType, config = {}) => {
       categoryIds: categories.map((c) => c._id),
       subcategoryIds: subcategories.map((s) => s._id),
       rows: rows < 1 ? 1 : rows,
+      columns,
     };
     return normalized;
   }

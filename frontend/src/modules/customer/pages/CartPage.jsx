@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Lottie from 'lottie-react';
 import { useCart } from '../context/CartContext';
 import {
@@ -10,12 +10,14 @@ import {
     Sparkles,
     ShieldCheck,
     Truck,
+    ChevronLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@shared/components/ui/Toast';
 import { applyCloudinaryTransform } from '@/core/utils/imageUtils';
 
 const CartPage = () => {
+    const navigate = useNavigate();
     const { cart, removeFromCart, updateQuantity, cartTotal, clearCart } = useCart();
     const { showToast } = useToast();
     const itemCount = cart.reduce((count, item) => count + item.quantity, 0);
@@ -36,14 +38,29 @@ const CartPage = () => {
     };
 
     return (
-        <div className="relative isolate w-full overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(12,131,31,0.14),_transparent_34%),linear-gradient(180deg,_#f8faf9_0%,_#eef6f0_100%)] animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="customer-cart-page relative isolate w-full min-h-[calc(100vh-80px)] overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(12,131,31,0.14),_transparent_34%),linear-gradient(180deg,_#f8faf9_0%,_#eef6f0_100%)] animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="pointer-events-none absolute inset-0">
                 <div className="absolute -top-16 -right-16 h-52 w-52 rounded-full bg-brand-300/20 blur-3xl" />
                 <div className="absolute top-24 left-[-5rem] h-56 w-56 rounded-full bg-lime-200/40 blur-3xl" />
                 <div className="absolute bottom-0 right-1/3 h-36 w-36 rounded-full bg-white/60 blur-2xl" />
             </div>
 
-            <div className="relative mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 py-6 md:py-8 lg:py-10">
+            <div className="relative mx-auto w-full max-w-[1440px] px-4 md:px-8 lg:px-12 py-5 md:py-8">
+                {/* Header Back Button Bar */}
+                <div className="mb-5 flex items-center justify-between">
+                    <button
+                        type="button"
+                        onClick={() => navigate(-1)}
+                        className="inline-flex items-center gap-1.5 rounded-2xl border border-slate-200/80 bg-white/90 px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 active:scale-95 transition-all cursor-pointer"
+                    >
+                        <ChevronLeft size={16} className="text-slate-600" />
+                        <span>Back</span>
+                    </button>
+                    <h1 className="font-heading text-lg md:text-xl font-black text-slate-900 tracking-tight">
+                        My Cart ({itemCount})
+                    </h1>
+                    <div className="w-16" />
+                </div>
                 {cart.length > 0 ? (
                     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_26rem]">
                         <section className="space-y-4">

@@ -123,28 +123,47 @@ const OfferSections = ({ sections }) => {
                     </div>
                   ) : (
                     <>
-                      {sectionSellers.map((seller) => (
-                        <div key={`seller-${seller.id}`} className="w-[110px] sm:w-[120px] md:w-[130px] flex-shrink-0 snap-start bg-white rounded-xl border border-slate-100 shadow-[0_10px_24px_rgba(15,23,42,0.08)] flex flex-col items-center justify-center p-3 text-center transition-transform hover:-translate-y-1">
-                          <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-slate-50 mb-2 overflow-hidden border border-slate-100 flex items-center justify-center shadow-sm">
-                            {seller.image ? (
-                              <img src={applyCloudinaryTransform(seller.image, "f_auto,q_auto,w_100")} alt={seller.name} className="w-full h-full object-cover" />
-                            ) : (
-                              <span className="text-xl font-bold text-slate-500">{seller.name.charAt(0).toUpperCase()}</span>
-                            )}
+                      {/* Mobile View: Slide from left to right, 3 products per row */}
+                      <div className="flex md:hidden overflow-x-auto gap-2 pb-2 w-full no-scrollbar snap-x snap-mandatory scroll-smooth">
+                        {sectionProducts.map((product) => (
+                          <div
+                            key={`product-m-${product.id}`}
+                            className="w-[calc((100%-16px)/3)] shrink-0 snap-start"
+                          >
+                            <ProductCard
+                              product={product}
+                              className="bg-white border border-slate-100 shadow-[0_4px_14px_rgba(15,23,42,0.06)] h-full"
+                              compact
+                            />
                           </div>
-                          <h4 className="text-xs font-bold text-slate-800 line-clamp-2 leading-tight px-1">{seller.name}</h4>
-                          <p className="text-[9px] text-brand-600 mt-1 font-extrabold uppercase tracking-widest bg-brand-50 px-2 py-0.5 rounded-full">Store</p>
-                        </div>
-                      ))}
-                      {sectionProducts.map((product) => (
-                        <div key={`product-${product.id}`} className="w-[126px] sm:w-[136px] md:w-[148px] flex-shrink-0 snap-start">
-                          <ProductCard
-                            product={product}
-                            className="bg-white border border-slate-100 shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
-                            compact
-                          />
-                        </div>
-                      ))}
+                        ))}
+                      </div>
+
+                      {/* Desktop View: Horizontal scroll rail */}
+                      <div className="hidden md:flex overflow-x-auto gap-4 pb-0 no-scrollbar snap-x snap-mandatory">
+                        {sectionSellers.map((seller) => (
+                          <div key={`seller-${seller.id}`} className="w-[130px] flex-shrink-0 snap-start bg-white rounded-xl border border-slate-100 shadow-[0_10px_24px_rgba(15,23,42,0.08)] flex flex-col items-center justify-center p-3 text-center transition-transform hover:-translate-y-1">
+                            <div className="w-16 h-16 rounded-full bg-slate-50 mb-2 overflow-hidden border border-slate-100 flex items-center justify-center shadow-sm">
+                              {seller.image ? (
+                                <img src={applyCloudinaryTransform(seller.image, "f_auto,q_auto,w_100")} alt={seller.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-xl font-bold text-slate-500">{seller.name.charAt(0).toUpperCase()}</span>
+                              )}
+                            </div>
+                            <h4 className="text-xs font-bold text-slate-800 line-clamp-2 leading-tight px-1">{seller.name}</h4>
+                            <p className="text-[9px] text-brand-600 mt-1 font-extrabold uppercase tracking-widest bg-brand-50 px-2 py-0.5 rounded-full">Store</p>
+                          </div>
+                        ))}
+                        {sectionProducts.map((product) => (
+                          <div key={`product-${product.id}`} className="customer-product-rail-item w-[148px] flex-shrink-0 snap-start">
+                            <ProductCard
+                              product={product}
+                              className="bg-white border border-slate-100 shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
+                              compact
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </>
                   )}
                 </div>

@@ -7,6 +7,32 @@ import { HiChevronDown } from "react-icons/hi2";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronsLeft, ChevronsRight, X } from "lucide-react";
 
+const ChildLink = ({ child }) => {
+  const childBadgeCount = Number(child?.badgeCount || 0);
+  const childBadgeLabel = childBadgeCount > 99 ? "99+" : String(childBadgeCount);
+  const showChildBadge = childBadgeCount > 0;
+
+  return (
+    <NavLink
+      to={child.path}
+      end={child.end !== undefined ? child.end : false}
+      className={({ isActive }) =>
+        cn(
+          "block text-xs py-1.5 px-2.5 rounded-lg transition-all duration-300 relative",
+          isActive ? "bg-primary/15 text-primary font-bold" : "text-gray-500 hover:text-gray-300 hover:bg-white/5",
+          showChildBadge && "pr-9",
+        )
+      }>
+      {child.label}
+      {showChildBadge && (
+        <span className="pointer-events-none absolute top-1 right-2 min-w-5 h-5 px-1.5 rounded-full bg-danger text-white text-[10px] font-black flex items-center justify-center ring-2 ring-[#0a0c10]">
+          {childBadgeLabel}
+        </span>
+      )}
+    </NavLink>
+  );
+};
+
 const SidebarItem = ({
   item,
   isOpen,
@@ -170,43 +196,17 @@ const SidebarItem = ({
   );
 };
 
-const ChildLink = ({ child }) => {
-  const childBadgeCount = Number(child?.badgeCount || 0);
-  const childBadgeLabel = childBadgeCount > 99 ? "99+" : String(childBadgeCount);
-  const showChildBadge = childBadgeCount > 0;
-
-  return (
-    <NavLink
-      to={child.path}
-      end={child.end !== undefined ? child.end : false}
-      className={({ isActive }) =>
-        cn(
-          "block text-xs py-1.5 px-2.5 rounded-lg transition-all duration-300 relative",
-          isActive ? "bg-primary/15 text-primary font-bold" : "text-gray-500 hover:text-gray-300 hover:bg-white/5",
-          showChildBadge && "pr-9",
-        )
-      }>
-      {child.label}
-      {showChildBadge && (
-        <span className="pointer-events-none absolute top-1 right-2 min-w-5 h-5 px-1.5 rounded-full bg-danger text-white text-[10px] font-black flex items-center justify-center ring-2 ring-[#0a0c10]">
-          {childBadgeLabel}
-        </span>
-      )}
-    </NavLink>
-  );
-};
-
 /** Groups a flat nav-items array by `item.group`, preserving first-seen order. Items without a group fall into one implicit bucket. */
 function groupNavItems(items) {
   const order = [];
   const map = new Map();
-  items.forEach((item) => {
+  items.forEach((item, index) => {
     const key = item.group || "";
     if (!map.has(key)) {
       map.set(key, []);
       order.push(key);
     }
-    map.get(key).push(item);
+    map.get(key).push({ ...item, globalIndex: index });
   });
   return order.map((key) => ({ label: key, items: map.get(key) }));
 }
@@ -218,7 +218,6 @@ const SidebarContent = ({ items, title, onClose, openMenu, handleToggle, hovered
 
   const homePath = role === 'admin' ? '/admin' : (role === 'seller' ? '/seller' : '/');
   const groups = groupNavItems(items);
-  let runningIdx = -1;
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -271,11 +270,10 @@ const SidebarContent = ({ items, title, onClose, openMenu, handleToggle, hovered
             )}
             <AnimatePresence>
               {group.items.map((item) => {
-                runningIdx += 1;
-                const idx = runningIdx;
+                const idx = item.globalIndex;
                 return (
                   <SidebarItem
-                    key={idx}
+                    key={item.path || item.label || idx}
                     item={item}
                     isOpen={openMenu === item.label}
                     onToggle={() => handleToggle(item.label)}

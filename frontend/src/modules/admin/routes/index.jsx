@@ -78,7 +78,6 @@ const CustomerDetail = React.lazy(() => import("../pages/CustomerDetail"));
 // with dead buttons; the file itself is left in place in case internal
 // (non-customer) platform-user management is built out later.
 // const UserManagement = React.lazy(() => import("../pages/UserManagement"));
-const Profile = React.lazy(() => import("@/pages/Profile"));
 const FAQManagement = React.lazy(() => import("../pages/FAQManagement"));
 const AdminLegalPages = React.lazy(() => import("../pages/AdminLegalPages"));
 const OrdersList = React.lazy(() => import("../pages/OrdersList"));

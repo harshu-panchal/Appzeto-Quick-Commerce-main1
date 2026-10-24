@@ -198,7 +198,7 @@ const ProductDetailPage = () => {
     const isWishlisted = isInWishlist(product.id);
 
     return (
-        <div className="relative z-10 py-8 w-full max-w-[1920px] mx-auto px-4 md:px-[50px] animate-in fade-in duration-700 mt-24">
+        <div className="customer-product-detail-page relative z-10 py-8 w-full max-w-[1920px] mx-auto px-4 md:px-[50px] animate-in fade-in duration-700 mt-24">
             <button
                 type="button"
                 onClick={() => (window.history.state?.idx > 0 ? navigate(-1) : navigate('/', { replace: true }))}

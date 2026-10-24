@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, ShoppingCart, Heart, User, Menu, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWishlist } from '../../context/WishlistContext';
@@ -13,6 +13,7 @@ const Header = () => {
     const { count: wishlistCount } = useWishlist();
     const { cartCount } = useCart();
     const location = useLocation();
+    const navigate = useNavigate();
     const isCheckoutPage = location.pathname === '/checkout';
     const [isLocationOpen, setIsLocationOpen] = useState(false);
     const { currentLocation, refreshLocation } = useAppLocation();
@@ -74,7 +75,7 @@ const Header = () => {
     }, [typingState]);
 
     return (
-        <header className="absolute top-4 md:top-8 left-0 right-0 z-[200] px-4">
+        <header className="customer-desktop-site-header absolute top-4 md:top-8 left-0 right-0 z-[200] px-4">
             <div className="container mx-auto max-w-6xl">
                 {/* Mobile Top Row: Location & Profile */}
                 <div className="md:hidden flex items-center justify-between mb-4 px-2 animate-in slide-in-from-top duration-500">
@@ -149,7 +150,10 @@ const Header = () => {
                                 <input
                                     type="search"
                                     placeholder={searchPlaceholder}
-                                    className="w-full rounded-full border-none bg-slate-100/50 md:bg-white md:border md:border-slate-200 pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-primary transition-all outline-none"
+                                    aria-label="Search products and categories"
+                                    readOnly
+                                    onClick={() => navigate('/search')}
+                                    className="customer-desktop-search-trigger w-full cursor-pointer rounded-full border-none bg-slate-100/50 md:bg-white md:border md:border-slate-200 pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-primary transition-all outline-none"
                                 />
                             </div>
                         </div>

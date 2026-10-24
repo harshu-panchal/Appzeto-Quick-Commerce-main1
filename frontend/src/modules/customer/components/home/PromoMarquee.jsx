@@ -3,7 +3,7 @@ import { MARQUEE_MESSAGES } from "../../constants/homeConstants";
 
 const PromoMarquee = () => {
   return (
-    <div className="w-full -mt-[2px] md:-mt-[2px] mb-4">
+    <div className="customer-promo-marquee w-full -mt-[2px] md:-mt-[2px] mb-4">
       <div className="relative overflow-hidden border-y border-[#389ecb] bg-primary shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
         <div className="absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-primary via-primary/90 to-transparent pointer-events-none" />
         <div className="absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-primary via-primary/90 to-transparent pointer-events-none" />

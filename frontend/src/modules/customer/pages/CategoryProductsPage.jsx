@@ -11,6 +11,7 @@ import { applyCloudinaryTransform } from '@/core/utils/imageUtils';
 
 import ProductCard from '../components/shared/ProductCard';
 import ProductDetailSheet from '../components/shared/ProductDetailSheet';
+import MainLocationHeader from '../components/shared/MainLocationHeader';
 import { useProductDetail } from '../context/ProductDetailContext';
 import { customerApi } from '../services/customerApi';
 import MiniCart from '../components/shared/MiniCart';
@@ -173,7 +174,10 @@ const CategoryProductsPage = () => {
     }, [safeProducts]);
 
     return (
-        <div className="flex flex-col min-h-screen bg-white max-w-md mx-auto relative font-sans">
+        <div className="customer-category-page flex flex-col min-h-screen bg-white max-w-md mx-auto relative font-sans">
+            <div className="hidden md:block">
+                <MainLocationHeader />
+            </div>
             {/* Header */}
             <header className={cn(
                 "sticky top-0 z-50 bg-white border-b border-gray-50 px-4 py-4 flex items-center justify-between",
@@ -202,6 +206,7 @@ const CategoryProductsPage = () => {
                             <button
                                 key={cat.id}
                                 onClick={() => setSelectedSubCategory(cat.id)}
+                                aria-pressed={isSelected}
                                 className={cn(
                                     "relative flex flex-col items-center py-3 px-1 gap-1.5 transition-all duration-200 group cursor-pointer border-r-2",
                                     isSelected
