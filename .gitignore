@@ -9,4 +9,5 @@ tests/load/node_modules/
 tests/load/.env.load
 tests/load/data/seeded-ids.json
 tests/
-docs/node_modules
+docs/
+node_modules

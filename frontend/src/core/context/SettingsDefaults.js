@@ -9,7 +9,9 @@ export const DEFAULT_SETTINGS = {
   estimatedDeliveryTime: "12-15 mins",
   logoUrl: "",
   faviconUrl: "",
-  primaryColor: "var(--primary)",
+  // Must be a real color: "var(--primary)" here made --primary reference
+  // itself (a cycle), which invalidates every brand color until the API loads.
+  primaryColor: "#2563eb",
   secondaryColor: "#64748b",
   companyName: "",
   taxId: "",
@@ -52,7 +54,9 @@ export const DEFAULT_SETTINGS = {
 export function applyThemeVariables(settings) {
   if (!settings) return;
   const root = document.documentElement;
-  const primary = settings.primaryColor || DEFAULT_SETTINGS.primaryColor;
+  // A stored "var(--primary)" would make --primary reference itself; ignore it.
+  const isUsable = (c) => typeof c === "string" && c.trim() && !c.trim().startsWith("var(");
+  const primary = isUsable(settings.primaryColor) ? settings.primaryColor : DEFAULT_SETTINGS.primaryColor;
   const secondary = settings.secondaryColor || DEFAULT_SETTINGS.secondaryColor;
   
   root.style.setProperty("--primary", primary);

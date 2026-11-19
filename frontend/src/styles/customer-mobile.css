@@ -7,59 +7,9 @@
  * shadows are kept only for floating elements (mini cart = FAB, level 3).
  */
 @media (max-width: 767px) {
+  /* Tokens live in public/md3-tokens.css (kept out of Tailwind's compiler). */
   .customer-app-shell {
-    /* ---- Color roles (md.sys.color) ---- */
-    --md-sys-color-primary: var(--primary);
-    --md-sys-color-on-primary: #ffffff;
-    --md-sys-color-primary-container: color-mix(in oklab, var(--primary) 16%, #ffffff);
-    --md-sys-color-on-primary-container: color-mix(in oklab, var(--primary) 45%, #000000);
-    --md-sys-color-secondary-container: color-mix(in oklab, var(--primary) 12%, #f1f3ee);
-    --md-sys-color-on-secondary-container: color-mix(in oklab, var(--primary) 30%, #10170f);
-    --md-sys-color-surface: color-mix(in oklab, var(--primary) 2%, #fbfcf8);
-    --md-sys-color-surface-container-lowest: #ffffff;
-    --md-sys-color-surface-container-low: color-mix(in oklab, var(--primary) 3%, #f6f7f2);
-    --md-sys-color-surface-container: color-mix(in oklab, var(--primary) 5%, #f0f2ec);
-    --md-sys-color-surface-container-high: color-mix(in oklab, var(--primary) 6%, #eaede6);
-    --md-sys-color-surface-container-highest: color-mix(in oklab, var(--primary) 8%, #e4e7e0);
-    --md-sys-color-on-surface: #1a1c19;
-    --md-sys-color-on-surface-variant: #43483f;
-    --md-sys-color-outline: #73796f;
-    --md-sys-color-outline-variant: #c3c8bc;
-    --md-sys-color-inverse-surface: color-mix(in oklab, var(--primary) 18%, #1a1c19);
-    --md-sys-color-inverse-on-surface: #f0f1eb;
-
-    /* ---- Shape (md.sys.shape.corner) ---- */
-    --md-sys-shape-corner-extra-small: 4px;
-    --md-sys-shape-corner-small: 8px;
-    --md-sys-shape-corner-medium: 12px;
-    --md-sys-shape-corner-large: 16px;
-    --md-sys-shape-corner-large-increased: 20px;
-    --md-sys-shape-corner-extra-large: 28px;
-    --md-sys-shape-corner-full: 9999px;
-
-    /* ---- Elevation (shadow only where protection is needed) ---- */
-    --md-sys-elevation-level1: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 3px 1px rgb(0 0 0 / 0.15);
-    --md-sys-elevation-level3: 0 1px 3px rgb(0 0 0 / 0.3), 0 4px 8px 3px rgb(0 0 0 / 0.15);
-
-    /* ---- Motion ---- */
-    --md-sys-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
-    --md-sys-motion-easing-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
-    --md-sys-motion-duration-short: 200ms;
-    --md-sys-motion-duration-medium: 300ms;
-
-    /* ---- Spacing (8dp grid) ---- */
-    --md-sys-spacing-1: 4px;
-    --md-sys-spacing-2: 8px;
-    --md-sys-spacing-3: 12px;
-    --md-sys-spacing-4: 16px;
-    --md-sys-spacing-6: 24px;
-
-    /* Legacy aliases still referenced elsewhere */
-    --customer-mobile-ink: var(--md-sys-color-on-surface);
-    --customer-mobile-muted: var(--md-sys-color-on-surface-variant);
-    --customer-mobile-line: var(--md-sys-color-outline-variant);
-    --customer-mobile-canvas: var(--md-sys-color-surface);
-
+    overflow-x: clip;
     background: var(--md-sys-color-surface);
     color: var(--md-sys-color-on-surface);
   }
@@ -178,11 +128,14 @@
     margin-bottom: var(--md-sys-spacing-6) !important;
   }
 
+  /* Inset goes on the child: the wrapper is w-full, so side margins on it
+     overflow the viewport and make the page shake sideways. */
   .customer-promo-marquee {
-    margin: var(--md-sys-spacing-3) var(--md-sys-spacing-4) var(--md-sys-spacing-4);
+    margin: var(--md-sys-spacing-3) 0 var(--md-sys-spacing-4);
   }
 
   .customer-promo-marquee > div {
+    margin-inline: var(--md-sys-spacing-4);
     border: 0;
     border-radius: var(--md-sys-shape-corner-medium);
     box-shadow: none;

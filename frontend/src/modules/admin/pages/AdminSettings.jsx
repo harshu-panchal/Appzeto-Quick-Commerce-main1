@@ -63,7 +63,7 @@ const AdminSettings = () => {
         estimatedDeliveryTime: '12-15 mins',
         logoUrl: '',
         faviconUrl: '',
-        primaryColor: 'var(--primary)',
+        primaryColor: '#2563eb',
         secondaryColor: '#64748b',
         companyName: '',
         taxId: '',

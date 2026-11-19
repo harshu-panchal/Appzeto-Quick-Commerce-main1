@@ -116,6 +116,8 @@ html.customer-no-scrollbar,
 html.customer-no-scrollbar body {
   -ms-overflow-style: none;
   scrollbar-width: none;
+  /* No sideways scroll/wobble on touch if any child overflows. */
+  overflow-x: clip;
 }
 
 html.customer-no-scrollbar::-webkit-scrollbar,

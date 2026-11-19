@@ -1,0 +1,64 @@
+/*
+ * Material Design 3 tokens for the customer app.
+ *
+ * Served as a plain static file on purpose: when these lived in src/ CSS,
+ * Tailwind's compiler rewrote every color-mix() into a nested @supports
+ * block, so browsers dropped most of the tokens and the MD3 styles in
+ * src/styles/customer-mobile.css silently fell back to nothing.
+ *
+ * Colors derive from the tenant's runtime --primary (SettingsContext), so
+ * the scheme follows the brand color like MD3 dynamic color.
+ */
+.customer-app-shell {
+  /* ---- Color roles (md.sys.color) ---- */
+  --md-sys-color-primary: var(--primary, #2563eb);
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: color-mix(in oklab, var(--primary, #2563eb) 16%, #ffffff);
+  --md-sys-color-on-primary-container: color-mix(in oklab, var(--primary, #2563eb) 45%, #000000);
+  --md-sys-color-secondary-container: color-mix(in oklab, var(--primary, #2563eb) 12%, #f1f3ee);
+  --md-sys-color-on-secondary-container: color-mix(in oklab, var(--primary, #2563eb) 30%, #10170f);
+  --md-sys-color-surface: color-mix(in oklab, var(--primary, #2563eb) 2%, #fbfcf8);
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: color-mix(in oklab, var(--primary, #2563eb) 3%, #f6f7f2);
+  --md-sys-color-surface-container: color-mix(in oklab, var(--primary, #2563eb) 5%, #f0f2ec);
+  --md-sys-color-surface-container-high: color-mix(in oklab, var(--primary, #2563eb) 6%, #eaede6);
+  --md-sys-color-surface-container-highest: color-mix(in oklab, var(--primary, #2563eb) 8%, #e4e7e0);
+  --md-sys-color-on-surface: #1a1c19;
+  --md-sys-color-on-surface-variant: #43483f;
+  --md-sys-color-outline: #73796f;
+  --md-sys-color-outline-variant: #c3c8bc;
+  --md-sys-color-inverse-surface: color-mix(in oklab, var(--primary, #2563eb) 18%, #1a1c19);
+  --md-sys-color-inverse-on-surface: #f0f1eb;
+
+  /* ---- Shape (md.sys.shape.corner) ---- */
+  --md-sys-shape-corner-extra-small: 4px;
+  --md-sys-shape-corner-small: 8px;
+  --md-sys-shape-corner-medium: 12px;
+  --md-sys-shape-corner-large: 16px;
+  --md-sys-shape-corner-large-increased: 20px;
+  --md-sys-shape-corner-extra-large: 28px;
+  --md-sys-shape-corner-full: 9999px;
+
+  /* ---- Elevation (shadow only where protection is needed) ---- */
+  --md-sys-elevation-level1: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 3px 1px rgb(0 0 0 / 0.15);
+  --md-sys-elevation-level3: 0 1px 3px rgb(0 0 0 / 0.3), 0 4px 8px 3px rgb(0 0 0 / 0.15);
+
+  /* ---- Motion ---- */
+  --md-sys-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --md-sys-motion-easing-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --md-sys-motion-duration-short: 200ms;
+  --md-sys-motion-duration-medium: 300ms;
+
+  /* ---- Spacing (8dp grid) ---- */
+  --md-sys-spacing-1: 4px;
+  --md-sys-spacing-2: 8px;
+  --md-sys-spacing-3: 12px;
+  --md-sys-spacing-4: 16px;
+  --md-sys-spacing-6: 24px;
+
+  /* Legacy aliases still referenced elsewhere */
+  --customer-mobile-ink: var(--md-sys-color-on-surface);
+  --customer-mobile-muted: var(--md-sys-color-on-surface-variant);
+  --customer-mobile-line: var(--md-sys-color-outline-variant);
+  --customer-mobile-canvas: var(--md-sys-color-surface);
+}
