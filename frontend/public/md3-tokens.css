@@ -64,17 +64,13 @@
 }
 
 /*
- * Safe-area insets. Inside the Flutter APK the native wrapper already keeps
- * the WebView clear of the status and gesture bars, yet the WebView still
- * reports those insets, which doubled the gap above the header and below the
- * bottom nav. main.jsx adds .in-app-webview there, zeroing the insets.
+ * Safe-area insets are intentionally 0. The browser / Flutter wrapper already
+ * keeps the page clear of the status and gesture bars (no viewport-fit=cover),
+ * so adding env(safe-area-inset-*) only produced empty space above the header
+ * and below the bottom nav. Kept as variables in case an edge-to-edge mode
+ * is ever enabled.
  */
 :root {
-  --app-safe-top: env(safe-area-inset-top, 0px);
-  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-html.in-app-webview {
   --app-safe-top: 0px;
   --app-safe-bottom: 0px;
 }
