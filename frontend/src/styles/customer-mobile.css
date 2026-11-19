@@ -14,6 +14,20 @@
     color: var(--md-sys-color-on-surface);
   }
 
+  /* Hide scrollbars inside the app (scrolling still works). */
+  .customer-app-shell,
+  .customer-app-shell * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .customer-app-shell ::-webkit-scrollbar,
+  .customer-app-shell::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
   .customer-app-main {
     min-width: 0;
     padding-bottom: calc(80px + env(safe-area-inset-bottom));
@@ -119,7 +133,10 @@
   }
 
   /* ---------- Home ---------- */
+  /* Home reserves room for the fixed header; grow it with any top inset so
+     the header never covers the banner. */
   .customer-home {
+    padding-top: calc(172px + env(safe-area-inset-top, 0px)) !important;
     background-color: var(--md-sys-color-surface);
   }
 
