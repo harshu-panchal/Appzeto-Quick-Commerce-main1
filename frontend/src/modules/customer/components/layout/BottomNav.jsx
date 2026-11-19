@@ -11,6 +11,8 @@ const navItems = [
     { label: 'Profile', icon: User, path: '/profile', subPaths: ['/profile', '/profile/edit', '/addresses', '/wallet', '/settings'] },
 ];
 
+// MD3 navigation bar: tonal surface-container, 56x32 pill active indicator
+// (secondary-container), label-medium text. Tokens come from customer-mobile.css.
 const BottomNav = () => {
     const location = useLocation();
     const currentPath = location.pathname;
@@ -32,9 +34,9 @@ const BottomNav = () => {
         <nav
             role="navigation"
             aria-label="Mobile Navigation"
-            className="customer-bottom-nav fixed bottom-0 left-0 right-0 z-[500] bg-white/95 backdrop-blur-md border-t border-slate-200/75 md:hidden shadow-[0_-4px_20px_rgba(0,0,0,0.06)]"
+            className="customer-bottom-nav fixed bottom-0 left-0 right-0 z-[500] md:hidden bg-[var(--md-sys-color-surface-container,#f0f2ec)]"
         >
-            <div className="w-full max-w-md mx-auto h-[56px] grid grid-cols-4 items-center px-2">
+            <div className="w-full max-w-md mx-auto h-16 grid grid-cols-4 items-center">
                 {navItems.map((item) => {
                     const isActive = isItemActive(item);
 
@@ -44,50 +46,39 @@ const BottomNav = () => {
                             key={item.path}
                             to={item.path}
                             aria-current={isActive ? 'page' : undefined}
-                            className="relative flex flex-col items-center justify-center h-full group select-none"
+                            className="group flex h-full flex-col items-center justify-center gap-1 select-none"
                         >
-                            {/* Top Accent Indicator */}
-                            {isActive && (
-                                <motion.div
-                                    layoutId="customer-bottom-nav-indicator"
-                                    className="absolute top-0 w-8 h-[2.5px] bg-primary rounded-full z-20"
-                                    transition={{ type: "spring", stiffness: 400, damping: 32 }}
-                                />
-                            )}
-
-                            {/* Active Soft Pill Background - Centered within Tab Column */}
-                            {isActive && (
-                                <motion.div
-                                    layoutId="customer-bottom-nav-pill"
-                                    className="absolute inset-y-1 inset-x-1 sm:inset-x-2 bg-primary/8 rounded-xl -z-10 border border-primary/10"
-                                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                                />
-                            )}
-
-                            {/* Icon & Label */}
-                            <div className="flex flex-col items-center justify-center relative z-10">
-                                <div
-                                    className={cn(
-                                        "transition-all duration-200",
-                                        isActive ? "scale-105 text-primary" : "scale-100 text-slate-400 group-hover:text-slate-600"
-                                    )}
-                                >
-                                    <item.icon
-                                        size={21}
-                                        strokeWidth={isActive ? 2.4 : 2}
-                                        className="transition-colors duration-200"
+                            <span className="relative grid h-8 w-14 place-items-center">
+                                {isActive && (
+                                    <motion.span
+                                        layoutId="customer-bottom-nav-indicator"
+                                        className="absolute inset-0 rounded-full bg-[var(--md-sys-color-secondary-container,#e2eedd)]"
+                                        transition={{ type: 'spring', stiffness: 500, damping: 38 }}
                                     />
-                                </div>
-
-                                <span
+                                )}
+                                {/* Hover/pressed state layer */}
+                                <span className="absolute inset-0 rounded-full bg-[var(--md-sys-color-on-surface,#1a1c19)] opacity-0 transition-opacity duration-200 group-hover:opacity-[0.08] group-active:opacity-[0.12]" />
+                                <item.icon
+                                    size={22}
+                                    strokeWidth={isActive ? 2.4 : 2}
                                     className={cn(
-                                        "text-[10px] tracking-tight mt-0.5 transition-all duration-200 leading-none",
-                                        isActive ? "font-bold text-primary" : "font-medium text-slate-500 group-hover:text-slate-700"
+                                        'relative z-10 transition-colors duration-200',
+                                        isActive
+                                            ? 'text-[var(--md-sys-color-on-secondary-container,#1d2b1a)]'
+                                            : 'text-[var(--md-sys-color-on-surface-variant,#43483f)]'
                                     )}
-                                >
-                                    {item.label}
-                                </span>
-                            </div>
+                                />
+                            </span>
+                            <span
+                                className={cn(
+                                    'text-[12px] leading-4 tracking-[0.5px] transition-colors duration-200',
+                                    isActive
+                                        ? 'font-bold text-[var(--md-sys-color-on-surface,#1a1c19)]'
+                                        : 'font-medium text-[var(--md-sys-color-on-surface-variant,#43483f)]'
+                                )}
+                            >
+                                {item.label}
+                            </span>
                         </Link>
                     );
                 })}
@@ -97,4 +88,3 @@ const BottomNav = () => {
 };
 
 export default BottomNav;
-
