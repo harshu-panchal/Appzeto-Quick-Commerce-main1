@@ -602,3 +602,18 @@
     transform: none !important;
   }
 }
+
+/* Liquid-glass active indicator for the bottom nav (CSS equivalent of
+   expo-glass-effect, which only exists for React Native). */
+.customer-bottom-nav__glass {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.15) 55%),
+    color-mix(in srgb, var(--md-sys-color-primary, #2e7d32) 22%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  backdrop-filter: blur(14px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.06),
+    0 2px 8px rgba(24, 51, 33, 0.18);
+}

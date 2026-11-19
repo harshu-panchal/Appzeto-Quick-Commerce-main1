@@ -11,3 +11,4 @@ tests/load/data/seeded-ids.json
 tests/
 docs/
 node_modules
+config.bat

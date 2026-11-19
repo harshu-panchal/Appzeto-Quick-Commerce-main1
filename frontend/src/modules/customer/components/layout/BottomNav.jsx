@@ -52,7 +52,7 @@ const BottomNav = () => {
                                 {isActive && (
                                     <motion.span
                                         layoutId="customer-bottom-nav-indicator"
-                                        className="absolute inset-0 rounded-full bg-[var(--md-sys-color-secondary-container,#e2eedd)]"
+                                        className="customer-bottom-nav__glass absolute inset-0 rounded-full"
                                         transition={{ type: 'spring', stiffness: 500, damping: 38 }}
                                     />
                                 )}

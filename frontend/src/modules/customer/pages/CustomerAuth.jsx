@@ -220,6 +220,16 @@ const CustomerAuth = () => {
     return (
         <div className="min-h-screen w-full relative flex items-center justify-center font-['Outfit',_sans-serif] overflow-hidden">
 
+            {/* Back button */}
+            <button
+                type="button"
+                aria-label="Go back"
+                onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+                className="absolute top-4 left-4 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-800 shadow-md backdrop-blur-md active:scale-95 transition-transform"
+            >
+                <ChevronLeft size={22} />
+            </button>
+
             {/* Dynamic Atmospheric Background */}
             <div 
                 className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat transition-all duration-1000"

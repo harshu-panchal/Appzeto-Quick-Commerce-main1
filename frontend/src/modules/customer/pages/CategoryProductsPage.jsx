@@ -174,7 +174,7 @@ const CategoryProductsPage = () => {
     }, [safeProducts]);
 
     return (
-        <div className="customer-category-page flex flex-col min-h-screen bg-white max-w-md mx-auto relative font-sans">
+        <div className="customer-category-page flex flex-col min-h-screen bg-white w-full md:max-w-md mx-auto relative font-sans">
             <div className="hidden md:block">
                 <MainLocationHeader />
             </div>
