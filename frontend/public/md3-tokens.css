@@ -62,3 +62,19 @@
   --customer-mobile-line: var(--md-sys-color-outline-variant);
   --customer-mobile-canvas: var(--md-sys-color-surface);
 }
+
+/*
+ * Safe-area insets. Inside the Flutter APK the native wrapper already keeps
+ * the WebView clear of the status and gesture bars, yet the WebView still
+ * reports those insets, which doubled the gap above the header and below the
+ * bottom nav. main.jsx adds .in-app-webview there, zeroing the insets.
+ */
+:root {
+  --app-safe-top: env(safe-area-inset-top, 0px);
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html.in-app-webview {
+  --app-safe-top: 0px;
+  --app-safe-bottom: 0px;
+}
